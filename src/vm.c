@@ -213,7 +213,9 @@ void initVM() {
   defineNativeMethod(sysClass, "clock", clockNative);
   defineNativeMethod(sysClass, "error", errorNative);
 
+#if INITIALIZE_CORE
   initializeCore(&vm);
+#endif
 }
 
 void freeVM() {

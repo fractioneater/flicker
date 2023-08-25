@@ -5,13 +5,23 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// FEATURE TOGGLES
+
 // TODO: Explain
 #ifndef NAN_TAGGING
   #define NAN_TAGGING 1
 #endif
 
+// CURRENT MAINTENANCE FLAGS
+// These will be removed after I know the new change works.
+
 // Operators call methods instead of having their own opcodes.
-#define METHOD_CALL_OPERATORS 1
+#define METHOD_CALL_OPERATORS 0
+
+// Initialize the core library on VM startup
+#define INITIALIZE_CORE 0
+
+// DEBUG FLAGS
 
 // Don't do any compiling, just print the tokens.
 #define DEBUG_PRINT_TOKENS 0
@@ -28,8 +38,7 @@
 // Log memory allocation and garbage collector runs.
 #define DEBUG_LOG_GC 0
 
-//
-// Compiler and VM values
+// COMPILER AND VM VALUES
 
 #define MAX_PARAMETERS 16
 

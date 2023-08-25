@@ -251,10 +251,11 @@ static void emitByte(uint8_t byte) {
   writeChunk(currentChunk(), byte, parser.previous.line);
 }
 
-static void emitShort(int arg) {
-  emitByte((arg >> 8) & 0xff);
-  emitByte(arg & 0xff);
-}
+// Uncomment if needed, delete if not needed
+// static void emitShort(int arg) {
+//   emitByte((arg >> 8) & 0xff);
+//   emitByte(arg & 0xff);
+// }
 
 static void emitByteArg(uint8_t instruction, uint8_t arg) {
   emitByte(instruction);
@@ -267,10 +268,11 @@ static void emitByteArgs(uint8_t instruction, uint8_t arg1, uint8_t arg2) {
   emitByte(arg2);
 }
 
-static void emitShortArg(uint8_t instruction, int arg) {
-  emitByte(instruction);
-  emitShort(arg);
-}
+// Uncomment if needed, delete if not needed
+// static void emitShortArg(uint8_t instruction, int arg) {
+//   emitByte(instruction);
+//   emitShort(arg);
+// }
 
 static void emitLoop(int loopStart) {
   emitByte(OP_LOOP);
@@ -988,7 +990,11 @@ ParseRule rules[] = {
   /* TOKEN_GT_EQ         */ INFIX_OPERATOR(BP_COMPARISON, ">="),
   /* TOKEN_LT            */ INFIX_OPERATOR(BP_COMPARISON, "<"),
   /* TOKEN_LT_EQ         */ INFIX_OPERATOR(BP_COMPARISON, "<="),
+#if METHOD_CALL_OPERATORS
   /* TOKEN_IDENTIFIER    */ { variable, NULL, BP_NONE, NULL, namedSignature },
+#else
+  /* TOKEN_IDENTIFIER    */ PREFIX(variable, BP_NONE),
+#endif
   /* TOKEN_STRING        */ PREFIX(literal, BP_NONE),
   /* TOKEN_INTERPOLATION */ PREFIX(stringInterpolation, BP_NONE),
   /* TOKEN_NUMBER        */ PREFIX(literal, BP_NONE),
@@ -1191,6 +1197,8 @@ static void lambda(bool canAssign) {
 static void method() {
   bool isStatic = match(TOKEN_STATIC);
 
+#if METHOD_CALL_OPERATORS
+
   SignatureFn signatureFn = getRule(parser.current.type)->signatureFn;
   advance();
 
@@ -1216,9 +1224,28 @@ static void method() {
   int length;
   signatureToString(&signature, fullSignature, &length);
 
+#else
+
+  FunctionType type = isStatic ? TYPE_STATIC_METHOD : TYPE_METHOD;
+  if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
+    if (isStatic) {
+      error("Initializers cannot be static");
+    }
+    type = TYPE_INITIALIZER;
+  }
+
+  uint8_t constant = identifierConstant(&parser.previous);
+
+#endif
+
   function(type);
   emitByteArg(OP_METHOD, (uint8_t)isStatic);
+
+#if METHOD_CALL_OPERATORS
   emitByte(makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
+#else
+  emitByte(constant);
+#endif
 }
 
 static void classDeclaration() {
