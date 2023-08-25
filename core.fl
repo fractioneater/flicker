@@ -1,0 +1,44 @@
+class Bool {}
+class None {}
+class Number {}
+
+class Sequence
+  all(f)
+    var result = true
+    each (element in this)
+      result = f(element)
+      if (!result) return result
+    return result
+  
+  any(f)
+    var result = false
+    each (element in this)
+      result = f(element)
+      if (result) result
+    return result
+  
+  contains(element)
+    each (item in this)
+      if (element == item) return true
+    return false
+  
+  count
+    var result = 0
+    each (element in this)
+      result = result + 1
+    return result
+  
+  count(f)
+    var result = 0
+    each (element in this)
+      if (f(element)) result = result + 1
+    return result
+  
+  forEach(f)
+    each (element in this)
+      f(element)
+  
+  isEmpty
+    return if (iterate(null)) false else true
+  
+  
