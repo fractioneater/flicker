@@ -20,15 +20,6 @@ static int constantInstruction(const char* name, Chunk* chunk, int offset) {
   return offset + 2;
 }
 
-static int methodInstruction(const char* name, Chunk* chunk, int offset) {
-  uint8_t isStatic = chunk->code[offset + 1];
-  uint8_t constant = chunk->code[offset + 2];
-  printf("%-16s %4d '", name, constant);
-  printValue(chunk->constants.values[constant]);
-  printf("' %s\n", "\0static method" + isStatic);
-  return offset + 3;
-}
-
 static int invokeInstruction(const char* name, Chunk* chunk, int offset) {
   uint8_t constant = chunk->code[offset + 1];
   uint8_t argCount = chunk->code[offset + 2];
@@ -189,8 +180,10 @@ int disassembleInstruction(Chunk* chunk, int offset) {
       return constantInstruction("OP_CLASS", chunk, offset);
     case OP_INHERIT:
       return simpleInstruction("OP_INHERIT", offset);
-    case OP_METHOD:
-      return methodInstruction("OP_METHOD", chunk, offset);
+    case OP_METHOD_INSTANCE:
+      return constantInstruction("OP_METHOD_INSTANCE", chunk, offset);
+    case OP_METHOD_STATIC:
+      return constantInstruction("OP_METHOD_STATIC", chunk, offset);
     default:
       printf("Unknown opcode %d\n", instruction);
       return offset + 1;

@@ -1224,7 +1224,12 @@ static void method() {
   int length;
   signatureToString(&signature, fullSignature, &length);
 
+  uint8_t constant = makeConstant(OBJ_VAL(copyStringLength(fullSignature, length)))
+
 #else
+
+  expect(TOKEN_IDENTIFIER, "Expecting a method name");
+  uint8_t constant = identifierConstant(&parser.previous);
 
   FunctionType type = isStatic ? TYPE_STATIC_METHOD : TYPE_METHOD;
   if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
@@ -1234,18 +1239,11 @@ static void method() {
     type = TYPE_INITIALIZER;
   }
 
-  uint8_t constant = identifierConstant(&parser.previous);
-
 #endif
 
   function(type);
-  emitByteArg(OP_METHOD, (uint8_t)isStatic);
-
-#if METHOD_CALL_OPERATORS
-  emitByte(makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
-#else
+  emitByte(OP_METHOD_INSTANCE + isStatic);
   emitByte(constant);
-#endif
 }
 
 static void classDeclaration() {

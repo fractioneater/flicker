@@ -47,7 +47,7 @@ typedef struct ObjClass ObjClass;
 struct Obj {
   ObjType type;
   bool isMarked;
-  ObjClass* classObj;
+  ObjClass* cls;
   struct Obj* next;
 };
 
@@ -117,7 +117,6 @@ struct ObjClass {
 
 typedef struct {
   Obj obj;
-  ObjClass* cls;
   Table fields;
 } ObjInstance;
 

@@ -57,7 +57,7 @@ extern VM vm;
 
 static inline ObjClass* getClass(Value value) {
   if (IS_NUMBER(value)) return (&vm)->numberClass;
-  if (IS_OBJ(value)) return AS_OBJ(value)->classObj;
+  if (IS_OBJ(value)) return AS_OBJ(value)->cls;
 
 #if NAN_TAGGING
   switch (GET_TAG(value)) {
@@ -71,7 +71,7 @@ static inline ObjClass* getClass(Value value) {
     case VAL_BOOL:   return (&vm)->boolClass;
     case VAL_NONE:   return (&vm)->noneClass;
     case VAL_NUMBER: return (&vm)->numberClass;
-    case VAL_OBJ:    return AS_OBJ(value)->classObj;
+    case VAL_OBJ:    return AS_OBJ(value)->cls;
   }
 #endif
 

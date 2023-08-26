@@ -429,7 +429,7 @@ DEF_PRIMITIVE(object_is) {
 
 DEF_PRIMITIVE(object_toString) {
   Obj* obj = AS_OBJ(args[0]);
-  ObjString* name = obj->classObj->name;
+  ObjString* name = obj->cls->name;
   RETURN_OBJ(stringFormat("# instance", name));
 }
 
@@ -716,11 +716,11 @@ static ObjClass* defineClass(VM* vm, const char* name) {
   return cls;
 }
 
-#define GET_CORE_CLASS(classObj, name)                      \
+#define GET_CORE_CLASS(cls, name)                           \
   do {                                                      \
     Value value;                                            \
     if (tableGet(&vm->globals, copyString(name), &value)) { \
-      classObj = AS_CLASS(value);                           \
+      cls = AS_CLASS(value);                                \
     }                                                       \
   } while (false)
 
@@ -862,6 +862,6 @@ void initializeCore(VM* vm) {
   // Some string objects were created before stringClass even existed. Those
   // strings have a NULL classObj, so that needs to be fixed.
   for (Obj* obj = vm->objects; obj != NULL; obj = obj->next) {
-    if (obj->type == OBJ_STRING) obj->classObj = vm->stringClass;
+    if (obj->type == OBJ_STRING) obj->cls = vm->stringClass;
   }
 }

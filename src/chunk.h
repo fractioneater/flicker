@@ -60,7 +60,8 @@ typedef enum {
   OP_RETURN,
   OP_CLASS,
   OP_INHERIT,
-  OP_METHOD
+  OP_METHOD_INSTANCE,
+  OP_METHOD_STATIC
 } OpCode;
 
 typedef struct {

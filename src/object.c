@@ -11,33 +11,34 @@
 #include "value.h"
 #include "vm.h"
 
-#define ALLOCATE_OBJ(type, objectType) \
-  (type*)allocateObject(sizeof(type), objectType)
+#define ALLOCATE_OBJ(type, objectType, cls) \
+  (type*)allocateObject(sizeof(type), objectType, cls)
 
-static Obj* allocateObject(size_t size, ObjType type) {
-  Obj* object = (Obj*)reallocate(NULL, 0, size);
-  object->type = type;
-  object->isMarked = false;
+static Obj* allocateObject(size_t size, ObjType type, ObjClass* cls) {
+  Obj* obj = (Obj*)reallocate(NULL, 0, size);
+  obj->type = type;
+  obj->isMarked = false;
+  obj->cls = cls;
 
-  object->next = vm.objects;
-  vm.objects = object;
+  obj->next = vm.objects;
+  vm.objects = obj;
 
 #if DEBUG_LOG_GC
-  printf("%p allocate %zu for %d\n", (void*)object, size, type);
+  printf("%p allocate %zu for %d\n", (void*)obj, size, type);
 #endif
 
-  return object;
+  return obj;
 }
 
 ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method) {
-  ObjBoundMethod* bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD);
+  ObjBoundMethod* bound = ALLOCATE_OBJ(ObjBoundMethod, OBJ_BOUND_METHOD, NULL);
   bound->receiver = receiver;
   bound->method = method;
   return bound;
 }
 
 ObjClass* newClass(ObjString* name) {
-  ObjClass* cls = ALLOCATE_OBJ(ObjClass, OBJ_CLASS);
+  ObjClass* cls = ALLOCATE_OBJ(ObjClass, OBJ_CLASS, NULL);
   cls->name = name;
   cls->superclass = NULL;
   initTable(&cls->methods);
@@ -56,7 +57,7 @@ ObjClosure* newClosure(ObjFunction* function) {
     upvalues[i] = NULL;
   }
 
-  ObjClosure* closure = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE);
+  ObjClosure* closure = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE, NULL);
   closure->function = function;
   closure->upvalues = upvalues;
   closure->upvalueCount = function->upvalueCount;
@@ -64,7 +65,7 @@ ObjClosure* newClosure(ObjFunction* function) {
 }
 
 ObjFunction* newFunction() {
-  ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION);
+  ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION, NULL);
   function->arity = 0;
   function->upvalueCount = 0;
   function->name = NULL;
@@ -73,21 +74,20 @@ ObjFunction* newFunction() {
 }
 
 ObjInstance* newInstance(ObjClass* cls) {
-  ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE);
-  instance->cls = cls;
+  ObjInstance* instance = ALLOCATE_OBJ(ObjInstance, OBJ_INSTANCE, cls);
   initTable(&instance->fields);
   return instance;
 }
 
 ObjNative* newNative(NativeFn function) {
-  ObjNative* obj = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
+  ObjNative* obj = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE, NULL);
   obj->isPrimitive = false;
   obj->as.native = function;
   return obj;
 }
 
 ObjNative* newPrimitive(Primitive function) {
-  ObjNative* obj = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE);
+  ObjNative* obj = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE, NULL);
   obj->isPrimitive = true;
   obj->as.primitive = function;
   return obj;
@@ -97,7 +97,7 @@ ObjList* newList(uint32_t count) {
   Value* array = NULL;
   if (count > 0) array = ALLOCATE(Value, count);
 
-  ObjList* list = ALLOCATE_OBJ(ObjList, OBJ_LIST);
+  ObjList* list = ALLOCATE_OBJ(ObjList, OBJ_LIST, vm.listClass);
   list->items = array;
   list->count = count;
   list->capacity = count;
@@ -153,7 +153,7 @@ int listIndexOf(ObjList* list, Value value) {
 }
 
 static ObjString* allocateString(char* chars, int length, uint32_t hash) {
-  ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING);
+  ObjString* string = ALLOCATE_OBJ(ObjString, OBJ_STRING, vm.stringClass);
   string->length = length;
   string->chars = chars;
   string->hash = hash;
@@ -380,7 +380,7 @@ Value indexFromString(ObjString* string, int index) {
 }
 
 ObjRange* newRange(double from, double to, bool isInclusive) {
-  ObjRange* range = ALLOCATE_OBJ(ObjRange, OBJ_RANGE);
+  ObjRange* range = ALLOCATE_OBJ(ObjRange, OBJ_RANGE, vm.rangeClass);
   range->from = from;
   range->to = to;
   range->isInclusive = isInclusive;
@@ -388,7 +388,7 @@ ObjRange* newRange(double from, double to, bool isInclusive) {
 }
 
 ObjUpvalue* newUpvalue(Value* slot) {
-  ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE);
+  ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE, NULL);
   upvalue->closed = NONE_VAL;
   upvalue->location = slot;
   upvalue->next = NULL;
@@ -418,7 +418,7 @@ void printObject(Value value) {
       printFunction(AS_FUNCTION(value));
       break;
     case OBJ_INSTANCE:
-      printf("%s instance", AS_INSTANCE(value)->cls->name->chars);
+      printf("%s instance", AS_INSTANCE(value)->obj.cls->name->chars);
       break;
     case OBJ_NATIVE:
       printf("<native fn>");

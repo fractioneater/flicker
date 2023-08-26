@@ -362,7 +362,7 @@ static bool invoke(ObjString* name, int argCount) {
     return callValue(value, argCount);
   }
 
-  return invokeFromClass(instance->cls, name, argCount);
+  return invokeFromClass(instance->obj.cls, name, argCount);
 }
 
 static bool bindMethod(ObjClass* cls, ObjString* name) {
@@ -580,7 +580,7 @@ static InterpretResult run() {
           break;
         }
 
-        if (!bindMethod(instance->cls, name)) {
+        if (!bindMethod(instance->obj.cls, name)) {
           return INTERPRET_RUNTIME_ERROR;
         }
         break;
@@ -929,12 +929,11 @@ static InterpretResult run() {
         pop(); // Subclass.
         break;
       }
-      case OP_METHOD:
-        if (READ_BYTE()) {
-          defineClassMethod(READ_STRING());
-        } else {
-          defineMethod(READ_STRING());
-        }
+      case OP_METHOD_INSTANCE:
+        defineMethod(READ_STRING());
+        break;
+      case OP_METHOD_STATIC:
+        defineClassMethod(READ_STRING());
         break;
     }
   }
