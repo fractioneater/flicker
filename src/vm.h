@@ -20,6 +20,7 @@ typedef struct {
   ObjClass* objectClass;
   ObjClass* classClass;
   ObjClass* boolClass;
+  ObjClass* functionClass;
   ObjClass* listClass;
   ObjClass* noneClass;
   ObjClass* numberClass;
@@ -56,21 +57,21 @@ typedef enum {
 extern VM vm;
 
 static inline ObjClass* getClass(Value value) {
-  if (IS_NUMBER(value)) return (&vm)->numberClass;
+  if (IS_NUMBER(value)) return vm.numberClass;
   if (IS_OBJ(value)) return AS_OBJ(value)->cls;
 
 #if NAN_TAGGING
   switch (GET_TAG(value)) {
-    case TAG_FALSE: return (&vm)->boolClass; break;
-    case TAG_TRUE:  return (&vm)->boolClass; break;
-    case TAG_NONE:  return (&vm)->noneClass; break;
-    case TAG_NAN:   return (&vm)->numberClass; break;
+    case TAG_FALSE: return vm.boolClass; break;
+    case TAG_TRUE:  return vm.boolClass; break;
+    case TAG_NONE:  return vm.noneClass; break;
+    case TAG_NAN:   return vm.numberClass; break;
   }
 #else
   switch(value.type) {
-    case VAL_BOOL:   return (&vm)->boolClass;
-    case VAL_NONE:   return (&vm)->noneClass;
-    case VAL_NUMBER: return (&vm)->numberClass;
+    case VAL_BOOL:   return vm.boolClass;
+    case VAL_NONE:   return vm.noneClass;
+    case VAL_NUMBER: return vm.numberClass;
     case VAL_OBJ:    return AS_OBJ(value)->cls;
   }
 #endif

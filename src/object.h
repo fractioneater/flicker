@@ -112,7 +112,6 @@ struct ObjClass {
   ObjClass* superclass;
   ObjString* name;
   Table methods;
-  Table classMethods;
 };
 
 typedef struct {
@@ -128,6 +127,7 @@ typedef struct {
 
 ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method);
 
+ObjClass* newSingleClass(ObjString* name);
 ObjClass* newClass(ObjString* name);
 void bindSuperclass(ObjClass* subclass, ObjClass* superclass);
 

@@ -15,122 +15,122 @@
 
 VM vm;
 
-static Value inputNative(int argCount, Value* args) {
-  if (argCount > 1) {
-    // Arity error
-  } else if (argCount == 1) {
-    printValue(args[0]);
-  }
+// static Value inputNative(int argCount, Value* args) {
+//   if (argCount > 1) {
+//     // Arity error
+//   } else if (argCount == 1) {
+//     printValue(args[0]);
+//   }
 
-  char* buffer = NULL;
-  uint64_t length;
-  int read;
-  read = getline(&buffer, &length, stdin);
-  if (read == -1) {
-    return OBJ_VAL(copyStringLength("", 0));
-  }
+//   char* buffer = NULL;
+//   uint64_t length;
+//   int read;
+//   read = getline(&buffer, &length, stdin);
+//   if (read == -1) {
+//     return OBJ_VAL(copyStringLength("", 0));
+//   }
 
-  buffer[strcspn(buffer, "\r\n")] = '\0';
+//   buffer[strcspn(buffer, "\r\n")] = '\0';
 
-  return OBJ_VAL(takeString(buffer, length));
-}
+//   return OBJ_VAL(takeString(buffer, length));
+// }
 
-static Value readFileNative(int argCount, Value* args) {
-  if (argCount != 1) {
-    // Arity error
-  }
+// static Value readFileNative(int argCount, Value* args) {
+//   if (argCount != 1) {
+//     // Arity error
+//   }
 
-  if (IS_STRING(args[0])) {
-    FILE* file = fopen(AS_CSTRING(args[0]), "rb");
-    if (file == NULL) {
-      // Couldn't open file
-    }
+//   if (IS_STRING(args[0])) {
+//     FILE* file = fopen(AS_CSTRING(args[0]), "rb");
+//     if (file == NULL) {
+//       // Couldn't open file
+//     }
 
-    fseek(file, 0L, SEEK_END);
-    size_t fileSize = ftell(file);
-    rewind(file);
+//     fseek(file, 0L, SEEK_END);
+//     size_t fileSize = ftell(file);
+//     rewind(file);
 
-    char* buffer = ALLOCATE(char, fileSize + 1);
-    if (buffer == NULL) {
-      // Not enough memory
-    }
+//     char* buffer = ALLOCATE(char, fileSize + 1);
+//     if (buffer == NULL) {
+//       // Not enough memory
+//     }
 
-    size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
-    if (bytesRead < fileSize) {
-      // Couldn't read file
-    }
+//     size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
+//     if (bytesRead < fileSize) {
+//       // Couldn't read file
+//     }
 
-    buffer[bytesRead] = '\0';
-    fclose(file);
+//     buffer[bytesRead] = '\0';
+//     fclose(file);
 
-    return OBJ_VAL(takeString(buffer, fileSize + 1));
-  }
+//     return OBJ_VAL(takeString(buffer, fileSize + 1));
+//   }
 
-  return NONE_VAL;
-}
+//   return NONE_VAL;
+// }
 
-static Value gcNative(int argCount, Value* args) {
-  if (argCount != 0) {
-    // Arity error
-  }
+// static Value gcNative(int argCount, Value* args) {
+//   if (argCount != 0) {
+//     // Arity error
+//   }
 
-  collectGarbage();
-  return NONE_VAL;
-}
+//   collectGarbage();
+//   return NONE_VAL;
+// }
 
-static Value clockNative(int argCount, Value* args) {
-  if (argCount != 0) {
-    // Arity error
-  }
+// static Value clockNative(int argCount, Value* args) {
+//   if (argCount != 0) {
+//     // Arity error
+//   }
 
-  return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
-}
+//   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
+// }
 
-static Value errorNative(int argCount, Value* args) {
-  if (argCount > 1) {
-    // Arity error
-  }
+// static Value errorNative(int argCount, Value* args) {
+//   if (argCount > 1) {
+//     // Arity error
+//   }
 
-  if (IS_STRING(args[0])) {
-    fprintf(stderr, "%s\n", AS_CSTRING(args[0]));
-  }
+//   if (IS_STRING(args[0])) {
+//     fprintf(stderr, "%s\n", AS_CSTRING(args[0]));
+//   }
 
-  return NONE_VAL;
-}
+//   return NONE_VAL;
+// }
 
-static Value listAddNative(int argCount, Value* args) {
-  if (argCount != 2) {
-    // Arity error
-  }
+// static Value listAddNative(int argCount, Value* args) {
+//   if (argCount != 2) {
+//     // Arity error
+//   }
 
-  if (IS_LIST(args[0])) {
-    ObjList* list = AS_LIST(args[0]);
-    Value item = args[1];
-    listAppend(list, item);
-    return item;
-  }
+//   if (IS_LIST(args[0])) {
+//     ObjList* list = AS_LIST(args[0]);
+//     Value item = args[1];
+//     listAppend(list, item);
+//     return item;
+//   }
 
-  return NONE_VAL;
-}
+//   return NONE_VAL;
+// }
 
-static Value listRemoveNative(int argCount, Value* args) {
-  if (argCount != 2) {
-    // Arity error
-  }
+// static Value listDeleteNative(int argCount, Value* args) {
+//   if (argCount != 2) {
+//     // Arity error
+//   }
 
-  if (IS_LIST(args[0]) && IS_NUMBER(args[1])) {
-    ObjList* list = AS_LIST(args[0]);
-    int index = AS_NUMBER(args[1]);
+//   if (IS_LIST(args[0]) && IS_NUMBER(args[1])) {
+//     ObjList* list = AS_LIST(args[0]);
+//     int index = AS_NUMBER(args[1]);
 
-    if (!isValidListIndex(list, index)) {
-      // Out of bounds error
-    }
+//     if (!isValidListIndex(list, index)) {
+//       // Out of bounds error
+//     }
 
-    return listDeleteAt(list, index);
-  }
+//     return listDeleteAt(list, index);
+//   }
 
-  return NONE_VAL;
-}
+//   return NONE_VAL;
+// }
 
 static void resetStack() {
   vm.stackTop = vm.stack;
@@ -160,31 +160,27 @@ static void runtimeError(const char* format, ...) {
   resetStack();
 }
 
-static void defineNativeFunction(const char* name, NativeFn function) {
-  ObjString* fnName = copyString(name);
-  pushRoot((Obj*)fnName);
-  ObjNative* native = newNative(function);
-  pushRoot((Obj*)native);
-  tableSet(&vm.globals, fnName, OBJ_VAL(native));
-  popRoot();
-  popRoot();
-}
+// static void defineNativeFunction(const char* name, NativeFn function) {
+//   ObjString* fnName = copyString(name);
+//   pushRoot((Obj*)fnName);
+//   ObjNative* native = newNative(function);
+//   pushRoot((Obj*)native);
+//   tableSet(&vm.globals, fnName, OBJ_VAL(native));
+//   popRoot();
+//   popRoot();
+// }
 
-static ObjClass* defineNativeClass(const char* name) {
-  // Store the class name and create the class.
-  ObjString* className = copyString(name);
-  ObjClass* cls = newClass(className);
-  // Define the class as a global.
-  tableSet(&vm.globals, className, OBJ_VAL(cls));
+// static ObjClass* defineNativeClass(const char* name) {
+//   // Store the class name and create the class.
+//   ObjString* className = copyString(name);
+//   ObjClass* cls = newSingleClass(className);
+//   // Define the class as a global.
+//   tableSet(&vm.globals, className, OBJ_VAL(cls));
 
-  return cls;
-}
+//   return cls;
+// }
 
-static void defineNativeMethod(ObjClass* cls, const char* name, NativeFn native) {
-  ObjString* methodName = copyString(name);
-  Value nativeObj = OBJ_VAL(newNative(native));
-  tableSet(&cls->classMethods, methodName, nativeObj);
-}
+// defineNativeMethod is gone.
 
 void initVM() {
   resetStack();
@@ -202,16 +198,16 @@ void initVM() {
   vm.initString = NULL;
   vm.initString = copyStringLength("init", 4);
 
-  defineNativeFunction("input", inputNative);
-  defineNativeFunction("readFile", readFileNative);
-  defineNativeFunction("add", listAddNative);
-  defineNativeFunction("remove", listRemoveNative);
+  // defineNativeFunction("input", inputNative);
+  // defineNativeFunction("readFile", readFileNative);
+  // defineNativeFunction("add", listAddNative);
+  // defineNativeFunction("delete", listDeleteNative);
 
-  ObjClass* sysClass = defineNativeClass("Sys");
+  // ObjClass* sysClass = defineNativeClass("Sys");
 
-  defineNativeMethod(sysClass, "gc", gcNative);
-  defineNativeMethod(sysClass, "clock", clockNative);
-  defineNativeMethod(sysClass, "error", errorNative);
+  // defineNativeMethod(sysClass, "gc", gcNative);
+  // defineNativeMethod(sysClass, "clock", clockNative);
+  // defineNativeMethod(sysClass, "error", errorNative);
 
 #if INITIALIZE_CORE
   initializeCore(&vm);
@@ -302,7 +298,7 @@ static bool callValue(Value callee, int argCount) {
           vm.stackTop -= argCount + 1;
           push(result);
         } else {
-          // TODO
+          // TODO: Calling primitive functions
         }
         return true;
       }
@@ -327,42 +323,38 @@ static bool invokeFromClass(ObjClass* cls, ObjString* name, int argCount) {
 static bool invoke(ObjString* name, int argCount) {
   Value receiver = peekInt(argCount);
 
-  if (IS_CLASS(receiver)) {
-    ObjClass* cls = AS_CLASS(receiver);
+  ObjClass* cls = getClass(receiver);
 
-    Value method;
-    if (!tableGet(&cls->classMethods, name, &method)) {
-      runtimeError("Method '%s' is not implemented by %s metaclass", name->chars, cls->name->chars);
-      return false;
+  if (IS_INSTANCE(receiver)) {
+    ObjInstance* instance = AS_INSTANCE(receiver);
+
+    Value field;
+    if (tableGet(&instance->fields, name, &field)) {
+      vm.stackTop[-argCount - 1] = field;
+      return callValue(field, argCount);
     }
+  }
 
-    if (IS_NATIVE(method)) {
-      ObjNative* nativeObj = AS_NATIVE(method);
-      if (!nativeObj->isPrimitive) {
-        Value result = nativeObj->as.native(argCount, vm.stackTop - argCount);
-        vm.stackTop -= argCount + 1;
-        push(result);
-      } else {
-        // TODO
-      }
-      return true;
-    }
-
-    return call(AS_CLOSURE(method), argCount);
-  } else if (!IS_INSTANCE(receiver)) {
-    runtimeError("Only instances have methods");
+  Value method;
+  if (!tableGet(&cls->methods, name, &method)) {
+    runtimeError("Class %s does not implement '%s'", cls->name->chars, name->chars);
     return false;
   }
 
-  ObjInstance* instance = AS_INSTANCE(receiver);
+  if (IS_NATIVE(method)) {
+    ObjNative* nativeObj = AS_NATIVE(method);
 
-  Value value;
-  if (tableGet(&instance->fields, name, &value)) {
-    vm.stackTop[-argCount - 1] = value;
-    return callValue(value, argCount);
+    if (!nativeObj->isPrimitive) {
+      Value result = nativeObj->as.native(argCount, vm.stackTop - argCount);
+      vm.stackTop -= argCount + 1;
+      push(result);
+    } else {
+      // TODO: Calling primitive functions
+    }
+    return true;
   }
 
-  return invokeFromClass(instance->obj.cls, name, argCount);
+  return invokeFromClass(cls, name, argCount);
 }
 
 static bool bindMethod(ObjClass* cls, ObjString* name) {
@@ -421,7 +413,7 @@ static void defineMethod(ObjString* name) {
 static void defineClassMethod(ObjString* name) {
   Value method = peek();
   ObjClass* cls = AS_CLASS(peek2());
-  tableSet(&cls->classMethods, name, method);
+  tableSet(&cls->obj.cls->methods, name, method);
   pop();
 }
 
@@ -555,7 +547,7 @@ static InterpretResult run() {
           ObjString* name = READ_STRING();
 
           Value value;
-          if (!tableGet(&cls->classMethods, name, &value)) {
+          if (!tableGet(&cls->obj.cls->methods, name, &value)) {
             frame->ip = ip;
             runtimeError("Method '%s' is not implemented by %s metaclass", name->chars, cls->name->chars);
             return INTERPRET_RUNTIME_ERROR;
@@ -639,7 +631,7 @@ static InterpretResult run() {
               runtimeError("String index is not a number");
               return INTERPRET_RUNTIME_ERROR;
             }
-            int index = AS_NUMBER(subscript); // TODO: Maybe count code points for indexing
+            int index = AS_NUMBER(subscript);
 
             if (!isValidStringIndex(string, index)) {
               frame->ip = ip;

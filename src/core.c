@@ -15,6 +15,8 @@
 #include "utils.h"
 #include "value.h"
 
+#include "core.fl.c"
+
 ///////////////////
 // Bool          //
 ///////////////////
@@ -44,6 +46,18 @@ DEF_PRIMITIVE(class_superclass) {
 }
 
 DEF_PRIMITIVE(class_toString) { RETURN_OBJ(AS_CLASS(args[0])->name); }
+
+///////////////////////
+// Function          //
+///////////////////////
+
+DEF_PRIMITIVE(function_arity) {
+  RETURN_NUMBER(AS_CLOSURE(args[0])->function->arity);
+}
+
+DEF_PRIMITIVE(function_toString) {
+  RETURN_OBJ(copyString("<fn>"));
+}
 
 ///////////////////
 // List          //
@@ -709,7 +723,7 @@ static ObjClass* defineClass(VM* vm, const char* name) {
   ObjString* className = copyString(name);
   pushRoot((Obj*)className);
 
-  ObjClass* cls = newClass(className);
+  ObjClass* cls = newSingleClass(className);
   tableSet(&vm->globals, className, OBJ_VAL(cls));
 
   popRoot();
@@ -726,7 +740,6 @@ static ObjClass* defineClass(VM* vm, const char* name) {
 
 void initializeCore(VM* vm) {
   vm->objectClass = defineClass(vm, "Object");
-  PRIM_STATIC(vm->objectClass, "same(2)", object_same);
   PRIMITIVE(vm->objectClass, "not", object_not);
   PRIMITIVE(vm->objectClass, "==(1)", object_equals);
   PRIMITIVE(vm->objectClass, "!=(1)", object_notEquals);
@@ -740,7 +753,17 @@ void initializeCore(VM* vm) {
   PRIMITIVE(vm->classClass, "superclass", class_superclass);
   PRIMITIVE(vm->classClass, "toString", class_toString);
 
+  ObjClass* objectMetaclass = defineClass(vm, "Object metaclass");
+
+  vm->objectClass->obj.cls = objectMetaclass;
+  objectMetaclass->obj.cls = vm->classClass;
+  vm->classClass->obj.cls = vm->classClass;
+
+  PRIMITIVE(vm->objectClass, "same(2)", object_same);
+
   // TODO: Interpret a source file with the rest of the standard library
+  // TODO NEXT: Just load the file. Who cares if it's incomplete, I need the metaclasses.
+  interpret(coreSource, "<core>");
 
   GET_CORE_CLASS(vm->boolClass, "Bool");
   PRIMITIVE(vm->boolClass, "toString", bool_toString);
@@ -750,16 +773,20 @@ void initializeCore(VM* vm) {
   PRIMITIVE(vm->noneClass, "not", none_not);
   PRIMITIVE(vm->noneClass, "toString", none_toString);
 
+  GET_CORE_CLASS(vm->functionClass, "Function");
+  PRIMITIVE(vm->functionClass, "arity", function_arity);
+  PRIMITIVE(vm->functionClass, "toString", function_toString);
+
   GET_CORE_CLASS(vm->numberClass, "Number");
-  PRIM_STATIC(vm->numberClass, "fromString(1)", number_fromString);
-  PRIM_STATIC(vm->numberClass, "infinity", number_infinity);
-  PRIM_STATIC(vm->numberClass, "nan", number_nan);
-  PRIM_STATIC(vm->numberClass, "pi", number_pi);
-  PRIM_STATIC(vm->numberClass, "tau", number_tau);
-  PRIM_STATIC(vm->numberClass, "maxDouble", number_maxDouble);
-  PRIM_STATIC(vm->numberClass, "minDouble", number_minDouble);
-  PRIM_STATIC(vm->numberClass, "maxInteger", number_maxInteger);
-  PRIM_STATIC(vm->numberClass, "minInteger", number_minInteger);
+  PRIMITIVE(vm->numberClass->obj.cls, "fromString(1)", number_fromString);
+  PRIMITIVE(vm->numberClass->obj.cls, "infinity", number_infinity);
+  PRIMITIVE(vm->numberClass->obj.cls, "nan", number_nan);
+  PRIMITIVE(vm->numberClass->obj.cls, "pi", number_pi);
+  PRIMITIVE(vm->numberClass->obj.cls, "tau", number_tau);
+  PRIMITIVE(vm->numberClass->obj.cls, "maxDouble", number_maxDouble);
+  PRIMITIVE(vm->numberClass->obj.cls, "minDouble", number_minDouble);
+  PRIMITIVE(vm->numberClass->obj.cls, "maxInteger", number_maxInteger);
+  PRIMITIVE(vm->numberClass->obj.cls, "minInteger", number_minInteger);
   PRIMITIVE(vm->numberClass, "+(1)", number_plus);
   PRIMITIVE(vm->numberClass, "-(1)", number_minus);
   PRIMITIVE(vm->numberClass, "*(1)", number_multiply);
@@ -809,8 +836,8 @@ void initializeCore(VM* vm) {
   PRIMITIVE(vm->numberClass, "truncate", number_truncate);
 
   GET_CORE_CLASS(vm->stringClass, "String");
-  PRIM_STATIC(vm->stringClass, "fromCodePoint(1)", string_fromCodePoint);
-  PRIM_STATIC(vm->stringClass, "fromByte(1)", string_fromByte);
+  PRIMITIVE(vm->stringClass->obj.cls, "fromCodePoint(1)", string_fromCodePoint);
+  PRIMITIVE(vm->stringClass->obj.cls, "fromByte(1)", string_fromByte);
   PRIMITIVE(vm->stringClass, "+(1)", string_plus);
   PRIMITIVE(vm->stringClass, "get(1)", string_subscript);
   PRIMITIVE(vm->stringClass, "byteAt(1)", string_byteAt);
@@ -827,8 +854,8 @@ void initializeCore(VM* vm) {
   PRIMITIVE(vm->stringClass, "toString", string_toString);
 
   GET_CORE_CLASS(vm->listClass, "List");
-  PRIM_STATIC(vm->listClass, "filled(2)", list_filled);
-  PRIM_STATIC(vm->listClass, "new()", list_new);
+  PRIMITIVE(vm->listClass->obj.cls, "filled(2)", list_filled);
+  PRIMITIVE(vm->listClass->obj.cls, "new()", list_new);
   PRIMITIVE(vm->listClass, "get(1)", list_subscript);
   PRIMITIVE(vm->listClass, "set(2)", list_subscriptSet);
   PRIMITIVE(vm->listClass, "add(1)", list_add);
@@ -855,9 +882,9 @@ void initializeCore(VM* vm) {
 
   ObjClass* sysClass;
   GET_CORE_CLASS(sysClass, "Sys");
-  PRIM_STATIC(sysClass, "clock", sys_clock);
-  PRIM_STATIC(sysClass, "gc()", sys_gc);
-  PRIM_STATIC(sysClass, "writeString(1)", sys_writeString);
+  PRIMITIVE(sysClass->obj.cls, "clock", sys_clock);
+  PRIMITIVE(sysClass->obj.cls, "gc()", sys_gc);
+  PRIMITIVE(sysClass->obj.cls, "writeString(1)", sys_writeString);
 
   // Some string objects were created before stringClass even existed. Those
   // strings have a NULL classObj, so that needs to be fixed.

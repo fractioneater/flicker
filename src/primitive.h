@@ -6,9 +6,6 @@
 #include "value.h"
 #include "vm.h"
 
-#define PRIM_STATIC(cls, name, function) \
-  tableSet(&cls->classMethods, copyString(name), OBJ_VAL(newPrimitive(prim_##function)))
-
 #define PRIMITIVE(cls, name, function) \
   tableSet(&cls->methods, copyString(name), OBJ_VAL(newPrimitive(prim_##function)))
 

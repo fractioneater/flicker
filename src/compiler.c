@@ -60,6 +60,7 @@ typedef struct {
   int length;
   SignatureType type;
   int arity;
+  bool* asProperty;
 } Signature;
 
 typedef void (*ParseFn)(bool canAssign);
@@ -561,22 +562,26 @@ static void defineVariable(uint8_t global) {
 }
 
 static void signatureParameterList(char name[MAX_METHOD_SIGNATURE], int* length, int arity) {
-  name[(*length++)] = '(';
+  name[(*length)++] = '(';
 
-  int digits = ceil(log10(arity + 1));
-  char chars[digits + 1];
-  sprintf(chars, "%d", arity);
+  if (arity > 0) {
+    int digits = ceil(log10(arity + 1));
+    char* chars = ALLOCATE(char, digits);
+    sprintf(chars, "%d", arity);
 
-  memcpy(name + *length, chars, digits);
-  *length += digits;
+    memcpy(name + *length, chars, digits);
+    *length += digits;
 
-  name[(*length++)] = ')';
+    FREE_ARRAY(char, chars, digits);
+  }
+
+  name[(*length)++] = ')';
 }
 
 static void signatureToString(Signature* signature, char name[MAX_METHOD_SIGNATURE], int* length) {
   *length = 0;
 
-  memcpy(name + *length, signature->name, signature->length);
+  memcpy(name, signature->name, signature->length);
   *length += signature->length;
 
   switch (signature->type) {
@@ -599,6 +604,7 @@ static Signature signatureFromToken(SignatureType type) {
   signature.length = token->length;
   signature.type = type;
   signature.arity = 0;
+  signature.asProperty = NULL;
 
   if (signature.length > MAX_METHOD_NAME) {
     error("Method name too long");
@@ -609,6 +615,7 @@ static Signature signatureFromToken(SignatureType type) {
 }
 
 static void finishParameterList(Signature* signature) {
+  signature->asProperty = ALLOCATE(bool, MAX_PARAMETERS);
   do {
     matchLine();
     signature->arity++;
@@ -616,6 +623,8 @@ static void finishParameterList(Signature* signature) {
     if (signature->arity == MAX_PARAMETERS + 1) {
       error("Too many parameters");
     }
+
+    signature->asProperty[signature->arity - 1] = match(TOKEN_PLUS);
 
     uint8_t constant = parseVariable("Expecting a parameter name");
     defineVariable(constant);
@@ -651,8 +660,17 @@ static void binary(bool canAssign) {
   expressionBp((BindingPower)(rule->bp + 1));
 
 #if METHOD_CALL_OPERATORS
-  emitByte(OP_INVOKE);
-  emitByteArg(makeConstant(OBJ_VAL(copyString(rule->name))), 1);
+  Signature signature = { rule->name, (int)strlen(rule->name), SIG_METHOD, 1 };
+
+  char fullSignature[MAX_METHOD_SIGNATURE];
+  int length;
+  signatureToString(&signature, fullSignature, &length);
+
+  Value string = OBJ_VAL(copyStringLength(fullSignature, length));
+  uint8_t constant = makeConstant(string);
+
+  emitByteArg(OP_INVOKE, constant);
+  emitByte(1);
 #else
   switch (operatorType) {
     case TOKEN_STAR_STAR: emitByte(OP_EXPONENT); break;
@@ -682,6 +700,7 @@ static void binary(bool canAssign) {
 void binarySignature(Signature* signature) {
   signature->type = SIG_METHOD;
   signature->arity = 1;
+  signature->asProperty = NULL;
 
   expect(TOKEN_LEFT_PAREN, "Expecting '(' after operator name");
   uint8_t constant = parseVariable("Expecting a parameter name");
@@ -699,6 +718,7 @@ void mixedSignature(Signature* signature) {
   if (match(TOKEN_LEFT_PAREN)) {
     signature->type = SIG_METHOD;
     signature->arity = 1;
+    signature->asProperty = NULL;
 
     uint8_t constant = parseVariable("Expecting a parameter name");
     defineVariable(constant);
@@ -807,7 +827,7 @@ static void if_(bool canAssign) {
 }
 
 static void stringInterpolation(bool canAssign) {
-  // TODO
+  // TODO: String interpolation
   // Nothing here.
 }
 
@@ -1104,10 +1124,6 @@ static void function(FunctionType type) {
   pushScope();
 
   expect(TOKEN_LEFT_PAREN, "Expecting '(' after function name");
-  bool* asProperty = NULL;
-  if (type == TYPE_METHOD || type == TYPE_INITIALIZER) {
-    asProperty = ALLOCATE(bool, UINT8_MAX);
-  }
   if (!check(TOKEN_RIGHT_PAREN)) {
     do {
       matchLine();
@@ -1116,32 +1132,11 @@ static void function(FunctionType type) {
         errorAtCurrent("Can't have more than 255 parameters");
       }
 
-      if (asProperty != NULL) {
-        asProperty[current->function->arity - 1] = match(TOKEN_PLUS);
-      } else {
-        if (match(TOKEN_PLUS)) {
-          error("Can only store fields through methods");
-        }
-      }
-
       uint8_t constant = parseVariable("Expecting a parameter name");
       defineVariable(constant);
     } while (match(TOKEN_COMMA));
   }
   expect(TOKEN_RIGHT_PAREN, "Expecting ')' after parameters");
-
-  if (asProperty != NULL) {
-    for (int i = 1; i <= current->function->arity; i++) {
-      if (asProperty[i - 1]) {
-        emitByteArg(OP_GET_LOCAL, 0);
-        emitByteArg(OP_GET_LOCAL, i);
-        Local local = current->locals[i];
-        emitByteArg(OP_SET_PROPERTY, identifierConstant(&local.name));
-        emitByte(OP_POP);
-      }
-    }
-    FREE_ARRAY(bool, asProperty, UINT8_MAX);
-  }
 
   if (matchLine()) {
     expect(TOKEN_INDENT, "Expecting an indent before function body");
@@ -1224,7 +1219,7 @@ static void method() {
   int length;
   signatureToString(&signature, fullSignature, &length);
 
-  uint8_t constant = makeConstant(OBJ_VAL(copyStringLength(fullSignature, length)))
+  uint8_t constant = makeConstant(OBJ_VAL(copyStringLength(fullSignature, length)));
 
 #else
 
@@ -1241,7 +1236,40 @@ static void method() {
 
 #endif
 
-  function(type);
+  Compiler compiler;
+  initCompiler(&compiler, type);
+  pushScope();
+
+  if (signature.asProperty != NULL) {
+    if (isStatic) error("Can only store fields through non-static methods");
+    for (int i = 1; i <= current->function->arity; i++) {
+      if (signature.asProperty[i - 1]) {
+        emitByteArg(OP_GET_LOCAL, 0);
+        emitByteArg(OP_GET_LOCAL, i);
+        Local local = current->locals[i];
+        emitByteArg(OP_SET_PROPERTY, identifierConstant(&local.name));
+        emitByte(OP_POP);
+      }
+    }
+    FREE_ARRAY(bool, signature.asProperty, MAX_PARAMETERS);
+  }
+
+  if (matchLine()) {
+    expect(TOKEN_INDENT, "Expecting an indent before method body");
+    block(true);
+  } else {
+    expect(TOKEN_LEFT_BRACE, "Expecting '{' before method body");
+    block(false);
+  }
+
+  ObjFunction* result = endCompiler();
+  emitByteArg(OP_CLOSURE, makeConstant(OBJ_VAL(result)));
+
+  for (int i = 0; i < result->upvalueCount; i++) {
+    emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
+    emitByte(compiler.upvalues[i].index);
+  }
+
   emitByte(OP_METHOD_INSTANCE + isStatic);
   emitByte(constant);
 }
@@ -1272,10 +1300,13 @@ static void classDeclaration() {
     addLocal(syntheticToken("super"));
     defineVariable(0);
 
-    namedVariable(className, false);
-    emitByte(OP_INHERIT);
     classCompiler.hasSuperclass = true;
+  } else {
+    emitByteArg(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyString("Object"))));
   }
+
+  namedVariable(className, false);
+  emitByte(OP_INHERIT);
 
   namedVariable(className, false);
 

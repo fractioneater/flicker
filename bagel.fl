@@ -1,8 +1,8 @@
 class Bagel
   init(+number) {}
-  `+`(other)
+  +(other)
     print "called '+'"
-  `not`()
+  not()
     print "called 'not'"
 
 var a = Bagel(4)

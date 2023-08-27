@@ -16,10 +16,10 @@
 // These will be removed after I know the new change works.
 
 // Operators call methods instead of having their own opcodes.
-#define METHOD_CALL_OPERATORS 0
+#define METHOD_CALL_OPERATORS 1
 
 // Initialize the core library on VM startup
-#define INITIALIZE_CORE 0
+#define INITIALIZE_CORE 1
 
 // DEBUG FLAGS
 

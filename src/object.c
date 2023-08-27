@@ -37,12 +37,36 @@ ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method) {
   return bound;
 }
 
-ObjClass* newClass(ObjString* name) {
+ObjClass* newSingleClass(ObjString* name) {
   ObjClass* cls = ALLOCATE_OBJ(ObjClass, OBJ_CLASS, NULL);
   cls->name = name;
   cls->superclass = NULL;
   initTable(&cls->methods);
-  initTable(&cls->classMethods);
+  return cls;
+}
+
+ObjClass* newClass(ObjString* name) {
+  ObjString* metaclassName = stringFormat("# metaclass", name);
+  pushRoot((Obj*)metaclassName);
+
+  ObjClass* metaclass = newSingleClass(metaclassName);
+  metaclass->obj.cls = vm.classClass;
+
+  popRoot();
+
+  pushRoot((Obj*)metaclass);
+
+  bindSuperclass(metaclass, vm.classClass);
+
+  ObjClass* cls = newSingleClass(name);
+
+  pushRoot((Obj*)cls);
+
+  cls->obj.cls = metaclass;
+
+  popRoot();
+  popRoot();
+
   return cls;
 }
 
