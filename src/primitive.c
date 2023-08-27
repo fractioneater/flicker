@@ -12,18 +12,18 @@ static uint32_t validateIndexValue(uint32_t count, double value, const char* arg
 
   if (0 <= value && value < count) return (uint32_t)value;
 
-  ERROR_FORMAT("$ out of bounds", argName);
+  ERROR("%s out of bounds", argName);
   return UINT32_MAX;
 }
 
 bool validateNumber(Value arg, const char* argName) {
   if (IS_NUMBER(arg)) return true;
-  RETURN_ERROR_FORMAT("$ must be a number", argName);
+  RETURN_ERROR("%s must be a number", argName);
 }
 
 bool validateIntValue(double value, const char* argName) {
   if (trunc(value) == value) return true;
-  RETURN_ERROR_FORMAT("$ must be an integer", argName);
+  RETURN_ERROR("%s must be an integer", argName);
 }
 
 bool validateInt(Value arg, const char* argName) {
@@ -38,13 +38,13 @@ uint32_t validateIndex(Value arg, uint32_t count, const char* argName) {
 
 bool validateFunction(Value arg, const char* argName) {
   if (IS_CLOSURE(arg)) return true;
-  RETURN_ERROR_FORMAT("$ must be a function", argName);
+  RETURN_ERROR("%s must be a function", argName);
   return false;
 }
 
 bool validateString(Value arg, const char* argName) {
   if (IS_STRING(arg)) return true;
-  RETURN_ERROR_FORMAT("$ must be a string", argName);
+  RETURN_ERROR("%s must be a string", argName);
   return false;
 }
 

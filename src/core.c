@@ -791,6 +791,7 @@ void initializeCore(VM* vm) {
   PRIMITIVE(vm->numberClass, "-(1)", number_minus);
   PRIMITIVE(vm->numberClass, "*(1)", number_multiply);
   PRIMITIVE(vm->numberClass, "/(1)", number_divide);
+  PRIMITIVE(vm->numberClass, "**(1)", number_pow);
   PRIMITIVE(vm->numberClass, "<(1)", number_lt);
   PRIMITIVE(vm->numberClass, ">(1)", number_gt);
   PRIMITIVE(vm->numberClass, "<=(1)", number_lte);
@@ -826,7 +827,6 @@ void initializeCore(VM* vm) {
   PRIMITIVE(vm->numberClass, "..(1)", number_dotDot);
   PRIMITIVE(vm->numberClass, ":(1)", number_colon);
   PRIMITIVE(vm->numberClass, "atan(1)", number_atan2);
-  PRIMITIVE(vm->numberClass, "pow(1)", number_pow);
   PRIMITIVE(vm->numberClass, "fraction", number_fraction);
   PRIMITIVE(vm->numberClass, "isInfinity", number_isInfinity);
   PRIMITIVE(vm->numberClass, "isInteger", number_isInteger);

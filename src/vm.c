@@ -138,7 +138,7 @@ static void resetStack() {
   vm.openUpvalues = NULL;
 }
 
-static void runtimeError(const char* format, ...) {
+void runtimeError(const char* format, ...) {
   va_list args;
   va_start(args, format);
   vfprintf(stderr, format, args);
@@ -337,7 +337,7 @@ static bool invoke(ObjString* name, int argCount) {
 
   Value method;
   if (!tableGet(&cls->methods, name, &method)) {
-    runtimeError("Class %s does not implement '%s'", cls->name->chars, name->chars);
+    runtimeError("%s does not implement '%s'", cls->name->chars, name->chars);
     return false;
   }
 
@@ -349,7 +349,9 @@ static bool invoke(ObjString* name, int argCount) {
       vm.stackTop -= argCount + 1;
       push(result);
     } else {
-      // TODO: Calling primitive functions
+      bool success = nativeObj->as.primitive(vm.stackTop - argCount - 1);
+      vm.stackTop -= argCount;
+      return success;
     }
     return true;
   }
@@ -542,39 +544,44 @@ static InterpretResult run() {
         break;
       }
       case OP_GET_PROPERTY: {
-        if (IS_CLASS(peek())) {
-          ObjClass* cls = AS_CLASS(peek());
-          ObjString* name = READ_STRING();
+        Value receiver = peek();
+        ObjString* property = READ_STRING();
+
+        ObjClass* cls = getClass(receiver);
+
+        if (IS_INSTANCE(receiver)) {
+          ObjInstance* instance = AS_INSTANCE(receiver);
 
           Value value;
-          if (!tableGet(&cls->obj.cls->methods, name, &value)) {
-            frame->ip = ip;
-            runtimeError("Method '%s' is not implemented by %s metaclass", name->chars, cls->name->chars);
-            return INTERPRET_RUNTIME_ERROR;
+          if (tableGet(&instance->fields, property, &value)) {
+            pop(); // Instance
+            push(value);
+            break;
           }
 
-          pop(); // The class
-          push(value);
-          break;
-        } else if (!IS_INSTANCE(peek())) {
+          if (bindMethod(instance->obj.cls, property)) break;
+        }
+
+        Value method;
+        if (!tableGet(&cls->methods, property, &method)) {
           frame->ip = ip;
-          runtimeError("Only instances have properties");
+          runtimeError("%s does not implement '%s'", cls->name->chars, property->chars);
           return INTERPRET_RUNTIME_ERROR;
         }
 
-        ObjInstance* instance = AS_INSTANCE(peek());
-        ObjString* name = READ_STRING();
-
-        Value value;
-        if (tableGet(&instance->fields, name, &value)) {
-          pop(); // Instance.
-          push(value);
+        if (IS_NATIVE(method)) {
+          ObjNative* nativeObj = AS_NATIVE(method);
+          if (!nativeObj->as.primitive(&receiver)) {
+            return INTERPRET_RUNTIME_ERROR;
+          }
           break;
         }
 
-        if (!bindMethod(instance->obj.cls, name)) {
+        if (!invokeFromClass(cls, property, 0)) {
           return INTERPRET_RUNTIME_ERROR;
         }
+
+        pop(); // The object (whatever it is)
         break;
       }
       case OP_SET_PROPERTY: {
@@ -589,98 +596,6 @@ static InterpretResult run() {
         Value value = pop();
         pop();
         push(value);
-        break;
-      }
-      case OP_GET_SUBSCRIPT: {
-        Value subscript = pop();
-        Value object = pop();
-        Value result;
-
-        if (!IS_OBJ(object)) {
-          frame->ip = ip;
-          runtimeError("Invalid type to index into");
-          return INTERPRET_RUNTIME_ERROR;
-        }
-
-        switch (AS_OBJ(object)->type) {
-          case OBJ_LIST: {
-            ObjList* list = AS_LIST(object);
-
-            if (!IS_NUMBER(subscript)) {
-              frame->ip = ip;
-              runtimeError("List index is not a number");
-              return INTERPRET_RUNTIME_ERROR;
-            }
-            int index = AS_NUMBER(subscript);
-
-            if (!isValidListIndex(list, index)) {
-              frame->ip = ip;
-              runtimeError("List index out of range");
-              return INTERPRET_RUNTIME_ERROR;
-            }
-
-            result = list->items[index];
-            push(result);
-            break;
-          }
-          case OBJ_STRING: {
-            ObjString* string = AS_STRING(object);
-
-            if (!IS_NUMBER(subscript)) {
-              frame->ip = ip;
-              runtimeError("String index is not a number");
-              return INTERPRET_RUNTIME_ERROR;
-            }
-            int index = AS_NUMBER(subscript);
-
-            if (!isValidStringIndex(string, index)) {
-              frame->ip = ip;
-              runtimeError("String index out of range");
-              return INTERPRET_RUNTIME_ERROR;
-            }
-
-            int indexOffset = (index < 0) ? strlen(string->chars) + index : index;
-
-            result = indexFromString(string, indexOffset);
-
-            push(result);
-            break;
-          }
-          default:
-            frame->ip = ip;
-            runtimeError("Invalid type to index into");
-            return INTERPRET_RUNTIME_ERROR;
-        }
-
-        break;
-      }
-      case OP_SET_SUBSCRIPT: {
-        Value item = pop();
-        Value subscript = pop();
-        Value object = pop();
-
-        if (!IS_LIST(object)) {
-          frame->ip = ip;
-          runtimeError("Invalid type to index into");
-          return INTERPRET_RUNTIME_ERROR;
-        }
-        ObjList* list = AS_LIST(object);
-
-        if (!IS_NUMBER(subscript)) {
-          frame->ip = ip;
-          runtimeError("List index is not a number");
-          return INTERPRET_RUNTIME_ERROR;
-        }
-        int index = AS_NUMBER(subscript);
-
-        if (!isValidListIndex(list, index)) {
-          frame->ip = ip;
-          runtimeError("List index out of range");
-          return INTERPRET_RUNTIME_ERROR;
-        }
-
-        list->items[index] = item;
-        push(item);
         break;
       }
       case OP_GET_SUPER: {
@@ -870,21 +785,6 @@ static InterpretResult run() {
         closeUpvalues(vm.stackTop - 1);
         pop();
         break;
-      case OP_BUILD_LIST: {
-        uint8_t count = READ_BYTE();
-        ObjList* list = newList(count);
-
-        for (uint32_t i = 0; i < count; i++) {
-          list->items[i] = peekInt(count - i - 1);
-        }
-
-        while (count-- > 0) {
-          pop();
-        }
-
-        push(OBJ_VAL(list));
-        break;
-      }
       case OP_RETURN: {
         Value result = pop();
         closeUpvalues(frame->slots);

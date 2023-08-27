@@ -753,6 +753,7 @@ static void callFunc(bool canAssign) {
 static void dot(bool canAssign) {
   expect(TOKEN_IDENTIFIER, "Expecting a property name after '.'");
   uint8_t name = identifierConstant(&parser.previous);
+  Signature signature = signatureFromToken(SIG_GETTER);
 
   if (canAssign && match(TOKEN_EQ)) {
     expression();
@@ -760,7 +761,15 @@ static void dot(bool canAssign) {
   } else if (match(TOKEN_LEFT_PAREN)) {
     matchLine();
     uint8_t argCount = argumentList();
-    emitByteArg(OP_INVOKE, name);
+
+    signature.arity = argCount;
+    signature.type = SIG_METHOD;
+
+    char fullSignature[MAX_METHOD_SIGNATURE];
+    int length;
+    signatureToString(&signature, fullSignature, &length);
+
+    emitByteArg(OP_INVOKE, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
     emitByte(argCount);
   } else {
     emitByteArg(OP_GET_PROPERTY, name);
@@ -860,27 +869,20 @@ static void variable(bool canAssign) {
 }
 
 static void list(bool canAssign) {
-  uint8_t itemCount = 0;
-  if (!check(TOKEN_RIGHT_BRACKET)) {
-    do {
-      if (check(TOKEN_RIGHT_BRACKET)) {
-        break;
-      }
+  emitByteArg(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyStringLength("List", 4))));
+  emitByteArgs(OP_INVOKE, makeConstant(OBJ_VAL(copyStringLength("new()", 5))), 0);
+  
+  do {
+    matchLine();
 
-      matchLine();
-      expressionBp(BP_NOT);
+    if (check(TOKEN_RIGHT_BRACKET)) break;
 
-      if (itemCount == UINT8_COUNT) {
-        error("Cannot have more than 255 items in a list");
-      }
-      itemCount++;
-    } while (match(TOKEN_COMMA));
-  }
+    expression();
+    emitByteArgs(OP_INVOKE, makeConstant(OBJ_VAL(copyStringLength("addCore(1)", 10))), 1);
+  } while (match(TOKEN_COMMA));
 
+  matchLine();
   expect(TOKEN_RIGHT_BRACKET, "Expecting ']' after list literal");
-
-  emitByte(OP_BUILD_LIST);
-  emitByte(itemCount);
 }
 
 static void subscript(bool canAssign) {
@@ -889,9 +891,9 @@ static void subscript(bool canAssign) {
 
   if (canAssign && match(TOKEN_EQ)) {
     expression();
-    emitByte(OP_SET_SUBSCRIPT);
+    emitByteArgs(OP_INVOKE, makeConstant(OBJ_VAL(copyStringLength("set(2)", 6))), 2);
   } else {
-    emitByte(OP_GET_SUBSCRIPT);
+    emitByteArgs(OP_INVOKE, makeConstant(OBJ_VAL(copyStringLength("get(1)", 6))), 1);
   }
 }
 
@@ -1307,6 +1309,7 @@ static void classDeclaration() {
 
   namedVariable(className, false);
   emitByte(OP_INHERIT);
+  emitByte(OP_POP); // Superclass
 
   namedVariable(className, false);
 
@@ -1444,6 +1447,7 @@ static void eachStatement() {
     error("Cannot declare any more locals.");
     return;
   }
+
   addLocal(syntheticToken("`seq"));
   markInitialized();
   int seqSlot = current->localCount - 1;

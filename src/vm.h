@@ -79,6 +79,7 @@ static inline ObjClass* getClass(Value value) {
   return NULL;
 }
 
+void runtimeError(const char* format, ...);
 void initVM();
 void freeVM();
 InterpretResult interpret(const char* source, const char* module);

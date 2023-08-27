@@ -87,10 +87,6 @@ int disassembleInstruction(Chunk* chunk, int offset) {
       return constantInstruction("OP_GET_PROPERTY", chunk, offset);
     case OP_SET_PROPERTY:
       return constantInstruction("OP_SET_PROPERTY", chunk, offset);
-    case OP_GET_SUBSCRIPT:
-      return byteInstruction("OP_GET_SUBSCRIPT", chunk, offset);
-    case OP_SET_SUBSCRIPT:
-      return byteInstruction("OP_SET_SUBSCRIPT", chunk, offset);
     case OP_GET_SUPER:
       return constantInstruction("OP_GET_SUPER", chunk, offset);
 #if !METHOD_CALL_OPERATORS
@@ -172,8 +168,6 @@ int disassembleInstruction(Chunk* chunk, int offset) {
     }
     case OP_CLOSE_UPVALUE:
       return simpleInstruction("OP_CLOSE_UPVALUE", offset);
-    case OP_BUILD_LIST:
-      return byteInstruction("OP_BUILD_LIST", chunk, offset);
     case OP_RETURN:
       return simpleInstruction("OP_RETURN", offset);
     case OP_CLASS:

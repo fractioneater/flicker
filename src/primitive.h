@@ -24,17 +24,11 @@
 #define RETURN_TRUE         RETURN_VAL(TRUE_VAL)
 #define RETURN_FALSE        RETURN_VAL(FALSE_VAL)
 
-#define ERROR(msg)
+#define ERROR(...) runtimeError(__VA_ARGS__)
 
-#define ERROR_FORMAT(...)
-
-#define RETURN_ERROR(msg) \
-  do {                    \
-    return false;         \
-  } while (false)
-
-#define RETURN_ERROR_FORMAT(...) \
+#define RETURN_ERROR(...) \
   do {                           \
+    runtimeError(__VA_ARGS__);   \
     return false;                \
   } while (false)
 
