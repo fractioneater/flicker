@@ -23,6 +23,9 @@ typedef struct {
   // The name of the module being parsed.
   const char* module;
 
+  // If an expression was parsed most recently
+  bool onExpression;
+
   // If a compiler error has appeared.
   bool hadError;
   bool panicMode;
@@ -155,7 +158,6 @@ typedef struct Compiler {
 
 typedef struct ClassCompiler {
   struct ClassCompiler* enclosing;
-  bool hasSuperclass;
 } ClassCompiler;
 
 Parser parser;
@@ -363,6 +365,13 @@ static void endLoop() {
   current->loop = current->loop->enclosing;
 }
 
+static void popExpression() {
+  if (parser.onExpression) {
+    emitByte(OP_POP);
+    parser.onExpression = false;
+  }
+}
+
 static void initCompiler(Compiler* compiler, FunctionType type) {
   compiler->enclosing = current;
   compiler->loop = NULL;
@@ -393,7 +402,11 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 }
 
 static ObjFunction* endCompiler() {
-  emitReturn();
+  if (parser.onExpression) {
+    emitByte(OP_RETURN);
+    parser.onExpression = false;
+  }
+  else emitReturn();
   ObjFunction* function = current->function;
 
 #if DEBUG_PRINT_CODE
@@ -442,7 +455,7 @@ static void popScope() {
 }
 
 static void expression();
-static void statement();
+static void statement(bool useExpressionVar);
 static void declaration();
 static void lambda(bool canAssign);
 static ParseRule* getRule(TokenType type);
@@ -639,8 +652,8 @@ static uint8_t argumentList() {
     do {
       matchLine();
       expression();
-      if (argCount == 255) {
-        error("Can't have more than 255 arguments");
+      if (argCount == MAX_PARAMETERS) {
+        error("Too many arguments");
       }
       argCount++;
     } while (match(TOKEN_COMMA));
@@ -907,8 +920,6 @@ static Token syntheticToken(const char* text) {
 static void super_(bool canAssign) {
   if (currentClass == NULL) {
     error("Can't use 'super' outside of a class");
-  } else if (!currentClass->hasSuperclass) {
-    error("Can't use 'super' in a class with no superclass");
   }
 
   expect(TOKEN_DOT, "Expecting '.' after 'super'");
@@ -1107,6 +1118,7 @@ static void block(bool indentationBased) {
     if (!indentationBased) ignoreIndentation();
 
     if (!check(blockEnd)) {
+      popExpression();
       declaration();
 
       if (parser.previous.type != TOKEN_DEDENT) {
@@ -1130,8 +1142,8 @@ static void function(FunctionType type) {
     do {
       matchLine();
       current->function->arity++;
-      if (current->function->arity > 255) {
-        errorAtCurrent("Can't have more than 255 parameters");
+      if (current->function->arity == MAX_PARAMETERS + 1) {
+        errorAtCurrent("Too many parameters");
       }
 
       uint8_t constant = parseVariable("Expecting a parameter name");
@@ -1169,8 +1181,8 @@ static void lambda(bool canAssign) {
       do {
         matchLine();
         current->function->arity++;
-        if (current->function->arity > 255) {
-          errorAtCurrent("Can't have more than 255 parameters");
+        if (current->function->arity > MAX_PARAMETERS) {
+          errorAtCurrent("Too many parameters");
         }
         uint8_t constant = parseVariable("Expecting a parameter name");
         defineVariable(constant);
@@ -1243,9 +1255,12 @@ static void method() {
   pushScope();
 
   if (signature.asProperty != NULL) {
-    if (isStatic) error("Can only store fields through non-static methods");
     for (int i = 1; i <= current->function->arity; i++) {
       if (signature.asProperty[i - 1]) {
+        if (isStatic) {
+          error("Can only store fields through non-static methods");
+          break;
+        }
         emitByteArg(OP_GET_LOCAL, 0);
         emitByteArg(OP_GET_LOCAL, i);
         Local local = current->locals[i];
@@ -1282,14 +1297,6 @@ static void classDeclaration() {
   uint8_t nameConstant = identifierConstant(&parser.previous);
   declareVariable();
 
-  emitByteArg(OP_CLASS, nameConstant);
-  defineVariable(nameConstant);
-
-  ClassCompiler classCompiler;
-  classCompiler.hasSuperclass = false;
-  classCompiler.enclosing = currentClass;
-  currentClass = &classCompiler;
-
   if (match(TOKEN_LT)) {
     expect(TOKEN_IDENTIFIER, "Expecting a superclass name");
     variable(false);
@@ -1297,19 +1304,20 @@ static void classDeclaration() {
     if (identifiersEqual(&className, &parser.previous)) {
       error("A class can't inherit from itself");
     }
-
-    pushScope();
-    addLocal(syntheticToken("super"));
-    defineVariable(0);
-
-    classCompiler.hasSuperclass = true;
   } else {
     emitByteArg(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyString("Object"))));
   }
 
-  namedVariable(className, false);
-  emitByte(OP_INHERIT);
-  emitByte(OP_POP); // Superclass
+  emitByteArg(OP_CLASS, nameConstant);
+  defineVariable(nameConstant);
+
+  ClassCompiler classCompiler;
+  classCompiler.enclosing = currentClass;
+  currentClass = &classCompiler;
+
+  pushScope();
+  addLocal(syntheticToken("super"));
+  defineVariable(0);
 
   namedVariable(className, false);
 
@@ -1331,19 +1339,18 @@ static void classDeclaration() {
   }
 
   matchLine();
+  if (!indentationBased) ignoreIndentation();
 
   while (!check(blockEnd) && !check(TOKEN_EOF)) {
-    if (!indentationBased) ignoreIndentation();
     method();
     matchLine();
+    if (!indentationBased) ignoreIndentation();
   }
 
   if (!indentationBased || !check(TOKEN_EOF)) expect(blockEnd, message);
   emitByte(OP_POP);
 
-  if (classCompiler.hasSuperclass) {
-    popScope();
-  }
+  popScope();
 
   currentClass = currentClass->enclosing;
 }
@@ -1424,7 +1431,7 @@ static void forStatement() {
     patchJump(bodyJump);
   }
 
-  statement();
+  statement(false);
 
   endLoop();
   popScope();
@@ -1478,7 +1485,11 @@ static void eachStatement() {
   addLocal(name);
   markInitialized();
 
-  statement();
+  if (matchLine()) {
+    expect(TOKEN_INDENT, "Expecting an indent before body");
+    block(true);
+  }
+  else statement(false);
 
   popScope(); // Loop variable
 
@@ -1502,7 +1513,7 @@ static void ifStatement() {
     expect(TOKEN_INDENT, "Expecting an indent before body");
     block(true);
   }
-  else statement();
+  else statement(false);
 
   int elseJump = emitJump(OP_JUMP);
 
@@ -1515,7 +1526,7 @@ static void ifStatement() {
       expect(TOKEN_INDENT, "Expecting an indent before body");
       block(true);
     }
-    else statement();
+    else statement(false);
   }
   patchJump(elseJump);
 }
@@ -1763,7 +1774,7 @@ static void whenStatement() {
       if (state == 0) {
         error("Can't have statements before any case");
       }
-      statement();
+      statement(false);
       if (!indentationBased || !check(TOKEN_EOF)) expectStatementEnd("Expecting a newline after statement");
     }
   }
@@ -1806,7 +1817,7 @@ static void whileStatement() {
 
   current->loop->exitJump = emitJump(OP_JUMP_FALSY);
   emitByte(OP_POP);
-  statement();
+  statement(false);
 
   endLoop();
 
@@ -1842,12 +1853,12 @@ static void declaration() {
   if (match(TOKEN_CLASS)) classDeclaration();
   else if (match(TOKEN_FUN)) funDeclaration();
   else if (match(TOKEN_VAR)) varDeclaration();
-  else statement();
+  else statement(true);
 
   if (parser.panicMode) synchronize();
 }
 
-static void statement() {
+static void statement(bool useExpressionVar) {
   if (match(TOKEN_PRINT)) printStatement();
   else if (match(TOKEN_PASS)) return;
   else if (match(TOKEN_BREAK)) breakStatement();
@@ -1862,7 +1873,12 @@ static void statement() {
     pushScope();
     block(false);
     popScope();
-  } else expressionStatement();
+  } else {
+    if (useExpressionVar) {
+      parser.onExpression = true;
+      expression();
+    } else expressionStatement();
+  }
 }
 
 ObjFunction* compile(const char* source, const char* module) {
@@ -1873,6 +1889,7 @@ ObjFunction* compile(const char* source, const char* module) {
   parser.module = module;
   parser.hadError = false;
   parser.panicMode = false;
+  parser.onExpression = false;
 
   advance();
 
@@ -1889,6 +1906,7 @@ ObjFunction* compile(const char* source, const char* module) {
   if (match(TOKEN_INDENT)) error("Unexpected indentation");
 
   while (!match(TOKEN_EOF)) {
+    popExpression();
     declaration();
 
     if (parser.previous.type != TOKEN_DEDENT) {

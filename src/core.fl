@@ -5,4 +5,7 @@ class Number {}
 class String {}
 class List {}
 class Range {}
-class Sys {}
+class Sys
+  static writeObject_(obj)
+    var string = obj.toString
+    writeString_(string)

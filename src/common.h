@@ -18,9 +18,6 @@
 // Operators call methods instead of having their own opcodes.
 #define METHOD_CALL_OPERATORS 1
 
-// Initialize the core library on VM startup
-#define INITIALIZE_CORE 1
-
 // DEBUG FLAGS
 
 // Don't do any compiling, just print the tokens.
@@ -37,6 +34,9 @@
 
 // Log memory allocation and garbage collector runs.
 #define DEBUG_LOG_GC 0
+
+// Prevents the VM from initializing the core library. (Why would you do this?)
+#define DEBUG_REMOVE_CORE 0
 
 // COMPILER AND VM VALUES
 

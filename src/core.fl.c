@@ -1,5 +1,5 @@
 // Automatically generated file. Do not edit.
-static const char* coreSource =
+static const char* coreSource __attribute__((unused)) =
 "class Bool {}\n"
 "class Function {}\n"
 "class `None` {}\n"
@@ -7,4 +7,7 @@ static const char* coreSource =
 "class String {}\n"
 "class List {}\n"
 "class Range {}\n"
-"class Sys {}\n";
+"class Sys\n"
+"  static writeObject_(obj)\n"
+"    var string = obj.toString\n"
+"    writeString_(string)\n";

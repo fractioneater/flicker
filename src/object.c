@@ -81,7 +81,7 @@ ObjClosure* newClosure(ObjFunction* function) {
     upvalues[i] = NULL;
   }
 
-  ObjClosure* closure = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE, NULL);
+  ObjClosure* closure = ALLOCATE_OBJ(ObjClosure, OBJ_CLOSURE, vm.functionClass);
   closure->function = function;
   closure->upvalues = upvalues;
   closure->upvalueCount = function->upvalueCount;
@@ -89,7 +89,7 @@ ObjClosure* newClosure(ObjFunction* function) {
 }
 
 ObjFunction* newFunction() {
-  ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION, NULL);
+  ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION, vm.functionClass);
   function->arity = 0;
   function->upvalueCount = 0;
   function->name = NULL;
@@ -463,7 +463,7 @@ void printObject(Value value) {
     case OBJ_RANGE: {
       ObjRange* range = AS_RANGE(value);
       printValue(NUMBER_VAL(range->from));
-      printf("%s", ":\0.." + 2 * range->isInclusive);
+      printf("%s", range->isInclusive ? ".." : ":");
       printValue(NUMBER_VAL(range->to));
       break;
     }

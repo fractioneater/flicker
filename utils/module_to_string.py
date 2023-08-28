@@ -2,7 +2,7 @@ import os.path
 import sys
 
 OUTPUT = """// Automatically generated file. Do not edit.
-static const char* {0}Source =
+static const char* {0}Source __attribute__((unused)) =
 {1};
 """
 

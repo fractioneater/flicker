@@ -209,7 +209,7 @@ void initVM() {
   // defineNativeMethod(sysClass, "clock", clockNative);
   // defineNativeMethod(sysClass, "error", errorNative);
 
-#if INITIALIZE_CORE
+#if !DEBUG_REMOVE_CORE
   initializeCore(&vm);
 #endif
 }
@@ -239,10 +239,6 @@ static Value peek2() {
 
 static Value peekInt(int distance) {
   return vm.stackTop[-1 - distance];
-}
-
-static bool isInt(double value) {
-  return trunc(value) == value;
 }
 
 static bool isFalsy(Value value) {
@@ -310,16 +306,6 @@ static bool callValue(Value callee, int argCount) {
   return false;
 }
 
-static bool invokeFromClass(ObjClass* cls, ObjString* name, int argCount) {
-  Value method;
-  if (!tableGet(&cls->methods, name, &method)) {
-    runtimeError("Undefined property '%s'", name->chars);
-    return false;
-  }
-
-  return call(AS_CLOSURE(method), argCount);
-}
-
 static bool invoke(ObjString* name, int argCount) {
   Value receiver = peekInt(argCount);
 
@@ -356,7 +342,7 @@ static bool invoke(ObjString* name, int argCount) {
     return true;
   }
 
-  return invokeFromClass(cls, name, argCount);
+  return call(AS_CLOSURE(method), argCount);
 }
 
 static bool bindMethod(ObjClass* cls, ObjString* name) {
@@ -415,24 +401,9 @@ static void defineMethod(ObjString* name) {
 static void defineClassMethod(ObjString* name) {
   Value method = peek();
   ObjClass* cls = AS_CLASS(peek2());
+  printf("<<<<<<<<%s metaclass: %s>>>>>>>>\n", cls->name->chars, cls->obj.cls == NULL ? "NULL" : "good");
   tableSet(&cls->obj.cls->methods, name, method);
   pop();
-}
-
-static void concatenate() {
-  ObjString* b = AS_STRING(peek());
-  ObjString* a = AS_STRING(peek2());
-
-  int length = a->length + b->length;
-  char* chars = ALLOCATE(char, length + 1);
-  memcpy(chars, a->chars, a->length);
-  memcpy(chars + a->length, b->chars, b->length);
-  chars[length] = '\0';
-
-  ObjString* result = takeString(chars, length);
-  pop();
-  pop();
-  push(OBJ_VAL(result));
 }
 
 static InterpretResult run() {
@@ -577,7 +548,7 @@ static InterpretResult run() {
           break;
         }
 
-        if (!invokeFromClass(cls, property, 0)) {
+        if (!call(AS_CLOSURE(method), 0)) {
           return INTERPRET_RUNTIME_ERROR;
         }
 
@@ -757,10 +728,16 @@ static InterpretResult run() {
         break;
       }
       case OP_SUPER_INVOKE: {
-        ObjString* method = READ_STRING();
+        ObjString* name = READ_STRING();
         int argCount = READ_BYTE();
         ObjClass* superclass = AS_CLASS(pop());
-        if (!invokeFromClass(superclass, method, argCount)) {
+        Value method;
+        if (!tableGet(&superclass->methods, name, &method)) {
+          runtimeError("Undefined method '%s'", name->chars);
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        if (!call(AS_CLOSURE(method), argCount)) {
           return INTERPRET_RUNTIME_ERROR;
         }
         frame = &vm.frames[vm.frameCount - 1];
@@ -791,6 +768,7 @@ static InterpretResult run() {
         vm.frameCount--;
         if (vm.frameCount == 0) {
           if (result != NONE_VAL) {
+            printf("= > ");
             printValue(result);
             printf("\n");
           }
@@ -804,21 +782,19 @@ static InterpretResult run() {
         ip = frame->ip;
         break;
       }
-      case OP_CLASS:
-        push(OBJ_VAL(newClass(READ_STRING())));
-        break;
-      case OP_INHERIT: {
-        Value superclass = peek2();
+      case OP_CLASS: {
+        Value superclass = peek();
         if (!IS_CLASS(superclass)) {
           frame->ip = ip;
           runtimeError("Superclass must be a class");
           return INTERPRET_RUNTIME_ERROR;
         }
 
-        ObjClass* subclass = AS_CLASS(peek());
+        ObjClass* new = newClass(READ_STRING());
+        bindSuperclass(new, AS_CLASS(superclass));
 
-        bindSuperclass(subclass, AS_CLASS(superclass));
-        pop(); // Subclass.
+        pop(); // Superclass
+        push(OBJ_VAL(new));
         break;
       }
       case OP_METHOD_INSTANCE:

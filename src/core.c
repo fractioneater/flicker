@@ -56,7 +56,8 @@ DEF_PRIMITIVE(function_arity) {
 }
 
 DEF_PRIMITIVE(function_toString) {
-  RETURN_OBJ(copyString("<fn>"));
+  ObjFunction* function = AS_CLOSURE(args[0])->function;
+  RETURN_OBJ(stringFormat("<fn #>", function->name));
 }
 
 ///////////////////
@@ -504,7 +505,7 @@ DEF_PRIMITIVE(range_toString) {
   ObjString* to = numberToString(range->to);
   pushRoot((Obj*)to);
 
-  ObjString* result = stringFormat("#$#", from, ":\0.." + 2 * range->isInclusive, to);
+  ObjString* result = stringFormat("#$#", from, range->isInclusive ? ".." : ":", to);
 
   popRoot();
   popRoot();
@@ -761,8 +762,6 @@ void initializeCore(VM* vm) {
 
   PRIMITIVE(vm->objectClass, "same(2)", object_same);
 
-  // TODO: Interpret a source file with the rest of the standard library
-  // TODO NEXT: Just load the file. Who cares if it's incomplete, I need the metaclasses.
   interpret(coreSource, "<core>");
 
   GET_CORE_CLASS(vm->boolClass, "Bool");
