@@ -1236,8 +1236,6 @@ static void method() {
   int length;
   signatureToString(&signature, fullSignature, &length);
 
-  uint8_t constant = makeConstant(OBJ_VAL(copyStringLength(fullSignature, length)));
-
 #else
 
   expect(TOKEN_IDENTIFIER, "Expecting a method name");
@@ -1289,6 +1287,8 @@ static void method() {
     emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
     emitByte(compiler.upvalues[i].index);
   }
+
+  uint8_t constant = makeConstant(OBJ_VAL(copyStringLength(fullSignature, length)));
 
   emitByte(OP_METHOD_INSTANCE + isStatic);
   emitByte(constant);
