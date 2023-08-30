@@ -165,7 +165,7 @@ static void repl() {
       break;
     }
 
-    interpret(line, "<input>");
+    interpret(line, "<input>", true);
   }
 }
 
@@ -215,7 +215,7 @@ static void runFile(const char* path) {
 
   // pathRemoveExtension(module);
 
-  InterpretResult result = interpret(source, module->chars);
+  InterpretResult result = interpret(source, module->chars, false);
 
   pathFree(module);
   free(source);

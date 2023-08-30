@@ -401,7 +401,7 @@ static void defineMethod(ObjString* name) {
 static void defineClassMethod(ObjString* name) {
   Value method = peek();
   ObjClass* cls = AS_CLASS(peek2());
-  printf("<<<<<<<<%s metaclass: %s>>>>>>>>\n", cls->name->chars, cls->obj.cls == NULL ? "NULL" : "good");
+  printf("<<<<<<<< %s metaclass: %p >>>>>>>>\n", cls->name->chars, cls->obj.cls); // REMOVE
   tableSet(&cls->obj.cls->methods, name, method);
   pop();
 }
@@ -814,8 +814,8 @@ static InterpretResult run() {
 #undef BINARY_OP_INTS
 }
 
-InterpretResult interpret(const char* source, const char* module) {
-  ObjFunction* function = compile(source, module);
+InterpretResult interpret(const char* source, const char* module, bool inRepl) {
+  ObjFunction* function = compile(source, module, inRepl);
   if (function == NULL) return INTERPRET_COMPILE_ERROR;
 
 #if DEBUG_PRINT_CODE

@@ -9,5 +9,5 @@ static const char* coreSource __attribute__((unused)) =
 "class Range {}\n"
 "class Sys\n"
 "  static writeObject_(obj)\n"
-"    var string = obj.toString\n"
+"    var string = obj.toString \n"
 "    writeString_(string)\n";

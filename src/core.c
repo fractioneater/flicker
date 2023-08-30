@@ -762,7 +762,7 @@ void initializeCore(VM* vm) {
 
   PRIMITIVE(vm->objectClass, "same(2)", object_same);
 
-  interpret(coreSource, "<core>");
+  interpret(coreSource, "<core>", false);
 
   GET_CORE_CLASS(vm->boolClass, "Bool");
   PRIMITIVE(vm->boolClass, "toString", bool_toString);

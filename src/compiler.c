@@ -23,7 +23,10 @@ typedef struct {
   // The name of the module being parsed.
   const char* module;
 
-  // If an expression was parsed most recently
+  // Print the value returned by the code.
+  bool printResult;
+
+  // If an expression was parsed most recently.
   bool onExpression;
 
   // If a compiler error has appeared.
@@ -365,13 +368,6 @@ static void endLoop() {
   current->loop = current->loop->enclosing;
 }
 
-static void popExpression() {
-  if (parser.onExpression) {
-    emitByte(OP_POP);
-    parser.onExpression = false;
-  }
-}
-
 static void initCompiler(Compiler* compiler, FunctionType type) {
   compiler->enclosing = current;
   compiler->loop = NULL;
@@ -402,7 +398,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 }
 
 static ObjFunction* endCompiler() {
-  if (parser.onExpression) {
+  if (current->scopeDepth == 0 && parser.onExpression && parser.printResult) {
     emitByte(OP_RETURN);
     parser.onExpression = false;
   }
@@ -455,7 +451,7 @@ static void popScope() {
 }
 
 static void expression();
-static void statement(bool useExpressionVar);
+static void statement();
 static void declaration();
 static void lambda(bool canAssign);
 static ParseRule* getRule(TokenType type);
@@ -670,7 +666,11 @@ static void binary(bool canAssign) {
 
   matchLine();
 
-  expressionBp((BindingPower)(rule->bp + 1));
+  if (operatorType == TOKEN_STAR_STAR) {
+    expressionBp((BindingPower)(rule->bp));
+  } else {
+    expressionBp((BindingPower)(rule->bp + 1));
+  }
 
 #if METHOD_CALL_OPERATORS
   Signature signature = { rule->name, (int)strlen(rule->name), SIG_METHOD, 1 };
@@ -1118,7 +1118,6 @@ static void block(bool indentationBased) {
     if (!indentationBased) ignoreIndentation();
 
     if (!check(blockEnd)) {
-      popExpression();
       declaration();
 
       if (parser.previous.type != TOKEN_DEDENT) {
@@ -1227,6 +1226,10 @@ static void method() {
     type = TYPE_INITIALIZER;
   }
 
+  Compiler compiler;
+  initCompiler(&compiler, type);
+  pushScope();
+
   signatureFn(&signature);
 
   char fullSignature[MAX_METHOD_SIGNATURE];
@@ -1248,11 +1251,11 @@ static void method() {
     type = TYPE_INITIALIZER;
   }
 
-#endif
-
   Compiler compiler;
   initCompiler(&compiler, type);
   pushScope();
+
+#endif
 
   if (signature.asProperty != NULL) {
     for (int i = 1; i <= current->function->arity; i++) {
@@ -1348,7 +1351,6 @@ static void classDeclaration() {
   }
 
   if (!indentationBased || !check(TOKEN_EOF)) expect(blockEnd, message);
-  emitByte(OP_POP);
 
   popScope();
 
@@ -1431,7 +1433,7 @@ static void forStatement() {
     patchJump(bodyJump);
   }
 
-  statement(false);
+  statement();
 
   endLoop();
   popScope();
@@ -1489,7 +1491,7 @@ static void eachStatement() {
     expect(TOKEN_INDENT, "Expecting an indent before body");
     block(true);
   }
-  else statement(false);
+  else statement();
 
   popScope(); // Loop variable
 
@@ -1513,7 +1515,7 @@ static void ifStatement() {
     expect(TOKEN_INDENT, "Expecting an indent before body");
     block(true);
   }
-  else statement(false);
+  else statement();
 
   int elseJump = emitJump(OP_JUMP);
 
@@ -1526,7 +1528,7 @@ static void ifStatement() {
       expect(TOKEN_INDENT, "Expecting an indent before body");
       block(true);
     }
-    else statement(false);
+    else statement();
   }
   patchJump(elseJump);
 }
@@ -1774,7 +1776,7 @@ static void whenStatement() {
       if (state == 0) {
         error("Can't have statements before any case");
       }
-      statement(false);
+      statement();
       if (!indentationBased || !check(TOKEN_EOF)) expectStatementEnd("Expecting a newline after statement");
     }
   }
@@ -1817,7 +1819,7 @@ static void whileStatement() {
 
   current->loop->exitJump = emitJump(OP_JUMP_FALSY);
   emitByte(OP_POP);
-  statement(false);
+  statement();
 
   endLoop();
 
@@ -1853,12 +1855,12 @@ static void declaration() {
   if (match(TOKEN_CLASS)) classDeclaration();
   else if (match(TOKEN_FUN)) funDeclaration();
   else if (match(TOKEN_VAR)) varDeclaration();
-  else statement(true);
+  else statement();
 
   if (parser.panicMode) synchronize();
 }
 
-static void statement(bool useExpressionVar) {
+static void statement() {
   if (match(TOKEN_PRINT)) printStatement();
   else if (match(TOKEN_PASS)) return;
   else if (match(TOKEN_BREAK)) breakStatement();
@@ -1874,19 +1876,20 @@ static void statement(bool useExpressionVar) {
     block(false);
     popScope();
   } else {
-    if (useExpressionVar) {
+    if (parser.printResult && current->scopeDepth == 0) {
       parser.onExpression = true;
       expression();
     } else expressionStatement();
   }
 }
 
-ObjFunction* compile(const char* source, const char* module) {
+ObjFunction* compile(const char* source, const char* module, bool inRepl) {
   initLexer(source);
   Compiler compiler;
   initCompiler(&compiler, TYPE_SCRIPT);
 
   parser.module = module;
+  parser.printResult = inRepl;
   parser.hadError = false;
   parser.panicMode = false;
   parser.onExpression = false;
@@ -1906,7 +1909,10 @@ ObjFunction* compile(const char* source, const char* module) {
   if (match(TOKEN_INDENT)) error("Unexpected indentation");
 
   while (!match(TOKEN_EOF)) {
-    popExpression();
+    if (parser.onExpression) {
+      emitByte(OP_POP);
+      parser.onExpression = false;
+    }
     declaration();
 
     if (parser.previous.type != TOKEN_DEDENT) {
