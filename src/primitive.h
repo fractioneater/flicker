@@ -6,10 +6,10 @@
 #include "value.h"
 #include "vm.h"
 
-#define PRIMITIVE(cls, name, function) \
-  tableSet(&cls->methods, copyString(name), OBJ_VAL(newPrimitive(prim_##function)))
+#define NATIVE(cls, name, function) \
+  tableSet(&cls->methods, copyString(name), OBJ_VAL(newNative(prim_##function)))
 
-#define DEF_PRIMITIVE(name) static bool prim_##name(Value* args)
+#define DEF_NATIVE(name) static bool prim_##name(Value* args)
 
 #define RETURN_VAL(value) \
   do {                    \

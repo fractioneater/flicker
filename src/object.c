@@ -105,15 +105,7 @@ ObjInstance* newInstance(ObjClass* cls) {
 
 ObjNative* newNative(NativeFn function) {
   ObjNative* obj = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE, NULL);
-  obj->isPrimitive = false;
-  obj->as.native = function;
-  return obj;
-}
-
-ObjNative* newPrimitive(Primitive function) {
-  ObjNative* obj = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE, NULL);
-  obj->isPrimitive = true;
-  obj->as.primitive = function;
+  obj->function = function;
   return obj;
 }
 

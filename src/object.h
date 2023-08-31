@@ -59,17 +59,11 @@ typedef struct {
   ObjString* name;
 } ObjFunction;
 
-typedef bool (*Primitive)(Value* args);
-typedef Value (*NativeFn)(int argCount, Value* args);
+typedef bool (*NativeFn)(Value* args);
 
 typedef struct {
   Obj obj;
-  bool isPrimitive;
-  
-  union {
-    NativeFn native;
-    Primitive primitive;
-  } as;
+  NativeFn function;
 } ObjNative;
 
 typedef struct {
@@ -138,7 +132,6 @@ ObjFunction* newFunction();
 ObjInstance* newInstance(ObjClass* cls);
 
 ObjNative* newNative(NativeFn function);
-ObjNative* newPrimitive(Primitive function);
 
 ObjList* newList(uint32_t count);
 void listClear(ObjList* list);

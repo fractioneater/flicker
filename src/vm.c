@@ -160,28 +160,6 @@ void runtimeError(const char* format, ...) {
   resetStack();
 }
 
-// static void defineNativeFunction(const char* name, NativeFn function) {
-//   ObjString* fnName = copyString(name);
-//   pushRoot((Obj*)fnName);
-//   ObjNative* native = newNative(function);
-//   pushRoot((Obj*)native);
-//   tableSet(&vm.globals, fnName, OBJ_VAL(native));
-//   popRoot();
-//   popRoot();
-// }
-
-// static ObjClass* defineNativeClass(const char* name) {
-//   // Store the class name and create the class.
-//   ObjString* className = copyString(name);
-//   ObjClass* cls = newSingleClass(className);
-//   // Define the class as a global.
-//   tableSet(&vm.globals, className, OBJ_VAL(cls));
-
-//   return cls;
-// }
-
-// defineNativeMethod is gone.
-
 void initVM() {
   resetStack();
   vm.objects = NULL;
@@ -246,13 +224,7 @@ static bool isFalsy(Value value) {
   return IS_NONE(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
-static bool call(ObjClosure* closure, int argCount) {
-  if (argCount != closure->function->arity) {
-    runtimeError("Expected %d argument%s but got %d", closure->function->arity,
-      closure->function->arity == 1 ? "" : "s", argCount);
-    return false;
-  }
-
+static bool finishCall(ObjClosure* closure, int argCount) {
   if (vm.frameCount == FRAMES_MAX) {
     runtimeError("Stack overflow");
     return false;
@@ -265,13 +237,23 @@ static bool call(ObjClosure* closure, int argCount) {
   return true;
 }
 
+static bool call(ObjClosure* closure, int argCount) {
+  if (argCount != closure->function->arity) {
+    runtimeError("Expected %d argument%s but got %d", closure->function->arity,
+      closure->function->arity == 1 ? "" : "s", argCount);
+    return false;
+  }
+
+  return finishCall(closure, argCount);
+}
+
 static bool callValue(Value callee, int argCount) {
   if (IS_OBJ(callee)) {
     switch (OBJ_TYPE(callee)) {
       case OBJ_BOUND_METHOD: {
         ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
         vm.stackTop[-argCount - 1] = bound->receiver;
-        return call(bound->method, argCount);
+        return finishCall(bound->method, argCount);
       }
       case OBJ_CLASS: {
         ObjClass* cls = AS_CLASS(callee);
@@ -289,14 +271,9 @@ static bool callValue(Value callee, int argCount) {
         return call(AS_CLOSURE(callee), argCount);
       case OBJ_NATIVE: {
         ObjNative* nativeObj = AS_NATIVE(callee);
-        if (!nativeObj->isPrimitive) {
-          Value result = nativeObj->as.native(argCount, vm.stackTop - argCount);
-          vm.stackTop -= argCount + 1;
-          push(result);
-        } else {
-          // TODO: Calling primitive functions
-        }
-        return true;
+        bool success = nativeObj->function(vm.stackTop - argCount - 1);
+        vm.stackTop -= argCount;
+        return success;
       }
       default:
         break; // Non-callable object type.
@@ -329,20 +306,12 @@ static bool invoke(ObjString* name, int argCount) {
 
   if (IS_NATIVE(method)) {
     ObjNative* nativeObj = AS_NATIVE(method);
-
-    if (!nativeObj->isPrimitive) {
-      Value result = nativeObj->as.native(argCount, vm.stackTop - argCount);
-      vm.stackTop -= argCount + 1;
-      push(result);
-    } else {
-      bool success = nativeObj->as.primitive(vm.stackTop - argCount - 1);
-      vm.stackTop -= argCount;
-      return success;
-    }
-    return true;
+    bool success = nativeObj->function(vm.stackTop - argCount - 1);
+    vm.stackTop -= argCount;
+    return success;
   }
 
-  return call(AS_CLOSURE(method), argCount);
+  return finishCall(AS_CLOSURE(method), argCount);
 }
 
 static bool bindMethod(ObjClass* cls, ObjString* name) {
@@ -401,7 +370,6 @@ static void defineMethod(ObjString* name) {
 static void defineClassMethod(ObjString* name) {
   Value method = peek();
   ObjClass* cls = AS_CLASS(peek2());
-  printf("<<<<<<<< %s metaclass: %p >>>>>>>>\n", cls->name->chars, cls->obj.cls); // REMOVE
   tableSet(&cls->obj.cls->methods, name, method);
   pop();
 }
@@ -530,7 +498,7 @@ static InterpretResult run() {
             break;
           }
 
-          if (bindMethod(instance->obj.cls, property)) break;
+          if (bindMethod(instance->obj.cls, property)) break; // TODO: Find a new way to bind methods, now that special properties exist
         }
 
         Value method;
@@ -542,13 +510,13 @@ static InterpretResult run() {
 
         if (IS_NATIVE(method)) {
           ObjNative* nativeObj = AS_NATIVE(method);
-          if (!nativeObj->as.primitive(&receiver)) {
+          if (!nativeObj->function(vm.stackTop - 1)) {
             return INTERPRET_RUNTIME_ERROR;
           }
           break;
         }
 
-        if (!call(AS_CLOSURE(method), 0)) {
+        if (!finishCall(AS_CLOSURE(method), 0)) {
           return INTERPRET_RUNTIME_ERROR;
         }
 
@@ -737,9 +705,10 @@ static InterpretResult run() {
           return INTERPRET_RUNTIME_ERROR;
         }
 
-        if (!call(AS_CLOSURE(method), argCount)) {
+        if (!finishCall(AS_CLOSURE(method), argCount)) {
           return INTERPRET_RUNTIME_ERROR;
         }
+
         frame = &vm.frames[vm.frameCount - 1];
         break;
       }
@@ -826,7 +795,7 @@ InterpretResult interpret(const char* source, const char* module, bool inRepl) {
   ObjClosure* closure = newClosure(function);
   popRoot();
   push(OBJ_VAL(closure));
-  call(closure, 0);
+  finishCall(closure, 0);
 
   return run();
 }

@@ -24,10 +24,10 @@
 #define DEBUG_PRINT_TOKENS 0
 
 // Print the bytecode instructions immediately after compiling.
-#define DEBUG_PRINT_CODE 1
+#define DEBUG_PRINT_CODE 0
 
 // Print the bytecode instructions as they run.
-#define DEBUG_TRACE_EXECUTION 1
+#define DEBUG_TRACE_EXECUTION 0
 
 // Always run GC whenever the vm or compiler messes with memory.
 #define DEBUG_STRESS_GC 0

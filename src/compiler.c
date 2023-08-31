@@ -42,6 +42,7 @@ typedef enum {
   BP_AND,         // and
   BP_EQUALITY,    // == !=
   BP_COMPARISON,  // < > <= >=
+  BP_IS,          // is
   BP_BIT_OR,      // |
   BP_BIT_XOR,     // ^
   BP_BIT_AND,     // &
@@ -1043,7 +1044,7 @@ ParseRule rules[] = {
   /* TOKEN_FUN           */ UNUSED,
   /* TOKEN_IF            */ PREFIX(if_, BP_NONE),
   /* TOKEN_IN            */ UNUSED,
-  /* TOKEN_IS            */ UNUSED,
+  /* TOKEN_IS            */ INFIX_OPERATOR(BP_IS, "is"),
   /* TOKEN_NONE          */ PREFIX(literal, BP_NONE),
   /* TOKEN_NOT           */ PREFIX_OPERATOR(BP_NOT, "not"),
   /* TOKEN_OR            */ INFIX(or_, BP_OR),
@@ -1231,6 +1232,8 @@ static void method() {
   pushScope();
 
   signatureFn(&signature);
+
+  current->function->arity = signature.arity;
 
   char fullSignature[MAX_METHOD_SIGNATURE];
   int length;

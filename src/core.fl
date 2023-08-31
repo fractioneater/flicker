@@ -6,6 +6,9 @@ class String {}
 class List {}
 class Range {}
 class Sys
-  static writeObject_(obj)
+  static writeObject(obj)
     var string = obj.toString 
-    writeString_(string)
+    if (string is String)
+      writeString(string)
+    else
+      writeString("[invalid toString method]")

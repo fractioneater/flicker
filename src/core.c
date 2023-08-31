@@ -21,9 +21,9 @@
 // Bool          //
 ///////////////////
 
-DEF_PRIMITIVE(bool_not) { RETURN_BOOL(!AS_BOOL(args[0])); }
+DEF_NATIVE(bool_not) { RETURN_BOOL(!AS_BOOL(args[0])); }
 
-DEF_PRIMITIVE(bool_toString) {
+DEF_NATIVE(bool_toString) {
   if (AS_BOOL(args[0])) {
     RETURN_OBJ(copyStringLength("True", 4));
   } else {
@@ -35,9 +35,9 @@ DEF_PRIMITIVE(bool_toString) {
 // Class          //
 ////////////////////
 
-DEF_PRIMITIVE(class_name) { RETURN_OBJ(AS_CLASS(args[0])->name); }
+DEF_NATIVE(class_name) { RETURN_OBJ(AS_CLASS(args[0])->name); }
 
-DEF_PRIMITIVE(class_superclass) {
+DEF_NATIVE(class_superclass) {
   ObjClass* cls = AS_CLASS(args[0]);
 
   if (cls->superclass == NULL) RETURN_NONE;
@@ -45,17 +45,17 @@ DEF_PRIMITIVE(class_superclass) {
   RETURN_OBJ(cls->superclass);
 }
 
-DEF_PRIMITIVE(class_toString) { RETURN_OBJ(AS_CLASS(args[0])->name); }
+DEF_NATIVE(class_toString) { RETURN_OBJ(AS_CLASS(args[0])->name); }
 
 ///////////////////////
 // Function          //
 ///////////////////////
 
-DEF_PRIMITIVE(function_arity) {
+DEF_NATIVE(function_arity) {
   RETURN_NUMBER(AS_CLOSURE(args[0])->function->arity);
 }
 
-DEF_PRIMITIVE(function_toString) {
+DEF_NATIVE(function_toString) {
   ObjFunction* function = AS_CLOSURE(args[0])->function;
   RETURN_OBJ(stringFormat("<fn #>", function->name));
 }
@@ -64,7 +64,7 @@ DEF_PRIMITIVE(function_toString) {
 // List          //
 ///////////////////
 
-DEF_PRIMITIVE(list_filled) {
+DEF_NATIVE(list_filled) {
   if (!validateInt(args[1], "Size")) return false;
   if (AS_NUMBER(args[1]) < 0) RETURN_ERROR("Size cannot be negative");
 
@@ -78,26 +78,26 @@ DEF_PRIMITIVE(list_filled) {
   RETURN_OBJ(list);
 }
 
-DEF_PRIMITIVE(list_new) { RETURN_OBJ(newList(0)); }
+DEF_NATIVE(list_new) { RETURN_OBJ(newList(0)); }
 
-DEF_PRIMITIVE(list_add) {
+DEF_NATIVE(list_add) {
   listAppend(AS_LIST(args[0]), args[1]);
   RETURN_NONE;
 }
 
-DEF_PRIMITIVE(list_addCore) {
+DEF_NATIVE(list_addCore) {
   listAppend(AS_LIST(args[0]), args[1]);
   RETURN_VAL(args[0]);
 }
 
-DEF_PRIMITIVE(list_clear) {
+DEF_NATIVE(list_clear) {
   listClear(AS_LIST(args[0]));
   RETURN_NONE;
 }
 
-DEF_PRIMITIVE(list_size) { RETURN_NUMBER(AS_LIST(args[0])->count); }
+DEF_NATIVE(list_size) { RETURN_NUMBER(AS_LIST(args[0])->count); }
 
-DEF_PRIMITIVE(list_insert) {
+DEF_NATIVE(list_insert) {
   ObjList* list = AS_LIST(args[0]);
 
   uint32_t index = validateIndex(args[1], list->count + 1, "Index");
@@ -107,7 +107,7 @@ DEF_PRIMITIVE(list_insert) {
   RETURN_VAL(args[2]);
 }
 
-DEF_PRIMITIVE(list_iterate) {
+DEF_NATIVE(list_iterate) {
   ObjList* list = AS_LIST(args[0]);
 
   if (IS_NONE(args[1])) {
@@ -123,7 +123,7 @@ DEF_PRIMITIVE(list_iterate) {
   RETURN_NUMBER(index + 1);
 }
 
-DEF_PRIMITIVE(list_iteratorValue) {
+DEF_NATIVE(list_iteratorValue) {
   ObjList* list = AS_LIST(args[0]);
   uint32_t index = validateIndex(args[1], list->count, "Iterator");
   if (index == UINT32_MAX) return false;
@@ -131,7 +131,7 @@ DEF_PRIMITIVE(list_iteratorValue) {
   RETURN_VAL(list->items[index]);
 }
 
-DEF_PRIMITIVE(list_removeAt) {
+DEF_NATIVE(list_removeAt) {
   ObjList* list = AS_LIST(args[0]);
   uint32_t index = validateIndex(args[1], list->count, "Index");
   if (index == UINT32_MAX) return false;
@@ -139,19 +139,19 @@ DEF_PRIMITIVE(list_removeAt) {
   RETURN_VAL(listDeleteAt(list, index));
 }
 
-DEF_PRIMITIVE(list_removeValue) {
+DEF_NATIVE(list_removeValue) {
   ObjList* list = AS_LIST(args[0]);
   int index = listIndexOf(list, args[1]);
   if (index == -1) RETURN_NONE;
   RETURN_VAL(listDeleteAt(list, index));
 }
 
-DEF_PRIMITIVE(list_indexOf) {
+DEF_NATIVE(list_indexOf) {
   ObjList* list = AS_LIST(args[0]);
   RETURN_NUMBER(listIndexOf(list, args[1]));
 }
 
-DEF_PRIMITIVE(list_swap) {
+DEF_NATIVE(list_swap) {
   ObjList* list = AS_LIST(args[0]);
   uint32_t indexA = validateIndex(args[1], list->count, "Index 0");
   if (indexA == UINT32_MAX) return false;
@@ -165,7 +165,7 @@ DEF_PRIMITIVE(list_swap) {
   RETURN_NONE;
 }
 
-DEF_PRIMITIVE(list_subscript) {
+DEF_NATIVE(list_subscript) {
   ObjList* list = AS_LIST(args[0]);
 
   if (IS_NUMBER(args[1])) {
@@ -192,7 +192,7 @@ DEF_PRIMITIVE(list_subscript) {
   RETURN_OBJ(result);
 }
 
-DEF_PRIMITIVE(list_subscriptSet) {
+DEF_NATIVE(list_subscriptSet) {
   ObjList* list = AS_LIST(args[0]);
   uint32_t index = validateIndex(args[1], list->count, "Index");
   if (index == UINT32_MAX) return false;
@@ -205,15 +205,15 @@ DEF_PRIMITIVE(list_subscriptSet) {
 // None          //
 ///////////////////
 
-DEF_PRIMITIVE(none_not) { RETURN_TRUE; }
+DEF_NATIVE(none_not) { RETURN_TRUE; }
 
-DEF_PRIMITIVE(none_toString) { RETURN_OBJ(copyStringLength("None", 4)); }
+DEF_NATIVE(none_toString) { RETURN_OBJ(copyStringLength("None", 4)); }
 
 /////////////////////
 // Number          //
 /////////////////////
 
-DEF_PRIMITIVE(number_fromString) {
+DEF_NATIVE(number_fromString) {
   if (!validateString(args[1], "Argument")) return false;
 
   ObjString* string = AS_STRING(args[1]);
@@ -233,7 +233,7 @@ DEF_PRIMITIVE(number_fromString) {
   RETURN_NUMBER(number);
 }
 
-#define DEF_NUM_CONSTANT(name, value) DEF_PRIMITIVE(number_##name) { RETURN_NUMBER(value); }
+#define DEF_NUM_CONSTANT(name, value) DEF_NATIVE(number_##name) { RETURN_NUMBER(value); }
 
 DEF_NUM_CONSTANT(infinity,   INFINITY)
 DEF_NUM_CONSTANT(nan,        DOUBLE_NAN)
@@ -245,7 +245,7 @@ DEF_NUM_CONSTANT(maxInteger, 9007199254740991.0)
 DEF_NUM_CONSTANT(minInteger, -9007199254740991.0)
 
 #define DEF_NUM_INFIX(name, op, type)                            \
-  DEF_PRIMITIVE(number_##name) {                                 \
+  DEF_NATIVE(number_##name) {                                 \
     if (!validateNumber(args[1], "Right operand")) return false; \
     RETURN_##type(AS_NUMBER(args[0]) op AS_NUMBER(args[1]));     \
   }
@@ -260,7 +260,7 @@ DEF_NUM_INFIX(lte,      <=, BOOL)
 DEF_NUM_INFIX(gte,      >=, BOOL)
 
 #define DEF_NUM_BITWISE(name, op)                                \
-  DEF_PRIMITIVE(number_bitwise##name) {                          \
+  DEF_NATIVE(number_bitwise##name) {                          \
     if (!validateNumber(args[1], "Right operand")) return false; \
     uint32_t left = (uint32_t)AS_NUMBER(args[0]);                \
     uint32_t right = (uint32_t)AS_NUMBER(args[1]);               \
@@ -274,7 +274,7 @@ DEF_NUM_BITWISE(LeftShift,  <<)
 DEF_NUM_BITWISE(RightShift, >>)
 
 #define DEF_NUM_FN(name, fn) \
-  DEF_PRIMITIVE(number_##name) { RETURN_NUMBER(fn(AS_NUMBER(args[0]))); }
+  DEF_NATIVE(number_##name) { RETURN_NUMBER(fn(AS_NUMBER(args[0]))); }
 
 DEF_NUM_FN(abs,    fabs)
 DEF_NUM_FN(acos,   acos)
@@ -293,7 +293,7 @@ DEF_NUM_FN(log,    log)
 DEF_NUM_FN(log2,   log2)
 DEF_NUM_FN(exp,    exp)
 
-DEF_PRIMITIVE(number_mod) {
+DEF_NATIVE(number_mod) {
   if (!validateNumber(args[1], "Right operand")) return false;
   double a = AS_NUMBER(args[0]);
   double b = AS_NUMBER(args[1]);
@@ -302,21 +302,21 @@ DEF_PRIMITIVE(number_mod) {
   RETURN_NUMBER(c);
 }
 
-DEF_PRIMITIVE(number_equals) {
+DEF_NATIVE(number_equals) {
   if (!IS_NUMBER(args[1])) RETURN_FALSE;
   RETURN_BOOL(AS_NUMBER(args[0]) == AS_NUMBER(args[1]));
 }
 
-DEF_PRIMITIVE(number_notEquals) {
+DEF_NATIVE(number_notEquals) {
   if (!IS_NUMBER(args[1])) RETURN_TRUE;
   RETURN_BOOL(AS_NUMBER(args[0]) != AS_NUMBER(args[1]));
 }
 
-DEF_PRIMITIVE(number_bitwiseNot) {
+DEF_NATIVE(number_bitwiseNot) {
   RETURN_NUMBER(!(uint32_t)AS_NUMBER(args[0]));
 }
 
-DEF_PRIMITIVE(number_dotDot) {
+DEF_NATIVE(number_dotDot) {
   if (!validateNumber(args[1], "Right hand side of range")) return false;
 
   double from = AS_NUMBER(args[0]);
@@ -324,7 +324,7 @@ DEF_PRIMITIVE(number_dotDot) {
   RETURN_OBJ(newRange(from, to, true));
 }
 
-DEF_PRIMITIVE(number_colon) {
+DEF_NATIVE(number_colon) {
   if (!validateNumber(args[1], "Right hand side of range")) return false;
 
   double from = AS_NUMBER(args[0]);
@@ -332,12 +332,12 @@ DEF_PRIMITIVE(number_colon) {
   RETURN_OBJ(newRange(from, to, false));
 }
 
-DEF_PRIMITIVE(number_atan2) {
+DEF_NATIVE(number_atan2) {
   if (!validateNumber(args[1], "x value")) return false;
   RETURN_NUMBER(atan2(AS_NUMBER(args[0]), AS_NUMBER(args[1])));
 }
 
-DEF_PRIMITIVE(number_min) {
+DEF_NATIVE(number_min) {
   if (!validateNumber(args[1], "Other value")) return false;
 
   double a = AS_NUMBER(args[0]);
@@ -345,7 +345,7 @@ DEF_PRIMITIVE(number_min) {
   RETURN_NUMBER(a <= b ? a : b);
 }
 
-DEF_PRIMITIVE(number_max) {
+DEF_NATIVE(number_max) {
   if (!validateNumber(args[1], "Other value")) return false;
 
   double a = AS_NUMBER(args[0]);
@@ -353,7 +353,7 @@ DEF_PRIMITIVE(number_max) {
   RETURN_NUMBER(a >= b ? a : b);
 }
 
-DEF_PRIMITIVE(number_clamp) {
+DEF_NATIVE(number_clamp) {
   if (!validateNumber(args[1], "Min value")) return false;
   if (!validateNumber(args[1], "Max value")) return false;
 
@@ -363,31 +363,31 @@ DEF_PRIMITIVE(number_clamp) {
   RETURN_NUMBER((value < min) ? min : ((value > max) ? max : value));
 }
 
-DEF_PRIMITIVE(number_pow) {
+DEF_NATIVE(number_pow) {
   if (!validateNumber(args[1], "Power value")) return false;
   RETURN_NUMBER(pow(AS_NUMBER(args[0]), AS_NUMBER(args[1])));
 }
 
-DEF_PRIMITIVE(number_fraction) {
+DEF_NATIVE(number_fraction) {
   double unused;
   RETURN_NUMBER(modf(AS_NUMBER(args[0]), &unused));
 }
 
-DEF_PRIMITIVE(number_isInfinity) {
+DEF_NATIVE(number_isInfinity) {
   RETURN_BOOL(isinf(AS_NUMBER(args[0])));
 }
 
-DEF_PRIMITIVE(number_isInteger) {
+DEF_NATIVE(number_isInteger) {
   double value = AS_NUMBER(args[0]);
   if (isnan(value) || isinf(value)) RETURN_FALSE;
   RETURN_BOOL(trunc(value) == value);
 }
 
-DEF_PRIMITIVE(number_isNan) {
+DEF_NATIVE(number_isNan) {
   RETURN_BOOL(isnan(AS_NUMBER(args[0])));
 }
 
-DEF_PRIMITIVE(number_sign) {
+DEF_NATIVE(number_sign) {
   double value = AS_NUMBER(args[0]);
   if (value > 0)
     RETURN_NUMBER(1);
@@ -397,11 +397,11 @@ DEF_PRIMITIVE(number_sign) {
     RETURN_NUMBER(0);
 }
 
-DEF_PRIMITIVE(number_toString) {
+DEF_NATIVE(number_toString) {
   RETURN_OBJ(numberToString(AS_NUMBER(args[0])));
 }
 
-DEF_PRIMITIVE(number_truncate) {
+DEF_NATIVE(number_truncate) {
   double integer;
   modf(AS_NUMBER(args[0]), &integer);
   RETURN_NUMBER(integer);
@@ -411,23 +411,23 @@ DEF_PRIMITIVE(number_truncate) {
 // Object          //
 /////////////////////
 
-DEF_PRIMITIVE(object_same) {
+DEF_NATIVE(object_same) {
   RETURN_BOOL(valuesEqual(args[1], args[2]));
 }
 
-DEF_PRIMITIVE(object_not) { RETURN_FALSE; }
+DEF_NATIVE(object_not) { RETURN_FALSE; }
 
-DEF_PRIMITIVE(object_equals) {
+DEF_NATIVE(object_equals) {
   RETURN_BOOL(valuesEqual(args[0], args[1]));
 }
 
-DEF_PRIMITIVE(object_notEquals) {
+DEF_NATIVE(object_notEquals) {
   RETURN_BOOL(!valuesEqual(args[0], args[1]));
 }
 
-DEF_PRIMITIVE(object_is) {
+DEF_NATIVE(object_is) {
   if (!IS_CLASS(args[1])) {
-    // ERROR("Right operand must be a class");
+    ERROR("Right operand must be a class");
     return false;
   }
 
@@ -442,37 +442,37 @@ DEF_PRIMITIVE(object_is) {
   RETURN_BOOL(false);
 }
 
-DEF_PRIMITIVE(object_toString) {
+DEF_NATIVE(object_toString) {
   Obj* obj = AS_OBJ(args[0]);
   ObjString* name = obj->cls->name;
   RETURN_OBJ(stringFormat("# instance", name));
 }
 
-DEF_PRIMITIVE(object_type) { RETURN_OBJ(getClass(args[0])); }
+DEF_NATIVE(object_type) { RETURN_OBJ(getClass(args[0])); }
 
 ////////////////////
 // Range          //
 ////////////////////
 
-DEF_PRIMITIVE(range_from) { RETURN_NUMBER(AS_RANGE(args[0])->from); }
+DEF_NATIVE(range_from) { RETURN_NUMBER(AS_RANGE(args[0])->from); }
 
-DEF_PRIMITIVE(range_to) { RETURN_NUMBER(AS_RANGE(args[0])->to); }
+DEF_NATIVE(range_to) { RETURN_NUMBER(AS_RANGE(args[0])->to); }
 
-DEF_PRIMITIVE(range_min) {
+DEF_NATIVE(range_min) {
   ObjRange* range = AS_RANGE(args[0]);
   RETURN_NUMBER(fmin(range->from, range->to));
 }
 
-DEF_PRIMITIVE(range_max) {
+DEF_NATIVE(range_max) {
   ObjRange* range = AS_RANGE(args[0]);
   RETURN_NUMBER(fmax(range->from, range->to));
 }
 
-DEF_PRIMITIVE(range_isInclusive) {
+DEF_NATIVE(range_isInclusive) {
   RETURN_BOOL(AS_RANGE(args[0])->isInclusive);
 }
 
-DEF_PRIMITIVE(range_iterate) {
+DEF_NATIVE(range_iterate) {
   ObjRange* range = AS_RANGE(args[0]);
 
   if (range->from == range->to && !range->isInclusive) RETURN_FALSE;
@@ -495,9 +495,9 @@ DEF_PRIMITIVE(range_iterate) {
   RETURN_NUMBER(iterator);
 }
 
-DEF_PRIMITIVE(range_iteratorValue) { RETURN_VAL(args[1]); }
+DEF_NATIVE(range_iteratorValue) { RETURN_VAL(args[1]); }
 
-DEF_PRIMITIVE(range_toString) {
+DEF_NATIVE(range_toString) {
   ObjRange* range = AS_RANGE(args[0]);
 
   ObjString* from = numberToString(range->from);
@@ -516,7 +516,7 @@ DEF_PRIMITIVE(range_toString) {
 // String          //
 /////////////////////
 
-DEF_PRIMITIVE(string_fromCodePoint) {
+DEF_NATIVE(string_fromCodePoint) {
   if (!validateInt(args[1], "Code point")) return false;
   int codePoint = (int)AS_NUMBER(args[1]);
 
@@ -529,7 +529,7 @@ DEF_PRIMITIVE(string_fromCodePoint) {
   RETURN_OBJ(stringFromCodePoint(codePoint));
 }
 
-DEF_PRIMITIVE(string_fromByte) {
+DEF_NATIVE(string_fromByte) {
   if (!validateInt(args[1], "Byte")) return false;
   int byte = (int)AS_NUMBER(args[1]);
 
@@ -542,7 +542,7 @@ DEF_PRIMITIVE(string_fromByte) {
   RETURN_OBJ(stringFromByte((uint8_t)byte));
 }
 
-DEF_PRIMITIVE(string_byteAt) {
+DEF_NATIVE(string_byteAt) {
   ObjString* string = AS_STRING(args[0]);
 
   uint32_t index = validateIndex(args[1], string->length, "Index");
@@ -551,11 +551,11 @@ DEF_PRIMITIVE(string_byteAt) {
   RETURN_NUMBER((uint8_t)string->chars[index]);
 }
 
-DEF_PRIMITIVE(string_byteCount) {
+DEF_NATIVE(string_byteCount) {
   RETURN_NUMBER(AS_STRING(args[0])->length);
 }
 
-DEF_PRIMITIVE(string_codePointAt) {
+DEF_NATIVE(string_codePointAt) {
   ObjString* string = AS_STRING(args[0]);
 
   uint32_t index = validateIndex(args[1], string->length, "Index");
@@ -567,7 +567,7 @@ DEF_PRIMITIVE(string_codePointAt) {
   RETURN_NUMBER(utf8Decode((uint8_t*)string->chars + index, string->length - index));
 }
 
-DEF_PRIMITIVE(string_contains) {
+DEF_NATIVE(string_contains) {
   if (!validateString(args[1], "Argument")) return false;
 
   ObjString* string = AS_STRING(args[0]);
@@ -576,7 +576,7 @@ DEF_PRIMITIVE(string_contains) {
   RETURN_BOOL(stringFind(string, search, 0) != UINT32_MAX);
 }
 
-DEF_PRIMITIVE(string_endsWith) {
+DEF_NATIVE(string_endsWith) {
   if (!validateString(args[1], "Argument")) return false;
 
   ObjString* string = AS_STRING(args[0]);
@@ -588,7 +588,7 @@ DEF_PRIMITIVE(string_endsWith) {
                      search->chars, search->length) == 0);
 }
 
-DEF_PRIMITIVE(string_indexOf1) {
+DEF_NATIVE(string_indexOf1) {
   if (!validateString(args[1], "Argument")) return false;
 
   ObjString* string = AS_STRING(args[0]);
@@ -598,7 +598,7 @@ DEF_PRIMITIVE(string_indexOf1) {
   RETURN_NUMBER(index == UINT32_MAX ? -1 : (int)index);
 }
 
-DEF_PRIMITIVE(string_indexOf2) {
+DEF_NATIVE(string_indexOf2) {
   if (!validateString(args[1], "Argument")) return false;
 
   ObjString* string = AS_STRING(args[0]);
@@ -610,7 +610,7 @@ DEF_PRIMITIVE(string_indexOf2) {
   RETURN_NUMBER(index == UINT32_MAX ? -1 : (int)index);
 }
 
-DEF_PRIMITIVE(string_iterate) {
+DEF_NATIVE(string_iterate) {
   ObjString* string = AS_STRING(args[0]);
 
   if (IS_NONE(args[1])) {
@@ -631,7 +631,7 @@ DEF_PRIMITIVE(string_iterate) {
   RETURN_NUMBER(index);
 }
 
-DEF_PRIMITIVE(string_iterateByte) {
+DEF_NATIVE(string_iterateByte) {
   ObjString* string = AS_STRING(args[0]);
 
   if (IS_NONE(args[1])) {
@@ -650,7 +650,7 @@ DEF_PRIMITIVE(string_iterateByte) {
   RETURN_NUMBER(index);
 }
 
-DEF_PRIMITIVE(string_iteratorValue) {
+DEF_NATIVE(string_iteratorValue) {
   ObjString* string = AS_STRING(args[0]);
   uint32_t index = validateIndex(args[1], string->length, "Iterator");
   if (index == UINT32_MAX) return false;
@@ -658,7 +658,7 @@ DEF_PRIMITIVE(string_iteratorValue) {
   RETURN_OBJ(stringCodePointAt(string, index));
 }
 
-DEF_PRIMITIVE(string_startsWith) {
+DEF_NATIVE(string_startsWith) {
   if (!validateString(args[1], "Argument")) return false;
 
   ObjString* string = AS_STRING(args[0]);
@@ -669,12 +669,12 @@ DEF_PRIMITIVE(string_startsWith) {
   RETURN_BOOL(memcmp(string->chars, search->chars, search->length) == 0);
 }
 
-DEF_PRIMITIVE(string_plus) {
+DEF_NATIVE(string_plus) {
   if (!validateString(args[1], "Right operand")) return false;
   RETURN_OBJ(stringFormat("##", args[0], args[1]));
 }
 
-DEF_PRIMITIVE(string_subscript) {
+DEF_NATIVE(string_subscript) {
   ObjString* string = AS_STRING(args[0]);
 
   if (IS_NUMBER(args[1])) {
@@ -696,29 +696,29 @@ DEF_PRIMITIVE(string_subscript) {
   RETURN_OBJ(stringFromRange(string, start, count, step));
 }
 
-DEF_PRIMITIVE(string_toString) { RETURN_VAL(args[0]); }
+DEF_NATIVE(string_toString) { RETURN_VAL(args[0]); }
 
 //////////////////
 // Sys          //
 //////////////////
 
-DEF_PRIMITIVE(sys_clock) {
+DEF_NATIVE(sys_clock) {
   RETURN_NUMBER((double)clock() / CLOCKS_PER_SEC);
 }
 
-DEF_PRIMITIVE(sys_gc) {
+DEF_NATIVE(sys_gc) {
   collectGarbage();
   RETURN_NONE;
 }
 
-DEF_PRIMITIVE(sys_writeString) {
+DEF_NATIVE(sys_writeString) {
   printf("%s\n", AS_CSTRING(args[1]));
   RETURN_VAL(args[1]);
 }
 
-////////////////////////////////
-// End of primitives          //
-////////////////////////////////
+/////////////////////////////
+// End of natives          //
+/////////////////////////////
 
 static ObjClass* defineClass(VM* vm, const char* name) {
   ObjString* className = copyString(name);
@@ -741,18 +741,18 @@ static ObjClass* defineClass(VM* vm, const char* name) {
 
 void initializeCore(VM* vm) {
   vm->objectClass = defineClass(vm, "Object");
-  PRIMITIVE(vm->objectClass, "not", object_not);
-  PRIMITIVE(vm->objectClass, "==(1)", object_equals);
-  PRIMITIVE(vm->objectClass, "!=(1)", object_notEquals);
-  PRIMITIVE(vm->objectClass, "is(1)", object_is);
-  PRIMITIVE(vm->objectClass, "toString", object_toString);
-  PRIMITIVE(vm->objectClass, "type", object_type);
+  NATIVE(vm->objectClass, "not", object_not);
+  NATIVE(vm->objectClass, "==(1)", object_equals);
+  NATIVE(vm->objectClass, "!=(1)", object_notEquals);
+  NATIVE(vm->objectClass, "is(1)", object_is);
+  NATIVE(vm->objectClass, "toString", object_toString);
+  NATIVE(vm->objectClass, "type", object_type);
 
   vm->classClass = defineClass(vm, "Class");
   bindSuperclass(vm->classClass, vm->objectClass);
-  PRIMITIVE(vm->classClass, "name", class_name);
-  PRIMITIVE(vm->classClass, "superclass", class_superclass);
-  PRIMITIVE(vm->classClass, "toString", class_toString);
+  NATIVE(vm->classClass, "name", class_name);
+  NATIVE(vm->classClass, "superclass", class_superclass);
+  NATIVE(vm->classClass, "toString", class_toString);
 
   ObjClass* objectMetaclass = defineClass(vm, "Object metaclass");
 
@@ -760,130 +760,130 @@ void initializeCore(VM* vm) {
   objectMetaclass->obj.cls = vm->classClass;
   vm->classClass->obj.cls = vm->classClass;
 
-  PRIMITIVE(vm->objectClass, "same(2)", object_same);
+  NATIVE(vm->objectClass, "same(2)", object_same);
 
   interpret(coreSource, "<core>", false);
 
   GET_CORE_CLASS(vm->boolClass, "Bool");
-  PRIMITIVE(vm->boolClass, "toString", bool_toString);
-  PRIMITIVE(vm->boolClass, "not", bool_not);
+  NATIVE(vm->boolClass, "toString", bool_toString);
+  NATIVE(vm->boolClass, "not", bool_not);
 
   GET_CORE_CLASS(vm->noneClass, "None");
-  PRIMITIVE(vm->noneClass, "not", none_not);
-  PRIMITIVE(vm->noneClass, "toString", none_toString);
+  NATIVE(vm->noneClass, "not", none_not);
+  NATIVE(vm->noneClass, "toString", none_toString);
 
   GET_CORE_CLASS(vm->functionClass, "Function");
-  PRIMITIVE(vm->functionClass, "arity", function_arity);
-  PRIMITIVE(vm->functionClass, "toString", function_toString);
+  NATIVE(vm->functionClass, "arity", function_arity);
+  NATIVE(vm->functionClass, "toString", function_toString);
 
   GET_CORE_CLASS(vm->numberClass, "Number");
-  PRIMITIVE(vm->numberClass->obj.cls, "fromString(1)", number_fromString);
-  PRIMITIVE(vm->numberClass->obj.cls, "infinity", number_infinity);
-  PRIMITIVE(vm->numberClass->obj.cls, "nan", number_nan);
-  PRIMITIVE(vm->numberClass->obj.cls, "pi", number_pi);
-  PRIMITIVE(vm->numberClass->obj.cls, "tau", number_tau);
-  PRIMITIVE(vm->numberClass->obj.cls, "maxDouble", number_maxDouble);
-  PRIMITIVE(vm->numberClass->obj.cls, "minDouble", number_minDouble);
-  PRIMITIVE(vm->numberClass->obj.cls, "maxInteger", number_maxInteger);
-  PRIMITIVE(vm->numberClass->obj.cls, "minInteger", number_minInteger);
-  PRIMITIVE(vm->numberClass, "+(1)", number_plus);
-  PRIMITIVE(vm->numberClass, "-(1)", number_minus);
-  PRIMITIVE(vm->numberClass, "*(1)", number_multiply);
-  PRIMITIVE(vm->numberClass, "/(1)", number_divide);
-  PRIMITIVE(vm->numberClass, "**(1)", number_pow);
-  PRIMITIVE(vm->numberClass, "<(1)", number_lt);
-  PRIMITIVE(vm->numberClass, ">(1)", number_gt);
-  PRIMITIVE(vm->numberClass, "<=(1)", number_lte);
-  PRIMITIVE(vm->numberClass, ">=(1)", number_gte);
-  PRIMITIVE(vm->numberClass, "==(1)", number_equals);
-  PRIMITIVE(vm->numberClass, "!=(1)", number_notEquals);
-  PRIMITIVE(vm->numberClass, "&(1)", number_bitwiseAnd);
-  PRIMITIVE(vm->numberClass, "|(1)", number_bitwiseOr);
-  PRIMITIVE(vm->numberClass, "^(1)", number_bitwiseXor);
-  PRIMITIVE(vm->numberClass, "shl(1)", number_bitwiseLeftShift);
-  PRIMITIVE(vm->numberClass, "shr(1)", number_bitwiseRightShift);
-  PRIMITIVE(vm->numberClass, "abs", number_abs);
-  PRIMITIVE(vm->numberClass, "acos", number_acos);
-  PRIMITIVE(vm->numberClass, "asin", number_asin);
-  PRIMITIVE(vm->numberClass, "atan", number_atan);
-  PRIMITIVE(vm->numberClass, "cbrt", number_cbrt);
-  PRIMITIVE(vm->numberClass, "ceil", number_ceil);
-  PRIMITIVE(vm->numberClass, "cos", number_cos);
-  PRIMITIVE(vm->numberClass, "floor", number_floor);
-  PRIMITIVE(vm->numberClass, "-", number_negate);
-  PRIMITIVE(vm->numberClass, "round", number_round);
-  PRIMITIVE(vm->numberClass, "min(1)", number_min);
-  PRIMITIVE(vm->numberClass, "max(1)", number_max);
-  PRIMITIVE(vm->numberClass, "clamp(2)", number_clamp);
-  PRIMITIVE(vm->numberClass, "sin", number_sin);
-  PRIMITIVE(vm->numberClass, "sqrt", number_sqrt);
-  PRIMITIVE(vm->numberClass, "tan", number_tan);
-  PRIMITIVE(vm->numberClass, "log", number_log);
-  PRIMITIVE(vm->numberClass, "log2", number_log2);
-  PRIMITIVE(vm->numberClass, "exp", number_exp);
-  PRIMITIVE(vm->numberClass, "%(1)", number_mod);
-  PRIMITIVE(vm->numberClass, "~", number_bitwiseNot);
-  PRIMITIVE(vm->numberClass, "..(1)", number_dotDot);
-  PRIMITIVE(vm->numberClass, ":(1)", number_colon);
-  PRIMITIVE(vm->numberClass, "atan(1)", number_atan2);
-  PRIMITIVE(vm->numberClass, "fraction", number_fraction);
-  PRIMITIVE(vm->numberClass, "isInfinity", number_isInfinity);
-  PRIMITIVE(vm->numberClass, "isInteger", number_isInteger);
-  PRIMITIVE(vm->numberClass, "isNan", number_isNan);
-  PRIMITIVE(vm->numberClass, "sign", number_sign);
-  PRIMITIVE(vm->numberClass, "toString", number_toString);
-  PRIMITIVE(vm->numberClass, "truncate", number_truncate);
+  NATIVE(vm->numberClass->obj.cls, "fromString(1)", number_fromString);
+  NATIVE(vm->numberClass->obj.cls, "infinity", number_infinity);
+  NATIVE(vm->numberClass->obj.cls, "nan", number_nan);
+  NATIVE(vm->numberClass->obj.cls, "pi", number_pi);
+  NATIVE(vm->numberClass->obj.cls, "tau", number_tau);
+  NATIVE(vm->numberClass->obj.cls, "maxDouble", number_maxDouble);
+  NATIVE(vm->numberClass->obj.cls, "minDouble", number_minDouble);
+  NATIVE(vm->numberClass->obj.cls, "maxInteger", number_maxInteger);
+  NATIVE(vm->numberClass->obj.cls, "minInteger", number_minInteger);
+  NATIVE(vm->numberClass, "+(1)", number_plus);
+  NATIVE(vm->numberClass, "-(1)", number_minus);
+  NATIVE(vm->numberClass, "*(1)", number_multiply);
+  NATIVE(vm->numberClass, "/(1)", number_divide);
+  NATIVE(vm->numberClass, "**(1)", number_pow);
+  NATIVE(vm->numberClass, "<(1)", number_lt);
+  NATIVE(vm->numberClass, ">(1)", number_gt);
+  NATIVE(vm->numberClass, "<=(1)", number_lte);
+  NATIVE(vm->numberClass, ">=(1)", number_gte);
+  NATIVE(vm->numberClass, "==(1)", number_equals);
+  NATIVE(vm->numberClass, "!=(1)", number_notEquals);
+  NATIVE(vm->numberClass, "&(1)", number_bitwiseAnd);
+  NATIVE(vm->numberClass, "|(1)", number_bitwiseOr);
+  NATIVE(vm->numberClass, "^(1)", number_bitwiseXor);
+  NATIVE(vm->numberClass, "shl(1)", number_bitwiseLeftShift);
+  NATIVE(vm->numberClass, "shr(1)", number_bitwiseRightShift);
+  NATIVE(vm->numberClass, "abs", number_abs);
+  NATIVE(vm->numberClass, "acos", number_acos);
+  NATIVE(vm->numberClass, "asin", number_asin);
+  NATIVE(vm->numberClass, "atan", number_atan);
+  NATIVE(vm->numberClass, "cbrt", number_cbrt);
+  NATIVE(vm->numberClass, "ceil", number_ceil);
+  NATIVE(vm->numberClass, "cos", number_cos);
+  NATIVE(vm->numberClass, "floor", number_floor);
+  NATIVE(vm->numberClass, "-", number_negate);
+  NATIVE(vm->numberClass, "round", number_round);
+  NATIVE(vm->numberClass, "min(1)", number_min);
+  NATIVE(vm->numberClass, "max(1)", number_max);
+  NATIVE(vm->numberClass, "clamp(2)", number_clamp);
+  NATIVE(vm->numberClass, "sin", number_sin);
+  NATIVE(vm->numberClass, "sqrt", number_sqrt);
+  NATIVE(vm->numberClass, "tan", number_tan);
+  NATIVE(vm->numberClass, "log", number_log);
+  NATIVE(vm->numberClass, "log2", number_log2);
+  NATIVE(vm->numberClass, "exp", number_exp);
+  NATIVE(vm->numberClass, "%(1)", number_mod);
+  NATIVE(vm->numberClass, "~", number_bitwiseNot);
+  NATIVE(vm->numberClass, "..(1)", number_dotDot);
+  NATIVE(vm->numberClass, ":(1)", number_colon);
+  NATIVE(vm->numberClass, "atan(1)", number_atan2);
+  NATIVE(vm->numberClass, "fraction", number_fraction);
+  NATIVE(vm->numberClass, "isInfinity", number_isInfinity);
+  NATIVE(vm->numberClass, "isInteger", number_isInteger);
+  NATIVE(vm->numberClass, "isNan", number_isNan);
+  NATIVE(vm->numberClass, "sign", number_sign);
+  NATIVE(vm->numberClass, "toString", number_toString);
+  NATIVE(vm->numberClass, "truncate", number_truncate);
 
   GET_CORE_CLASS(vm->stringClass, "String");
-  PRIMITIVE(vm->stringClass->obj.cls, "fromCodePoint(1)", string_fromCodePoint);
-  PRIMITIVE(vm->stringClass->obj.cls, "fromByte(1)", string_fromByte);
-  PRIMITIVE(vm->stringClass, "+(1)", string_plus);
-  PRIMITIVE(vm->stringClass, "get(1)", string_subscript);
-  PRIMITIVE(vm->stringClass, "byteAt(1)", string_byteAt);
-  PRIMITIVE(vm->stringClass, "byteCount", string_byteCount);
-  PRIMITIVE(vm->stringClass, "codePointAt(1)", string_codePointAt);
-  PRIMITIVE(vm->stringClass, "contains(1)", string_contains);
-  PRIMITIVE(vm->stringClass, "endsWith(1)", string_endsWith);
-  PRIMITIVE(vm->stringClass, "indexOf(1)", string_indexOf1);
-  PRIMITIVE(vm->stringClass, "indexOf(2)", string_indexOf2);
-  PRIMITIVE(vm->stringClass, "iterate(1)", string_iterate);
-  PRIMITIVE(vm->stringClass, "iterateByte(1)", string_iterateByte);
-  PRIMITIVE(vm->stringClass, "iteratorValue(1)", string_iteratorValue);
-  PRIMITIVE(vm->stringClass, "startsWith(1)", string_startsWith);
-  PRIMITIVE(vm->stringClass, "toString", string_toString);
+  NATIVE(vm->stringClass->obj.cls, "fromCodePoint(1)", string_fromCodePoint);
+  NATIVE(vm->stringClass->obj.cls, "fromByte(1)", string_fromByte);
+  NATIVE(vm->stringClass, "+(1)", string_plus);
+  NATIVE(vm->stringClass, "get(1)", string_subscript);
+  NATIVE(vm->stringClass, "byteAt(1)", string_byteAt);
+  NATIVE(vm->stringClass, "byteCount", string_byteCount);
+  NATIVE(vm->stringClass, "codePointAt(1)", string_codePointAt);
+  NATIVE(vm->stringClass, "contains(1)", string_contains);
+  NATIVE(vm->stringClass, "endsWith(1)", string_endsWith);
+  NATIVE(vm->stringClass, "indexOf(1)", string_indexOf1);
+  NATIVE(vm->stringClass, "indexOf(2)", string_indexOf2);
+  NATIVE(vm->stringClass, "iterate(1)", string_iterate);
+  NATIVE(vm->stringClass, "iterateByte(1)", string_iterateByte);
+  NATIVE(vm->stringClass, "iteratorValue(1)", string_iteratorValue);
+  NATIVE(vm->stringClass, "startsWith(1)", string_startsWith);
+  NATIVE(vm->stringClass, "toString", string_toString);
 
   GET_CORE_CLASS(vm->listClass, "List");
-  PRIMITIVE(vm->listClass->obj.cls, "filled(2)", list_filled);
-  PRIMITIVE(vm->listClass->obj.cls, "new()", list_new);
-  PRIMITIVE(vm->listClass, "get(1)", list_subscript);
-  PRIMITIVE(vm->listClass, "set(2)", list_subscriptSet);
-  PRIMITIVE(vm->listClass, "add(1)", list_add);
-  PRIMITIVE(vm->listClass, "addCore(1)", list_addCore);
-  PRIMITIVE(vm->listClass, "clear()", list_clear);
-  PRIMITIVE(vm->listClass, "size", list_size);
-  PRIMITIVE(vm->listClass, "insert(2)", list_insert);
-  PRIMITIVE(vm->listClass, "iterate(1)", list_iterate);
-  PRIMITIVE(vm->listClass, "iteratorValue(1)", list_iteratorValue);
-  PRIMITIVE(vm->listClass, "removeAt(1)", list_removeAt);
-  PRIMITIVE(vm->listClass, "remove(1)", list_removeValue);
-  PRIMITIVE(vm->listClass, "indexOf(1)", list_indexOf);
-  PRIMITIVE(vm->listClass, "swap(2)", list_swap);
+  NATIVE(vm->listClass->obj.cls, "filled(2)", list_filled);
+  NATIVE(vm->listClass->obj.cls, "new()", list_new);
+  NATIVE(vm->listClass, "get(1)", list_subscript);
+  NATIVE(vm->listClass, "set(2)", list_subscriptSet);
+  NATIVE(vm->listClass, "add(1)", list_add);
+  NATIVE(vm->listClass, "addCore(1)", list_addCore);
+  NATIVE(vm->listClass, "clear()", list_clear);
+  NATIVE(vm->listClass, "size", list_size);
+  NATIVE(vm->listClass, "insert(2)", list_insert);
+  NATIVE(vm->listClass, "iterate(1)", list_iterate);
+  NATIVE(vm->listClass, "iteratorValue(1)", list_iteratorValue);
+  NATIVE(vm->listClass, "removeAt(1)", list_removeAt);
+  NATIVE(vm->listClass, "remove(1)", list_removeValue);
+  NATIVE(vm->listClass, "indexOf(1)", list_indexOf);
+  NATIVE(vm->listClass, "swap(2)", list_swap);
 
   GET_CORE_CLASS(vm->rangeClass, "Range");
-  PRIMITIVE(vm->rangeClass, "from", range_from);
-  PRIMITIVE(vm->rangeClass, "to", range_to);
-  PRIMITIVE(vm->rangeClass, "min", range_min);
-  PRIMITIVE(vm->rangeClass, "max", range_max);
-  PRIMITIVE(vm->rangeClass, "isInclusive", range_isInclusive);
-  PRIMITIVE(vm->rangeClass, "iterate(1)", range_iterate);
-  PRIMITIVE(vm->rangeClass, "iteratorValue(1)", range_iteratorValue);
-  PRIMITIVE(vm->rangeClass, "toString", range_toString);
+  NATIVE(vm->rangeClass, "from", range_from);
+  NATIVE(vm->rangeClass, "to", range_to);
+  NATIVE(vm->rangeClass, "min", range_min);
+  NATIVE(vm->rangeClass, "max", range_max);
+  NATIVE(vm->rangeClass, "isInclusive", range_isInclusive);
+  NATIVE(vm->rangeClass, "iterate(1)", range_iterate);
+  NATIVE(vm->rangeClass, "iteratorValue(1)", range_iteratorValue);
+  NATIVE(vm->rangeClass, "toString", range_toString);
 
   ObjClass* sysClass;
   GET_CORE_CLASS(sysClass, "Sys");
-  PRIMITIVE(sysClass->obj.cls, "clock", sys_clock);
-  PRIMITIVE(sysClass->obj.cls, "gc()", sys_gc);
-  PRIMITIVE(sysClass->obj.cls, "writeString(1)", sys_writeString);
+  NATIVE(sysClass->obj.cls, "clock", sys_clock);
+  NATIVE(sysClass->obj.cls, "gc()", sys_gc);
+  NATIVE(sysClass->obj.cls, "writeString(1)", sys_writeString);
 
   // Some string objects were created before stringClass even existed. Those
   // strings have a NULL classObj, so that needs to be fixed.
