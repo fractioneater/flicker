@@ -58,7 +58,6 @@ typedef enum {
 
 typedef enum {
   SIG_METHOD,
-  SIG_GETTER,
   SIG_INITIALIZER
 } SignatureType;
 
@@ -258,28 +257,10 @@ static void emitByte(uint8_t byte) {
   writeChunk(currentChunk(), byte, parser.previous.line);
 }
 
-// Uncomment if needed, delete if not needed
-// static void emitShort(int arg) {
-//   emitByte((arg >> 8) & 0xff);
-//   emitByte(arg & 0xff);
-// }
-
 static void emitByteArg(uint8_t instruction, uint8_t arg) {
   emitByte(instruction);
   emitByte(arg);
 }
-
-static void emitByteArgs(uint8_t instruction, uint8_t arg1, uint8_t arg2) {
-  emitByte(instruction);
-  emitByte(arg1);
-  emitByte(arg2);
-}
-
-// Uncomment if needed, delete if not needed
-// static void emitShortArg(uint8_t instruction, int arg) {
-//   emitByte(instruction);
-//   emitShort(arg);
-// }
 
 static void emitLoop(int loopStart) {
   emitByte(OP_LOOP);
@@ -594,14 +575,7 @@ static void signatureToString(Signature* signature, char name[MAX_METHOD_SIGNATU
   memcpy(name, signature->name, signature->length);
   *length += signature->length;
 
-  switch (signature->type) {
-    case SIG_GETTER:
-      break;
-    case SIG_METHOD:
-    case SIG_INITIALIZER:
-      signatureParameterList(name, length, signature->arity);
-      break;
-  }
+  signatureParameterList(name, length, signature->arity);
 
   name[*length] = '\0';
 }
@@ -661,56 +635,6 @@ static uint8_t argumentList() {
   return argCount;
 }
 
-static void binary(bool canAssign) {
-  TokenType operatorType = parser.previous.type;
-  ParseRule* rule = getRule(operatorType);
-
-  matchLine();
-
-  if (operatorType == TOKEN_STAR_STAR) {
-    expressionBp((BindingPower)(rule->bp));
-  } else {
-    expressionBp((BindingPower)(rule->bp + 1));
-  }
-
-#if METHOD_CALL_OPERATORS
-  Signature signature = { rule->name, (int)strlen(rule->name), SIG_METHOD, 1 };
-
-  char fullSignature[MAX_METHOD_SIGNATURE];
-  int length;
-  signatureToString(&signature, fullSignature, &length);
-
-  Value string = OBJ_VAL(copyStringLength(fullSignature, length));
-  uint8_t constant = makeConstant(string);
-
-  emitByteArg(OP_INVOKE, constant);
-  emitByte(1);
-#else
-  switch (operatorType) {
-    case TOKEN_STAR_STAR: emitByte(OP_EXPONENT); break;
-    case TOKEN_BANG_EQ:   emitByte(OP_NOT_EQUAL); break;
-    case TOKEN_EQ_EQ:     emitByte(OP_EQUAL); break;
-    case TOKEN_GT:        emitByte(OP_GREATER); break;
-    case TOKEN_GT_EQ:     emitByte(OP_GREATER_EQUAL); break;
-    case TOKEN_LT:        emitByte(OP_LESS); break;
-    case TOKEN_LT_EQ:     emitByte(OP_LESS_EQUAL); break;
-    case TOKEN_PLUS:      emitByte(OP_ADD); break;
-    case TOKEN_MINUS:     emitByte(OP_SUBTRACT); break;
-    case TOKEN_STAR:      emitByte(OP_MULTIPLY); break;
-    case TOKEN_SLASH:     emitByte(OP_DIVIDE); break;
-    case TOKEN_PERCENT:   emitByte(OP_MODULO); break;
-    case TOKEN_PIPE:      emitByte(OP_BIT_OR); break;
-    case TOKEN_CARET:     emitByte(OP_BIT_XOR); break;
-    case TOKEN_AMPERSAND: emitByte(OP_BIT_AND); break;
-    case TOKEN_SHL:       emitByte(OP_SHL); break;
-    case TOKEN_SHR:       emitByte(OP_SHR); break;
-    case TOKEN_COLON:     emitByte(OP_RANGE_EXCL); break;
-    case TOKEN_DOT_DOT:   emitByte(OP_RANGE_INCL); break;
-    default: return; // Unreachable.
-  }
-#endif
-}
-
 void binarySignature(Signature* signature) {
   signature->type = SIG_METHOD;
   signature->arity = 1;
@@ -723,11 +647,11 @@ void binarySignature(Signature* signature) {
 }
 
 void unarySignature(Signature* signature) {
-  signature->type = SIG_GETTER;
+  signature->type = SIG_METHOD;
 }
 
 void mixedSignature(Signature* signature) {
-  signature->type = SIG_GETTER;
+  signature->type = SIG_METHOD;
 
   if (match(TOKEN_LEFT_PAREN)) {
     signature->type = SIG_METHOD;
@@ -741,9 +665,7 @@ void mixedSignature(Signature* signature) {
 }
 
 void namedSignature(Signature* signature) {
-  signature->type = SIG_GETTER;
-
-  if (!match(TOKEN_LEFT_PAREN)) return;
+  expect(TOKEN_LEFT_PAREN, "Expecting '(' after method name");
 
   signature->type = SIG_METHOD;
 
@@ -751,23 +673,53 @@ void namedSignature(Signature* signature) {
   if (match(TOKEN_RIGHT_PAREN)) return;
 
   finishParameterList(signature);
-  expect(TOKEN_RIGHT_PAREN, "Expect ')' after parameters");
+  expect(TOKEN_RIGHT_PAREN, "Expecting ')' after parameters");
 }
 
 static void call(bool canAssign) {
   uint8_t argCount = argumentList();
-  emitByteArg(OP_CALL, argCount);
+  emitByte(OP_CALL_0 + argCount);
 }
 
 static void callFunc(bool canAssign) {
   lambda(false);
-  emitByteArg(OP_CALL, 1);
+  emitByte(OP_CALL_1);
+}
+
+static void getMethod() {
+  Signature signature = signatureFromToken(SIG_METHOD);
+
+  match(TOKEN_LEFT_BRACKET);
+
+  double argCount = 0;
+  if (!check(TOKEN_RIGHT_BRACKET)) {
+    expect(TOKEN_NUMBER, "Expecting a parameter number");
+    argCount = AS_NUMBER(parser.previous.value);
+  }
+
+  signature.arity = (int)trunc(argCount);
+  if (signature.arity > MAX_PARAMETERS) {
+    error("Methods cannot have this many parameters");
+  }
+
+  expect(TOKEN_RIGHT_BRACKET, "Expecting ']' after parameter count");
+
+  char fullSignature[MAX_METHOD_SIGNATURE];
+  int length;
+  signatureToString(&signature, fullSignature, &length);
+
+  emitByteArg(OP_GET_PROPERTY, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
 }
 
 static void dot(bool canAssign) {
   expect(TOKEN_IDENTIFIER, "Expecting a property name after '.'");
+  if (check(TOKEN_LEFT_BRACKET)) {
+    getMethod();
+    return;
+  }
+  
   uint8_t name = identifierConstant(&parser.previous);
-  Signature signature = signatureFromToken(SIG_GETTER);
+  Signature signature = signatureFromToken(SIG_METHOD);
 
   if (canAssign && match(TOKEN_EQ)) {
     expression();
@@ -783,8 +735,7 @@ static void dot(bool canAssign) {
     int length;
     signatureToString(&signature, fullSignature, &length);
 
-    emitByteArg(OP_INVOKE, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
-    emitByte(argCount);
+    emitByteArg(OP_INVOKE_0 + argCount, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
   } else {
     emitByteArg(OP_GET_PROPERTY, name);
   }
@@ -884,7 +835,7 @@ static void variable(bool canAssign) {
 
 static void list(bool canAssign) {
   emitByteArg(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyStringLength("List", 4))));
-  emitByteArgs(OP_INVOKE, makeConstant(OBJ_VAL(copyStringLength("new()", 5))), 0);
+  emitByteArg(OP_INVOKE_0, makeConstant(OBJ_VAL(copyStringLength("new()", 5))));
   
   do {
     matchLine();
@@ -892,7 +843,7 @@ static void list(bool canAssign) {
     if (check(TOKEN_RIGHT_BRACKET)) break;
 
     expression();
-    emitByteArgs(OP_INVOKE, makeConstant(OBJ_VAL(copyStringLength("addCore(1)", 10))), 1);
+    emitByteArg(OP_INVOKE_1, makeConstant(OBJ_VAL(copyStringLength("addCore(1)", 10))));
   } while (match(TOKEN_COMMA));
 
   matchLine();
@@ -905,9 +856,9 @@ static void subscript(bool canAssign) {
 
   if (canAssign && match(TOKEN_EQ)) {
     expression();
-    emitByteArgs(OP_INVOKE, makeConstant(OBJ_VAL(copyStringLength("set(2)", 6))), 2);
+    emitByteArg(OP_INVOKE_2, makeConstant(OBJ_VAL(copyStringLength("set(2)", 6))));
   } else {
-    emitByteArgs(OP_INVOKE, makeConstant(OBJ_VAL(copyStringLength("get(1)", 6))), 1);
+    emitByteArg(OP_INVOKE_1, makeConstant(OBJ_VAL(copyStringLength("get(1)", 6))));
   }
 }
 
@@ -932,8 +883,7 @@ static void super_(bool canAssign) {
     matchLine();
     uint8_t argCount = argumentList();
     namedVariable(syntheticToken("super"), false);
-    emitByteArg(OP_SUPER_INVOKE, name);
-    emitByte(argCount);
+    emitByteArg(OP_SUPER_0 + argCount, name);
   } else {
     namedVariable(syntheticToken("super"), false);
     emitByteArg(OP_GET_SUPER, name);
@@ -953,6 +903,55 @@ static void this_(bool canAssign) {
   namedVariable(parser.previous, false);
 }
 
+static void binary(bool canAssign) {
+  TokenType operatorType = parser.previous.type;
+  ParseRule* rule = getRule(operatorType);
+
+  matchLine();
+
+  if (operatorType == TOKEN_STAR_STAR) {
+    expressionBp((BindingPower)(rule->bp));
+  } else {
+    expressionBp((BindingPower)(rule->bp + 1));
+  }
+
+#if METHOD_CALL_OPERATORS
+  Signature signature = { rule->name, (int)strlen(rule->name), SIG_METHOD, 1 };
+
+  char fullSignature[MAX_METHOD_SIGNATURE];
+  int length;
+  signatureToString(&signature, fullSignature, &length);
+
+  Value string = OBJ_VAL(copyStringLength(fullSignature, length));
+  uint8_t constant = makeConstant(string);
+
+  emitByteArg(OP_INVOKE_1, constant);
+#else
+  switch (operatorType) {
+    case TOKEN_STAR_STAR: emitByte(OP_EXPONENT); break;
+    case TOKEN_BANG_EQ:   emitByte(OP_NOT_EQUAL); break;
+    case TOKEN_EQ_EQ:     emitByte(OP_EQUAL); break;
+    case TOKEN_GT:        emitByte(OP_GREATER); break;
+    case TOKEN_GT_EQ:     emitByte(OP_GREATER_EQUAL); break;
+    case TOKEN_LT:        emitByte(OP_LESS); break;
+    case TOKEN_LT_EQ:     emitByte(OP_LESS_EQUAL); break;
+    case TOKEN_PLUS:      emitByte(OP_ADD); break;
+    case TOKEN_MINUS:     emitByte(OP_SUBTRACT); break;
+    case TOKEN_STAR:      emitByte(OP_MULTIPLY); break;
+    case TOKEN_SLASH:     emitByte(OP_DIVIDE); break;
+    case TOKEN_PERCENT:   emitByte(OP_MODULO); break;
+    case TOKEN_PIPE:      emitByte(OP_BIT_OR); break;
+    case TOKEN_CARET:     emitByte(OP_BIT_XOR); break;
+    case TOKEN_AMPERSAND: emitByte(OP_BIT_AND); break;
+    case TOKEN_SHL:       emitByte(OP_SHL); break;
+    case TOKEN_SHR:       emitByte(OP_SHR); break;
+    case TOKEN_COLON:     emitByte(OP_RANGE_EXCL); break;
+    case TOKEN_DOT_DOT:   emitByte(OP_RANGE_INCL); break;
+    default: return; // Unreachable.
+  }
+#endif
+}
+
 static void unary(bool canAssign) {
   TokenType operatorType = parser.previous.type;
 #if METHOD_CALL_OPERATORS
@@ -965,8 +964,13 @@ static void unary(bool canAssign) {
   expressionBp(operatorType == TOKEN_NOT ? BP_NOT : BP_UNARY);
 
 #if METHOD_CALL_OPERATORS
-  emitByte(OP_INVOKE);
-  emitByteArg(makeConstant(OBJ_VAL(copyString(rule->name))), 0);
+  Signature signature = { rule->name, (int)strlen(rule->name), SIG_METHOD, 0 };
+
+  char fullSignature[MAX_METHOD_SIGNATURE];
+  int length;
+  signatureToString(&signature, fullSignature, &length);
+
+  emitByteArg(OP_INVOKE_0, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
 #else
   switch (operatorType) {
     case TOKEN_NOT: emitByte(OP_NOT); break;
@@ -1216,7 +1220,7 @@ static void method() {
     return;
   }
 
-  Signature signature = signatureFromToken(SIG_GETTER);
+  Signature signature = signatureFromToken(SIG_METHOD);
 
   FunctionType type = isStatic ? TYPE_STATIC_METHOD : TYPE_METHOD;
   if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
@@ -1385,157 +1389,6 @@ static void expressionStatement() {
   emitByte(OP_POP);
 }
 
-static void forStatement() {
-  pushScope();
-
-  Token* label = NULL;
-  if (match(TOKEN_COLON)) {
-    expect(TOKEN_IDENTIFIER, "Expecting a loop label");
-    label = ALLOCATE(Token, 1);
-    memcpy(label, &parser.previous, sizeof(Token));
-  }
-
-  expect(TOKEN_LEFT_PAREN, "Expecting '(' after 'for'");
-  matchLine();
-
-  if (match(TOKEN_SEMICOLON)) {
-    // No initializer.
-  } else if (match(TOKEN_VAR)) {
-    varDeclaration();
-    expectStatementEnd("Expecting ';' after loop initializer");
-  } else {
-    expressionStatement();
-    expectStatementEnd("Expecting ';' after loop initializer");
-  }
-
-  Loop loop;
-  startLoop(&loop);
-
-  current->loop->label = label;
-
-  current->loop->exitJump = -1;
-  if (!match(TOKEN_SEMICOLON)) {
-    expression();
-    expectStatementEnd("Expecting ';' after loop condition");
-
-    // Jump out of the loop if the condition is false.
-    current->loop->exitJump = emitJump(OP_JUMP_FALSY);
-    emitByte(OP_POP);
-  }
-
-  if (!match(TOKEN_RIGHT_PAREN)) {
-    int bodyJump = emitJump(OP_JUMP);
-    int incrementStart = currentChunk()->count;
-    expressionStatement();
-
-    matchLine();
-    expect(TOKEN_RIGHT_PAREN, "Expecting ')' after for clauses");
-
-    emitLoop(current->loop->start);
-    current->loop->start = incrementStart;
-    patchJump(bodyJump);
-  }
-
-  statement();
-
-  endLoop();
-  popScope();
-
-  FREE(Token, label);
-}
-
-static void eachStatement() {
-  pushScope(); // Scope for hidden iterator variables
-  expect(TOKEN_LEFT_PAREN, "Expecting '(' after 'each'");
-  expect(TOKEN_IDENTIFIER, "Expecting a loop variable");
-  Token name = parser.previous;
-
-  expect(TOKEN_IN, "Expecting 'in' after loop variable");
-  matchLine();
-
-  expression();
-
-  if (current->localCount + 2 > UINT8_COUNT) {
-    error("Cannot declare any more locals.");
-    return;
-  }
-
-  addLocal(syntheticToken("`seq"));
-  markInitialized();
-  int seqSlot = current->localCount - 1;
-  emitByte(OP_NONE);
-  addLocal(syntheticToken("`iter"));
-  markInitialized();
-  int iterSlot = current->localCount - 1;
-
-  matchLine();
-  expect(TOKEN_RIGHT_PAREN, "Expecting ')' after loop expression");
-
-  Loop loop;
-  startLoop(&loop);
-
-  emitByteArg(OP_GET_LOCAL, seqSlot);
-  emitByteArg(OP_GET_LOCAL, iterSlot);
-
-  emitByteArgs(OP_INVOKE, makeConstant(OBJ_VAL(copyStringLength("iterate(1)", 10))), 1);
-  emitByteArg(OP_SET_LOCAL, iterSlot);
-
-  current->loop->exitJump = emitJump(OP_JUMP_FALSY);
-
-  emitByteArg(OP_GET_LOCAL, seqSlot);
-  emitByteArg(OP_GET_LOCAL, iterSlot);
-  emitByteArgs(OP_INVOKE, makeConstant(OBJ_VAL(copyStringLength("iteratorValue(1)", 16))), 1);
-
-  pushScope(); // Loop variable
-  addLocal(name);
-  markInitialized();
-
-  if (matchLine()) {
-    expect(TOKEN_INDENT, "Expecting an indent before body");
-    block(true);
-  }
-  else statement();
-
-  popScope(); // Loop variable
-
-  endLoop();
-
-  popScope(); // `seq and `iter variables
-}
-
-static void ifStatement() {
-  expect(TOKEN_LEFT_PAREN, "Expecting '(' after 'if'");
-  matchLine();
-
-  expression();
-
-  matchLine();
-  expect(TOKEN_RIGHT_PAREN, "Expecting ')' after condition");
-
-  int thenJump = emitJump(OP_JUMP_FALSY);
-  emitByte(OP_POP);
-  if (matchLine()) {
-    expect(TOKEN_INDENT, "Expecting an indent before body");
-    block(true);
-  }
-  else statement();
-
-  int elseJump = emitJump(OP_JUMP);
-
-  patchJump(thenJump);
-  emitByte(OP_POP);
-
-  if (match(TOKEN_ELIF)) ifStatement();
-  else if (match(TOKEN_ELSE)) {
-    if (matchLine()) {
-      expect(TOKEN_INDENT, "Expecting an indent before body");
-      block(true);
-    }
-    else statement();
-  }
-  patchJump(elseJump);
-}
-
 static void printStatement() {
   expression();
   emitByte(OP_PRINT);
@@ -1613,54 +1466,6 @@ static void continueStatement() {
   FREE(Token, label);
 }
 
-/*
-static void returnStatement() {
-  Token* label = NULL;
-  if (match(TOKEN_COLON)) {
-    expect(TOKEN_IDENTIFIER, "Expecting a function name after ':'");
-    label = ALLOCATE(Token, 1);
-    memcpy(label, &parser.previous, sizeof(Token));
-  }
-
-  // The vm finds one return and ignores the later ones.
-  // The other returns will need to be added to the enclosing function.
-  int depth = 1;
-  Compiler* compiler = current;
-
-  if (label != NULL) {
-    for (;; depth++) {
-      if (compiler->function->name != NULL && label->length == compiler->function->name->length) {
-        if (memcmp(compiler->function->name->chars, label->start, label->length) == 0) break;
-      }
-
-      compiler = compiler->enclosing;
-      if (compiler == NULL) {
-        error("Can't find function with this name");
-        depth = 0;
-        break;
-      }
-    }
-  }
-
-  if (check(TOKEN_LINE) || check(TOKEN_SEMICOLON)) {
-    for (int i = 0; i < depth; i++) emitReturn();
-  } else {
-    for (int i = 0; i < depth; i++) {
-      if (i + 1 == depth) {
-        if (current->type == TYPE_INITIALIZER) {
-          error("Can't return a value from an initializer");
-        }
-
-        expression();
-        emitByte(OP_RETURN);
-      } else emitReturn();
-    }
-  }
-
-  FREE(Token, label);
-}
-*/
-
 static void returnStatement() {
   if (check(TOKEN_LINE) || check(TOKEN_SEMICOLON)) {
     emitReturn();
@@ -1672,6 +1477,193 @@ static void returnStatement() {
     expression();
     emitByte(OP_RETURN);
   }
+}
+
+static void whileStatement() {
+  Token* label = NULL;
+  if (match(TOKEN_COLON)) {
+    expect(TOKEN_IDENTIFIER, "Expecting a loop label");
+    label = ALLOCATE(Token, 1);
+    memcpy(label, &parser.previous, sizeof(Token));
+  }
+
+  Loop loop;
+  startLoop(&loop);
+
+  current->loop->label = label;
+
+  expect(TOKEN_LEFT_PAREN, "Expecting '(' after 'while'");
+  matchLine();
+
+  expression();
+
+  matchLine();
+  expect(TOKEN_RIGHT_PAREN, "Expecting ')' after condition");
+
+  current->loop->exitJump = emitJump(OP_JUMP_FALSY);
+  emitByte(OP_POP);
+  
+  if (matchLine()) {
+    expect(TOKEN_INDENT, "Expecting an indent before body");
+    block(true);
+  } else statement();
+
+  endLoop();
+
+  FREE(Token, label);
+}
+
+static void forStatement() {
+  pushScope();
+
+  Token* label = NULL;
+  if (match(TOKEN_COLON)) {
+    expect(TOKEN_IDENTIFIER, "Expecting a loop label");
+    label = ALLOCATE(Token, 1);
+    memcpy(label, &parser.previous, sizeof(Token));
+  }
+
+  expect(TOKEN_LEFT_PAREN, "Expecting '(' after 'for'");
+  matchLine();
+
+  if (match(TOKEN_SEMICOLON)) {
+    // No initializer.
+  } else if (match(TOKEN_VAR)) {
+    varDeclaration();
+    expectStatementEnd("Expecting ';' after loop initializer");
+  } else {
+    expressionStatement();
+    expectStatementEnd("Expecting ';' after loop initializer");
+  }
+
+  Loop loop;
+  startLoop(&loop);
+
+  current->loop->label = label;
+
+  current->loop->exitJump = -1;
+  if (!match(TOKEN_SEMICOLON)) {
+    expression();
+    expectStatementEnd("Expecting ';' after loop condition");
+
+    // Jump out of the loop if the condition is false.
+    current->loop->exitJump = emitJump(OP_JUMP_FALSY);
+    emitByte(OP_POP);
+  }
+
+  if (!match(TOKEN_RIGHT_PAREN)) {
+    int bodyJump = emitJump(OP_JUMP);
+    int incrementStart = currentChunk()->count;
+    expressionStatement();
+
+    matchLine();
+    expect(TOKEN_RIGHT_PAREN, "Expecting ')' after for clauses");
+
+    emitLoop(current->loop->start);
+    current->loop->start = incrementStart;
+    patchJump(bodyJump);
+  }
+
+  if (matchLine()) {
+    expect(TOKEN_INDENT, "Expecting an indent before body");
+    block(true);
+  } else statement();
+
+  endLoop();
+  popScope();
+
+  FREE(Token, label);
+}
+
+static void eachStatement() {
+  pushScope(); // Scope for hidden iterator variables
+  expect(TOKEN_LEFT_PAREN, "Expecting '(' after 'each'");
+  expect(TOKEN_IDENTIFIER, "Expecting a loop variable");
+  Token name = parser.previous;
+
+  expect(TOKEN_IN, "Expecting 'in' after loop variable");
+  matchLine();
+
+  expression();
+
+  if (current->localCount + 2 > UINT8_COUNT) {
+    error("Cannot declare any more locals.");
+    return;
+  }
+
+  addLocal(syntheticToken("`seq"));
+  markInitialized();
+  int seqSlot = current->localCount - 1;
+  emitByte(OP_NONE);
+  addLocal(syntheticToken("`iter"));
+  markInitialized();
+  int iterSlot = current->localCount - 1;
+
+  matchLine();
+  expect(TOKEN_RIGHT_PAREN, "Expecting ')' after loop expression");
+
+  Loop loop;
+  startLoop(&loop);
+
+  emitByteArg(OP_GET_LOCAL, seqSlot);
+  emitByteArg(OP_GET_LOCAL, iterSlot);
+
+  emitByteArg(OP_INVOKE_1, makeConstant(OBJ_VAL(copyStringLength("iterate(1)", 10))));
+  emitByteArg(OP_SET_LOCAL, iterSlot);
+
+  current->loop->exitJump = emitJump(OP_JUMP_FALSY);
+
+  emitByteArg(OP_GET_LOCAL, seqSlot);
+  emitByteArg(OP_GET_LOCAL, iterSlot);
+  emitByteArg(OP_INVOKE_1, makeConstant(OBJ_VAL(copyStringLength("iteratorValue(1)", 16))));
+
+  pushScope(); // Loop variable
+  addLocal(name);
+  markInitialized();
+
+  if (matchLine()) {
+    expect(TOKEN_INDENT, "Expecting an indent before body");
+    block(true);
+  } else statement();
+
+  popScope(); // Loop variable
+
+  endLoop();
+
+  popScope(); // `seq and `iter variables
+}
+
+static void ifStatement() {
+  expect(TOKEN_LEFT_PAREN, "Expecting '(' after 'if'");
+  matchLine();
+
+  expression();
+
+  matchLine();
+  expect(TOKEN_RIGHT_PAREN, "Expecting ')' after condition");
+
+  int thenJump = emitJump(OP_JUMP_FALSY);
+  emitByte(OP_POP);
+  if (matchLine()) {
+    expect(TOKEN_INDENT, "Expecting an indent before body");
+    block(true);
+  }
+  else statement();
+
+  int elseJump = emitJump(OP_JUMP);
+
+  patchJump(thenJump);
+  emitByte(OP_POP);
+
+  if (match(TOKEN_ELIF)) ifStatement();
+  else if (match(TOKEN_ELSE)) {
+    if (matchLine()) {
+      expect(TOKEN_INDENT, "Expecting an indent before body");
+      block(true);
+    }
+    else statement();
+  }
+  patchJump(elseJump);
 }
 
 #define MAX_WHEN_CASES 256
@@ -1749,7 +1741,7 @@ static void whenStatement() {
         expect(TOKEN_RIGHT_ARROW, "Expecting '->' after case value");
 
 #if METHOD_CALL_OPERATORS
-        emitByteArgs(OP_INVOKE, makeConstant(OBJ_VAL(copyStringLength("==", 2))), 1);
+        emitByteArg(OP_INVOKE_1, makeConstant(OBJ_VAL(copyStringLength("==(1)", 5))));
 #else
         emitByte(OP_EQUAL);
 #endif
@@ -1799,36 +1791,6 @@ static void whenStatement() {
   emitByte(OP_POP); // The switch value
 }
 
-static void whileStatement() {
-  Token* label = NULL;
-  if (match(TOKEN_COLON)) {
-    expect(TOKEN_IDENTIFIER, "Expecting a loop label");
-    label = ALLOCATE(Token, 1);
-    memcpy(label, &parser.previous, sizeof(Token));
-  }
-
-  Loop loop;
-  startLoop(&loop);
-
-  current->loop->label = label;
-
-  expect(TOKEN_LEFT_PAREN, "Expecting '(' after 'while'");
-  matchLine();
-
-  expression();
-
-  matchLine();
-  expect(TOKEN_RIGHT_PAREN, "Expecting ')' after condition");
-
-  current->loop->exitJump = emitJump(OP_JUMP_FALSY);
-  emitByte(OP_POP);
-  statement();
-
-  endLoop();
-
-  FREE(Token, label);
-}
-
 static void synchronize() {
   parser.panicMode = false;
 
@@ -1868,12 +1830,12 @@ static void statement() {
   else if (match(TOKEN_PASS)) return;
   else if (match(TOKEN_BREAK)) breakStatement();
   else if (match(TOKEN_CONTINUE)) continueStatement();
+  else if (match(TOKEN_RETURN)) returnStatement();
+  else if (match(TOKEN_WHILE)) whileStatement();
   else if (match(TOKEN_FOR)) forStatement();
   else if (match(TOKEN_EACH)) eachStatement();
   else if (match(TOKEN_IF)) ifStatement();
   else if (match(TOKEN_WHEN)) whenStatement();
-  else if (match(TOKEN_RETURN)) returnStatement();
-  else if (match(TOKEN_WHILE)) whileStatement();
   else if (match(TOKEN_LEFT_BRACE)) {
     pushScope();
     block(false);

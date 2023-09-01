@@ -17,15 +17,12 @@ def to_c_string(source_lines, module):
   
   return OUTPUT.format(module, source)
 
-def main():
-  with open(sys.argv[1], "r") as file:
-    source_lines = file.readlines()
+with open(sys.argv[1], "r") as file:
+  source_lines = file.readlines()
 
-  module = os.path.splitext(os.path.basename(sys.argv[1]))[0]
+module = os.path.splitext(os.path.basename(sys.argv[1]))[0]
 
-  source = to_c_string(source_lines, module)
+source = to_c_string(source_lines, module)
 
-  with open(sys.argv[2], "w") as out:
-    out.write(source)
-
-main()
+with open(sys.argv[2], "w") as out:
+  out.write(source)

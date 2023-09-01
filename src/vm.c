@@ -253,7 +253,7 @@ static bool callValue(Value callee, int argCount) {
       case OBJ_BOUND_METHOD: {
         ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
         vm.stackTop[-argCount - 1] = bound->receiver;
-        return finishCall(bound->method, argCount);
+        return call(bound->method, argCount);
       }
       case OBJ_CLASS: {
         ObjClass* cls = AS_CLASS(callee);
@@ -483,44 +483,25 @@ static InterpretResult run() {
         break;
       }
       case OP_GET_PROPERTY: {
-        Value receiver = peek();
-        ObjString* property = READ_STRING();
-
-        ObjClass* cls = getClass(receiver);
-
-        if (IS_INSTANCE(receiver)) {
-          ObjInstance* instance = AS_INSTANCE(receiver);
-
-          Value value;
-          if (tableGet(&instance->fields, property, &value)) {
-            pop(); // Instance
-            push(value);
-            break;
-          }
-
-          if (bindMethod(instance->obj.cls, property)) break; // TODO: Find a new way to bind methods, now that special properties exist
-        }
-
-        Value method;
-        if (!tableGet(&cls->methods, property, &method)) {
-          frame->ip = ip;
-          runtimeError("%s does not implement '%s'", cls->name->chars, property->chars);
+        if (!IS_INSTANCE(peek())) {
+          runtimeError("Only instances have properties");
           return INTERPRET_RUNTIME_ERROR;
         }
 
-        if (IS_NATIVE(method)) {
-          ObjNative* nativeObj = AS_NATIVE(method);
-          if (!nativeObj->function(vm.stackTop - 1)) {
-            return INTERPRET_RUNTIME_ERROR;
-          }
+        ObjInstance* instance = AS_INSTANCE(peek());
+        ObjString* property = READ_STRING();
+
+        Value value;
+        if (tableGet(&instance->fields, property, &value)) {
+          pop(); // Instance
+          push(value);
           break;
         }
 
-        if (!finishCall(AS_CLOSURE(method), 0)) {
+        if (!bindMethod(instance->obj.cls, property)) {
           return INTERPRET_RUNTIME_ERROR;
         }
 
-        pop(); // The object (whatever it is)
         break;
       }
       case OP_SET_PROPERTY: {
@@ -674,8 +655,11 @@ static InterpretResult run() {
         ip -= offset;
         break;
       }
-      case OP_CALL: {
-        int argCount = READ_BYTE();
+      case OP_CALL_0: case OP_CALL_1: case OP_CALL_2: case OP_CALL_3: case OP_CALL_4:
+      case OP_CALL_5: case OP_CALL_6: case OP_CALL_7: case OP_CALL_8: case OP_CALL_9:
+      case OP_CALL_10: case OP_CALL_11: case OP_CALL_12: case OP_CALL_13:
+      case OP_CALL_14: case OP_CALL_15: case OP_CALL_16: {
+        int argCount = instruction - OP_CALL_0;
         frame->ip = ip;
         if (!callValue(peekInt(argCount), argCount)) {
           return INTERPRET_RUNTIME_ERROR;
@@ -684,9 +668,12 @@ static InterpretResult run() {
         ip = frame->ip;
         break;
       }
-      case OP_INVOKE: {
+      case OP_INVOKE_0: case OP_INVOKE_1: case OP_INVOKE_2: case OP_INVOKE_3: case OP_INVOKE_4:
+      case OP_INVOKE_5: case OP_INVOKE_6: case OP_INVOKE_7: case OP_INVOKE_8: case OP_INVOKE_9:
+      case OP_INVOKE_10: case OP_INVOKE_11: case OP_INVOKE_12: case OP_INVOKE_13:
+      case OP_INVOKE_14: case OP_INVOKE_15: case OP_INVOKE_16: {
+        int argCount = instruction - OP_INVOKE_0;
         ObjString* method = READ_STRING();
-        int argCount = READ_BYTE();
         frame->ip = ip;
         if (!invoke(method, argCount)) {
           return INTERPRET_RUNTIME_ERROR;
@@ -695,9 +682,12 @@ static InterpretResult run() {
         ip = frame->ip;
         break;
       }
-      case OP_SUPER_INVOKE: {
+      case OP_SUPER_0: case OP_SUPER_1: case OP_SUPER_2: case OP_SUPER_3: case OP_SUPER_4:
+      case OP_SUPER_5: case OP_SUPER_6: case OP_SUPER_7: case OP_SUPER_8: case OP_SUPER_9:
+      case OP_SUPER_10: case OP_SUPER_11: case OP_SUPER_12: case OP_SUPER_13:
+      case OP_SUPER_14: case OP_SUPER_15: case OP_SUPER_16: {
+        int argCount = instruction - OP_SUPER_0;
         ObjString* name = READ_STRING();
-        int argCount = READ_BYTE();
         ObjClass* superclass = AS_CLASS(pop());
         Value method;
         if (!tableGet(&superclass->methods, name, &method)) {
