@@ -1,15 +1,15 @@
 import sys
 
-TYPES = {"CALL": "byte", "INVOKE": "invoke", "SUPER": "invoke"}
+TYPES = {"CALL": "simple", "INVOKE": "invoke", "SUPER": "invoke"}
 
 OUTPUT ="""case OP_{0}_{2}:
-  return {1}Instruction("OP_{0}_{2}", chunk, offset);
+  return {1}Instruction("OP_{0}_{2}", {3}offset);
 """
 
 def to_c_string(name, instruction):
   source = ""
   for i in range(17):
-    source += OUTPUT.format(name, instruction, i)
+    source += OUTPUT.format(name, instruction, i, "chunk, " if instruction != "simple" else "")
   
   return source
 

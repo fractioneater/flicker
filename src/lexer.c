@@ -146,7 +146,14 @@ static TokenType checkKeyword(int start, int length, const char* rest, TokenType
 
 static TokenType identifierType() {
   switch (lexer.start[0]) {
-    case 'a': return checkKeyword(1, 2, "nd", TOKEN_AND);
+    case 'a':
+      if (lexer.current - lexer.start > 2) {
+        switch(lexer.start[1]) {
+          case 'n': return checkKeyword(2, 1, "d", TOKEN_AND);
+          case 't': return checkKeyword(2, 7, "tribute", TOKEN_ATTRIBUTE);
+        }
+      }
+      break;
     case 'b': return checkKeyword(1, 4, "reak", TOKEN_BREAK);
     case 'c':
       if (lexer.current - lexer.start > 4) {

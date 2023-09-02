@@ -58,7 +58,7 @@ typedef enum {
 
 typedef enum {
   SIG_METHOD,
-  SIG_INITIALIZER
+  SIG_ATTRIBUTE
 } SignatureType;
 
 typedef struct {
@@ -389,7 +389,7 @@ static ObjFunction* endCompiler() {
 
 #if DEBUG_PRINT_CODE
   if (!parser.hadError) {
-    disassembleChunk(currentChunk(), function->name != NULL ? function->name->chars : "<script>");
+    disassembleChunk(currentChunk(), function->name != NULL ? function->name->chars : "main");
   }
 #endif
 
@@ -575,7 +575,9 @@ static void signatureToString(Signature* signature, char name[MAX_METHOD_SIGNATU
   memcpy(name, signature->name, signature->length);
   *length += signature->length;
 
-  signatureParameterList(name, length, signature->arity);
+  if (signature->type != SIG_ATTRIBUTE) {
+    signatureParameterList(name, length, signature->arity);
+  }
 
   name[*length] = '\0';
 }
@@ -648,6 +650,8 @@ void binarySignature(Signature* signature) {
 
 void unarySignature(Signature* signature) {
   signature->type = SIG_METHOD;
+  expect(TOKEN_LEFT_PAREN, "Expecting '(' after method name");
+  expect(TOKEN_RIGHT_PAREN, "Expect ')' after opening parenthesis");
 }
 
 void mixedSignature(Signature* signature) {
@@ -674,6 +678,10 @@ void namedSignature(Signature* signature) {
 
   finishParameterList(signature);
   expect(TOKEN_RIGHT_PAREN, "Expecting ')' after parameters");
+}
+
+void attributeSignature(Signature* signature) {
+  signature->type = SIG_ATTRIBUTE;
 }
 
 static void call(bool canAssign) {
@@ -708,7 +716,7 @@ static void getMethod() {
   int length;
   signatureToString(&signature, fullSignature, &length);
 
-  emitByteArg(OP_GET_PROPERTY, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
+  emitByteArg(OP_GET_METHOD, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
 }
 
 static void dot(bool canAssign) {
@@ -801,7 +809,7 @@ static void if_(bool canAssign) {
 }
 
 static void stringInterpolation(bool canAssign) {
-  // TODO: String interpolation
+  //- TODO: String interpolation
   // Nothing here.
 }
 
@@ -1037,6 +1045,7 @@ ParseRule rules[] = {
   /* TOKEN_INTERPOLATION */ PREFIX(stringInterpolation, BP_NONE),
   /* TOKEN_NUMBER        */ PREFIX(literal, BP_NONE),
   /* TOKEN_AND           */ INFIX(and_, BP_AND),
+  /* TOKEN_ATTRIBUTE     */ UNUSED,
   /* TOKEN_BREAK         */ UNUSED,
   /* TOKEN_CLASS         */ UNUSED,
   /* TOKEN_CONTINUE      */ UNUSED,
@@ -1209,10 +1218,16 @@ static void lambda(bool canAssign) {
 
 static void method() {
   bool isStatic = match(TOKEN_STATIC);
+  bool isAttribute = match(TOKEN_ATTRIBUTE);
+
+  if (isAttribute && (isStatic || match(TOKEN_STATIC))) {
+    error("Attribute methods cannot be static");
+  }
 
 #if METHOD_CALL_OPERATORS
 
-  SignatureFn signatureFn = getRule(parser.current.type)->signatureFn;
+  SignatureFn signatureFn = isAttribute ?
+              attributeSignature : getRule(parser.current.type)->signatureFn;
   advance();
 
   if (signatureFn == NULL) {
@@ -1224,10 +1239,7 @@ static void method() {
 
   FunctionType type = isStatic ? TYPE_STATIC_METHOD : TYPE_METHOD;
   if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
-    if (isStatic) {
-      error("Initializers cannot be static");
-    }
-    signature.type = SIG_INITIALIZER;
+    if (isStatic) error("Initializers cannot be static");
     type = TYPE_INITIALIZER;
   }
 
@@ -1297,8 +1309,7 @@ static void method() {
 
   uint8_t constant = makeConstant(OBJ_VAL(copyStringLength(fullSignature, length)));
 
-  emitByte(OP_METHOD_INSTANCE + isStatic);
-  emitByte(constant);
+  emitByteArg(OP_METHOD_INSTANCE + isStatic, constant);
 }
 
 static void classDeclaration() {
@@ -1671,7 +1682,7 @@ static void ifStatement() {
 static void whenStatement() {
   expect(TOKEN_LEFT_PAREN, "Expecting '(' after 'when'");
   expression();
-  // TODO: Possibly make custom operators, like this:
+  //- TODO: Possibly make custom operators, like this:
   //
   // when (variable)
   //   >= 3 -> something()
@@ -1733,7 +1744,7 @@ static void whenStatement() {
         emitByte(OP_DUP);
         expression();
 
-        // TODO: Add multiple expressions to compare to, like this:
+        //- TODO: Add multiple expressions to compare to, like this:
         //
         // when (var)
         //   is 3 | 4 -> print "3 or 4"

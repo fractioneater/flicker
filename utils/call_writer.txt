@@ -1,37 +1,37 @@
 case OP_CALL_0:
-  return byteInstruction("OP_CALL_0", chunk, offset);
+  return simpleInstruction("OP_CALL_0", offset);
 case OP_CALL_1:
-  return byteInstruction("OP_CALL_1", chunk, offset);
+  return simpleInstruction("OP_CALL_1", offset);
 case OP_CALL_2:
-  return byteInstruction("OP_CALL_2", chunk, offset);
+  return simpleInstruction("OP_CALL_2", offset);
 case OP_CALL_3:
-  return byteInstruction("OP_CALL_3", chunk, offset);
+  return simpleInstruction("OP_CALL_3", offset);
 case OP_CALL_4:
-  return byteInstruction("OP_CALL_4", chunk, offset);
+  return simpleInstruction("OP_CALL_4", offset);
 case OP_CALL_5:
-  return byteInstruction("OP_CALL_5", chunk, offset);
+  return simpleInstruction("OP_CALL_5", offset);
 case OP_CALL_6:
-  return byteInstruction("OP_CALL_6", chunk, offset);
+  return simpleInstruction("OP_CALL_6", offset);
 case OP_CALL_7:
-  return byteInstruction("OP_CALL_7", chunk, offset);
+  return simpleInstruction("OP_CALL_7", offset);
 case OP_CALL_8:
-  return byteInstruction("OP_CALL_8", chunk, offset);
+  return simpleInstruction("OP_CALL_8", offset);
 case OP_CALL_9:
-  return byteInstruction("OP_CALL_9", chunk, offset);
+  return simpleInstruction("OP_CALL_9", offset);
 case OP_CALL_10:
-  return byteInstruction("OP_CALL_10", chunk, offset);
+  return simpleInstruction("OP_CALL_10", offset);
 case OP_CALL_11:
-  return byteInstruction("OP_CALL_11", chunk, offset);
+  return simpleInstruction("OP_CALL_11", offset);
 case OP_CALL_12:
-  return byteInstruction("OP_CALL_12", chunk, offset);
+  return simpleInstruction("OP_CALL_12", offset);
 case OP_CALL_13:
-  return byteInstruction("OP_CALL_13", chunk, offset);
+  return simpleInstruction("OP_CALL_13", offset);
 case OP_CALL_14:
-  return byteInstruction("OP_CALL_14", chunk, offset);
+  return simpleInstruction("OP_CALL_14", offset);
 case OP_CALL_15:
-  return byteInstruction("OP_CALL_15", chunk, offset);
+  return simpleInstruction("OP_CALL_15", offset);
 case OP_CALL_16:
-  return byteInstruction("OP_CALL_16", chunk, offset);
+  return simpleInstruction("OP_CALL_16", offset);
 case OP_INVOKE_0:
   return invokeInstruction("OP_INVOKE_0", chunk, offset);
 case OP_INVOKE_1:

@@ -224,7 +224,7 @@ static bool isFalsy(Value value) {
   return IS_NONE(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
-static bool finishCall(ObjClosure* closure, int argCount) {
+static bool call(ObjClosure* closure, int argCount) {
   if (vm.frameCount == FRAMES_MAX) {
     runtimeError("Stack overflow");
     return false;
@@ -237,14 +237,14 @@ static bool finishCall(ObjClosure* closure, int argCount) {
   return true;
 }
 
-static bool call(ObjClosure* closure, int argCount) {
+static bool callArity(ObjClosure* closure, int argCount) {
   if (argCount != closure->function->arity) {
     runtimeError("Expected %d argument%s but got %d", closure->function->arity,
       closure->function->arity == 1 ? "" : "s", argCount);
     return false;
   }
 
-  return finishCall(closure, argCount);
+  return call(closure, argCount);
 }
 
 static bool callValue(Value callee, int argCount) {
@@ -253,14 +253,14 @@ static bool callValue(Value callee, int argCount) {
       case OBJ_BOUND_METHOD: {
         ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
         vm.stackTop[-argCount - 1] = bound->receiver;
-        return call(bound->method, argCount);
+        return callArity(bound->method, argCount);
       }
       case OBJ_CLASS: {
         ObjClass* cls = AS_CLASS(callee);
         vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(cls));
         Value initializer;
         if (tableGet(&cls->methods, vm.initString, &initializer)) {
-          return call(AS_CLOSURE(initializer), argCount);
+          return callArity(AS_CLOSURE(initializer), argCount);
         } else if (argCount != 0) {
           runtimeError("Expected 0 arguments but got %d", argCount);
           return false;
@@ -268,7 +268,7 @@ static bool callValue(Value callee, int argCount) {
         return true;
       }
       case OBJ_CLOSURE:
-        return call(AS_CLOSURE(callee), argCount);
+        return callArity(AS_CLOSURE(callee), argCount);
       case OBJ_NATIVE: {
         ObjNative* nativeObj = AS_NATIVE(callee);
         bool success = nativeObj->function(vm.stackTop - argCount - 1);
@@ -290,9 +290,10 @@ static bool invoke(ObjString* name, int argCount) {
 
   if (IS_INSTANCE(receiver)) {
     ObjInstance* instance = AS_INSTANCE(receiver);
+    ObjString* fieldName = copyStringLength(name->chars, name->length - (ceil(log10(argCount + 1)) + 2));
 
     Value field;
-    if (tableGet(&instance->fields, name, &field)) {
+    if (tableGet(&instance->fields, fieldName, &field)) {
       vm.stackTop[-argCount - 1] = field;
       return callValue(field, argCount);
     }
@@ -311,7 +312,7 @@ static bool invoke(ObjString* name, int argCount) {
     return success;
   }
 
-  return finishCall(AS_CLOSURE(method), argCount);
+  return call(AS_CLOSURE(method), argCount);
 }
 
 static bool bindMethod(ObjClass* cls, ObjString* name) {
@@ -366,6 +367,8 @@ static void defineMethod(ObjString* name) {
   tableSet(&cls->methods, name, method);
   pop();
 }
+
+//- TODO: Merge defineClassMethod() with defineMethod()
 
 static void defineClassMethod(ObjString* name) {
   Value method = peek();
@@ -482,6 +485,22 @@ static InterpretResult run() {
         *frame->closure->upvalues[slot]->location = peek();
         break;
       }
+      case OP_GET_METHOD: {
+        if (!IS_INSTANCE(peek())) {
+          runtimeError("Can only get methods from instances");
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        ObjInstance* instance = AS_INSTANCE(peek());
+        ObjString* method = READ_STRING();
+
+        frame->ip = ip;
+        if (!bindMethod(instance->obj.cls, method)) {
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        break;
+      }
       case OP_GET_PROPERTY: {
         if (!IS_INSTANCE(peek())) {
           runtimeError("Only instances have properties");
@@ -498,8 +517,30 @@ static InterpretResult run() {
           break;
         }
 
-        if (!bindMethod(instance->obj.cls, property)) {
+        Value attribute;
+        if (!tableGet(&instance->obj.cls->methods, property, &attribute)) {
+          frame->ip = ip;
+          runtimeError("Undefined property '%s'", property->chars);
           return INTERPRET_RUNTIME_ERROR;
+        }
+
+        switch (AS_OBJ(attribute)->type) {
+          case OBJ_NATIVE: {
+            ObjNative* native = AS_NATIVE(attribute);
+            // Replaces the instance with the result.
+            if (!native->function(vm.stackTop - 1)) {
+              return INTERPRET_RUNTIME_ERROR;
+            }
+
+            break;
+          }
+          default:
+            frame->ip = ip;
+            if (!call(AS_CLOSURE(attribute), 0)) {
+              return INTERPRET_RUNTIME_ERROR;
+            }
+            frame = &vm.frames[vm.frameCount - 1];
+            ip = frame->ip;
         }
 
         break;
@@ -695,7 +736,7 @@ static InterpretResult run() {
           return INTERPRET_RUNTIME_ERROR;
         }
 
-        if (!finishCall(AS_CLOSURE(method), argCount)) {
+        if (!call(AS_CLOSURE(method), argCount)) {
           return INTERPRET_RUNTIME_ERROR;
         }
 
@@ -785,7 +826,7 @@ InterpretResult interpret(const char* source, const char* module, bool inRepl) {
   ObjClosure* closure = newClosure(function);
   popRoot();
   push(OBJ_VAL(closure));
-  finishCall(closure, 0);
+  call(closure, 0);
 
   return run();
 }
