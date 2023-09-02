@@ -226,7 +226,7 @@ DEF_NATIVE(number_fromString) {
 
   while (*end != '\0' && isspace((unsigned char)*end)) end++;
 
-  if (errno = ERANGE) RETURN_ERROR("Number literal is too large");
+  if (errno == ERANGE) RETURN_ERROR("Number literal is too large");
 
   if (end < string->chars + string->length) RETURN_NONE;
 
