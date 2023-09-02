@@ -746,12 +746,12 @@ void initializeCore(VM* vm) {
   NATIVE(vm->objectClass, "!=(1)", object_notEquals);
   NATIVE(vm->objectClass, "is(1)", object_is);
   NATIVE(vm->objectClass, "toString()", object_toString);
-  NATIVE(vm->objectClass, "type()", object_type);
+  NATIVE(vm->objectClass, "type", object_type);
 
   vm->classClass = defineClass(vm, "Class");
   bindSuperclass(vm->classClass, vm->objectClass);
-  NATIVE(vm->classClass, "name()", class_name);
-  NATIVE(vm->classClass, "superclass()", class_superclass);
+  NATIVE(vm->classClass, "name", class_name);
+  NATIVE(vm->classClass, "superclass", class_superclass);
   NATIVE(vm->classClass, "toString()", class_toString);
 
   ObjClass* objectMetaclass = defineClass(vm, "Object metaclass");
@@ -765,27 +765,27 @@ void initializeCore(VM* vm) {
   interpret(coreSource, "<core>", false);
 
   GET_CORE_CLASS(vm->boolClass, "Bool");
-  NATIVE(vm->boolClass, "toString()", bool_toString);
   NATIVE(vm->boolClass, "not()", bool_not);
+  NATIVE(vm->boolClass, "toString()", bool_toString);
 
   GET_CORE_CLASS(vm->noneClass, "None");
   NATIVE(vm->noneClass, "not()", none_not);
   NATIVE(vm->noneClass, "toString()", none_toString);
 
   GET_CORE_CLASS(vm->functionClass, "Function");
-  NATIVE(vm->functionClass, "arity()", function_arity);
+  NATIVE(vm->functionClass, "arity", function_arity);
   NATIVE(vm->functionClass, "toString()", function_toString);
 
   GET_CORE_CLASS(vm->numberClass, "Number");
   NATIVE(vm->numberClass->obj.cls, "fromString(1)", number_fromString);
-  NATIVE(vm->numberClass->obj.cls, "infinity()", number_infinity);
-  NATIVE(vm->numberClass->obj.cls, "nan()", number_nan);
-  NATIVE(vm->numberClass->obj.cls, "pi()", number_pi);
-  NATIVE(vm->numberClass->obj.cls, "tau()", number_tau);
-  NATIVE(vm->numberClass->obj.cls, "maxDouble()", number_maxDouble);
-  NATIVE(vm->numberClass->obj.cls, "minDouble()", number_minDouble);
-  NATIVE(vm->numberClass->obj.cls, "maxInteger()", number_maxInteger);
-  NATIVE(vm->numberClass->obj.cls, "minInteger()", number_minInteger);
+  NATIVE(vm->numberClass->obj.cls, "infinity", number_infinity);
+  NATIVE(vm->numberClass->obj.cls, "nan", number_nan);
+  NATIVE(vm->numberClass->obj.cls, "pi", number_pi);
+  NATIVE(vm->numberClass->obj.cls, "tau", number_tau);
+  NATIVE(vm->numberClass->obj.cls, "maxDouble", number_maxDouble);
+  NATIVE(vm->numberClass->obj.cls, "minDouble", number_minDouble);
+  NATIVE(vm->numberClass->obj.cls, "maxInteger", number_maxInteger);
+  NATIVE(vm->numberClass->obj.cls, "minInteger", number_minInteger);
   NATIVE(vm->numberClass, "+(1)", number_plus);
   NATIVE(vm->numberClass, "-(1)", number_minus);
   NATIVE(vm->numberClass, "*(1)", number_multiply);
@@ -827,10 +827,10 @@ void initializeCore(VM* vm) {
   NATIVE(vm->numberClass, ":(1)", number_colon);
   NATIVE(vm->numberClass, "atan(1)", number_atan2);
   NATIVE(vm->numberClass, "fraction()", number_fraction);
-  NATIVE(vm->numberClass, "isInfinity()", number_isInfinity);
-  NATIVE(vm->numberClass, "isInteger()", number_isInteger);
-  NATIVE(vm->numberClass, "isNan()", number_isNan);
-  NATIVE(vm->numberClass, "sign()", number_sign);
+  NATIVE(vm->numberClass, "isInfinity", number_isInfinity);
+  NATIVE(vm->numberClass, "isInteger", number_isInteger);
+  NATIVE(vm->numberClass, "isNan", number_isNan);
+  NATIVE(vm->numberClass, "sign", number_sign);
   NATIVE(vm->numberClass, "toString()", number_toString);
   NATIVE(vm->numberClass, "truncate()", number_truncate);
 
@@ -840,7 +840,7 @@ void initializeCore(VM* vm) {
   NATIVE(vm->stringClass, "+(1)", string_plus);
   NATIVE(vm->stringClass, "get(1)", string_subscript);
   NATIVE(vm->stringClass, "byteAt(1)", string_byteAt);
-  NATIVE(vm->stringClass, "byteCount()", string_byteCount);
+  NATIVE(vm->stringClass, "byteCount", string_byteCount);
   NATIVE(vm->stringClass, "codePointAt(1)", string_codePointAt);
   NATIVE(vm->stringClass, "contains(1)", string_contains);
   NATIVE(vm->stringClass, "endsWith(1)", string_endsWith);
@@ -860,7 +860,7 @@ void initializeCore(VM* vm) {
   NATIVE(vm->listClass, "add(1)", list_add);
   NATIVE(vm->listClass, "addCore(1)", list_addCore);
   NATIVE(vm->listClass, "clear()", list_clear);
-  NATIVE(vm->listClass, "size()", list_size);
+  NATIVE(vm->listClass, "size", list_size);
   NATIVE(vm->listClass, "insert(2)", list_insert);
   NATIVE(vm->listClass, "iterate(1)", list_iterate);
   NATIVE(vm->listClass, "iteratorValue(1)", list_iteratorValue);
@@ -870,18 +870,18 @@ void initializeCore(VM* vm) {
   NATIVE(vm->listClass, "swap(2)", list_swap);
 
   GET_CORE_CLASS(vm->rangeClass, "Range");
-  NATIVE(vm->rangeClass, "from()", range_from);
-  NATIVE(vm->rangeClass, "to()", range_to);
+  NATIVE(vm->rangeClass, "from", range_from);
+  NATIVE(vm->rangeClass, "to", range_to);
   NATIVE(vm->rangeClass, "min()", range_min);
   NATIVE(vm->rangeClass, "max()", range_max);
-  NATIVE(vm->rangeClass, "isInclusive()", range_isInclusive);
+  NATIVE(vm->rangeClass, "isInclusive", range_isInclusive);
   NATIVE(vm->rangeClass, "iterate(1)", range_iterate);
   NATIVE(vm->rangeClass, "iteratorValue(1)", range_iteratorValue);
   NATIVE(vm->rangeClass, "toString()", range_toString);
 
   ObjClass* sysClass;
   GET_CORE_CLASS(sysClass, "Sys");
-  NATIVE(sysClass->obj.cls, "clock()", sys_clock);
+  NATIVE(sysClass->obj.cls, "clock", sys_clock);
   NATIVE(sysClass->obj.cls, "gc()", sys_gc);
   NATIVE(sysClass->obj.cls, "writeString(1)", sys_writeString);
 

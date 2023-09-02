@@ -502,23 +502,23 @@ static InterpretResult run() {
         break;
       }
       case OP_GET_PROPERTY: {
-        if (!IS_INSTANCE(peek())) {
-          runtimeError("Only instances have properties");
-          return INTERPRET_RUNTIME_ERROR;
-        }
-
-        ObjInstance* instance = AS_INSTANCE(peek());
+        Value receiver = peek();
+        ObjClass* cls = getClass(peek());
         ObjString* property = READ_STRING();
 
-        Value value;
-        if (tableGet(&instance->fields, property, &value)) {
-          pop(); // Instance
-          push(value);
-          break;
+        if (IS_INSTANCE(receiver)) {
+          ObjInstance* instance = AS_INSTANCE(receiver);
+
+          Value value;
+          if (tableGet(&instance->fields, property, &value)) {
+            pop(); // Instance
+            push(value);
+            break;
+          }
         }
 
         Value attribute;
-        if (!tableGet(&instance->obj.cls->methods, property, &attribute)) {
+        if (!tableGet(&cls->methods, property, &attribute)) {
           frame->ip = ip;
           runtimeError("Undefined property '%s'", property->chars);
           return INTERPRET_RUNTIME_ERROR;
