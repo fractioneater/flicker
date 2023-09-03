@@ -1,8 +1,18 @@
-var i = 2.4
+class Bagel
+  attribute warm
+    if (this.cooked)
+      print "warm"
+      return True
+    else
+      print "cold"
+      return False
+  static isGood()
+    return True
+  cook()
+    this.cooked = True
 
-when (i)
-  is 2 -> print 3
-  is 5 ->
-    print 29
-  else ->
-    print 4920
+var new = Bagel()
+new.cook()
+print new.cooked
+print Bagel.isGood()
+print new.warm

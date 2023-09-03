@@ -245,8 +245,16 @@ static Token identifier() {
 }
 
 static Token forceIdentifier() {
+  Token token = nullToken();
   while (peek() != '`' && !atEnd()) {
-    if (peek() == '\n') return errorToken("Can't have linebreaks in identifiers.");
+    if (token.type == TOKEN_NULL) {
+      // There hasn't been an error yet.
+      if (peek() == '\n') {
+        token = errorToken("Can't have linebreaks in identifiers.");
+      } else if (peek() == '(' || peek() == ')') {
+        token = errorToken("Can't have parentheses in identifiers.");
+      }
+    }
     advance();
   }
 
@@ -255,7 +263,8 @@ static Token forceIdentifier() {
   // The closing backtick.
   advance();
 
-  Token token = makeToken(TOKEN_IDENTIFIER);
+  if (token.type != TOKEN_NULL) return token;
+  token = makeToken(TOKEN_IDENTIFIER);
   token.start += 1;
   token.length -= 2;
   return token;

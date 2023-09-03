@@ -1802,6 +1802,7 @@ static void whenStatement() {
   emitByte(OP_POP); // The switch value
 }
 
+// TODO: Try to reduce the amount of "expecting a newline after statement" errors.
 static void synchronize() {
   parser.panicMode = false;
 
@@ -1809,13 +1810,16 @@ static void synchronize() {
     if (parser.previous.type == TOKEN_SEMICOLON) return;
     switch (parser.current.type) {
       case TOKEN_CLASS:
+      case TOKEN_ATTRIBUTE:
+      case TOKEN_STATIC:
       case TOKEN_FUN:
       case TOKEN_VAR:
       case TOKEN_FOR:
       case TOKEN_EACH:
-      case TOKEN_IF:
       case TOKEN_WHILE:
       case TOKEN_WHEN:
+      case TOKEN_BREAK:
+      case TOKEN_CONTINUE:
       case TOKEN_PRINT:
       case TOKEN_RETURN:
         return;
