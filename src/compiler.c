@@ -303,6 +303,10 @@ static void emitConstant(Value value) {
   emitByteArg(OP_CONSTANT, makeConstant(value));
 }
 
+static inline void callMethod(int argCount, const char* name, int length) {
+  emitByteArg(OP_INVOKE_0 + argCount, makeConstant(OBJ_VAL(copyStringLength(name, length))));
+}
+
 static void patchJump(int offset) {
   // -2 to account for the bytecode for the jump offset itself.
   int jump = currentChunk()->count - offset - 2;
@@ -381,10 +385,16 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 
 static ObjFunction* endCompiler() {
   if (current->scopeDepth == 0 && parser.onExpression && parser.printResult) {
+#if DEBUG_OP_PRINT
     emitByte(OP_RETURN);
+  } else emitReturn();
+#else
+    emitByte(OP_OUTPUT);
+    callMethod(1, "print(1)", 8);
     parser.onExpression = false;
   }
-  else emitReturn();
+  emitReturn();
+#endif
   ObjFunction* function = current->function;
 
 #if DEBUG_PRINT_CODE
@@ -407,7 +417,7 @@ static void pushScope() { current->scopeDepth++; }
 static int discardLocals(int depth) {
   int local = current->localCount - 1;
   while (local >= 0 && current->locals[local].depth >= depth) {
-    // Helpful code to print out discarded locals:
+    // To print out discarded locals:
     //
     // Token token = current->locals[local].name;
     // char* chars = ALLOCATE(char, token.length + 1);
@@ -689,7 +699,7 @@ static void call(bool canAssign) {
   emitByte(OP_CALL_0 + argCount);
 }
 
-static void callFunc(bool canAssign) {
+static void callFunction(bool canAssign) {
   lambda(false);
   emitByte(OP_CALL_1);
 }
@@ -732,18 +742,23 @@ static void dot(bool canAssign) {
   if (canAssign && match(TOKEN_EQ)) {
     expression();
     emitByteArg(OP_SET_PROPERTY, name);
-  } else if (match(TOKEN_LEFT_PAREN)) {
-    matchLine();
-    uint8_t argCount = argumentList();
-
-    signature.arity = argCount;
-    signature.type = SIG_METHOD;
+  } else if (match(TOKEN_LEFT_PAREN) || match(TOKEN_LEFT_BRACE)) {
+    uint8_t argCount;
+    if (parser.previous.type == TOKEN_LEFT_BRACE) {
+      lambda(false);
+      argCount = 1;
+      signature.arity = 1;
+    } else {
+      matchLine();
+      argCount = argumentList();
+      signature.arity = argCount;
+    }
 
     char fullSignature[MAX_METHOD_SIGNATURE];
     int length;
     signatureToString(&signature, fullSignature, &length);
 
-    emitByteArg(OP_INVOKE_0 + argCount, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
+    callMethod(argCount, fullSignature, length);
   } else {
     emitByteArg(OP_GET_PROPERTY, name);
   }
@@ -809,8 +824,27 @@ static void if_(bool canAssign) {
 }
 
 static void stringInterpolation(bool canAssign) {
-  //- TODO: String interpolation
-  // Nothing here.
+  emitByteArg(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyStringLength("List", 4))));
+  callMethod(0, "new()", 5);
+  uint8_t addConstant = makeConstant(OBJ_VAL(copyStringLength("addCore(1)", 10)));
+
+  do {
+    emitConstant(parser.previous.value);
+    emitByteArg(OP_INVOKE_1, addConstant);
+
+    matchLine();
+    expression();
+    emitByteArg(OP_INVOKE_1, addConstant);
+
+    matchLine();
+  } while (match(TOKEN_INTERPOLATION));
+
+  expect(TOKEN_STRING, "Expecting an end to string interpolation");
+  emitConstant(parser.previous.value);
+  emitByteArg(OP_INVOKE_1, addConstant);
+
+  emitConstant(OBJ_VAL(copyStringLength("", 0)));
+  callMethod(1, "join(1)", 7);
 }
 
 static void namedVariable(Token name, bool canAssign) {
@@ -843,7 +877,7 @@ static void variable(bool canAssign) {
 
 static void list(bool canAssign) {
   emitByteArg(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyStringLength("List", 4))));
-  emitByteArg(OP_INVOKE_0, makeConstant(OBJ_VAL(copyStringLength("new()", 5))));
+  callMethod(0, "new()", 5);
   
   do {
     matchLine();
@@ -851,7 +885,7 @@ static void list(bool canAssign) {
     if (check(TOKEN_RIGHT_BRACKET)) break;
 
     expression();
-    emitByteArg(OP_INVOKE_1, makeConstant(OBJ_VAL(copyStringLength("addCore(1)", 10))));
+    callMethod(1, "addCore(1)", 10);
   } while (match(TOKEN_COMMA));
 
   matchLine();
@@ -864,9 +898,9 @@ static void subscript(bool canAssign) {
 
   if (canAssign && match(TOKEN_EQ)) {
     expression();
-    emitByteArg(OP_INVOKE_2, makeConstant(OBJ_VAL(copyStringLength("set(2)", 6))));
+    callMethod(2, "set(2)", 6);
   } else {
-    emitByteArg(OP_INVOKE_1, makeConstant(OBJ_VAL(copyStringLength("get(1)", 6))));
+    callMethod(1, "get(1)", 6);
   }
 }
 
@@ -930,10 +964,7 @@ static void binary(bool canAssign) {
   int length;
   signatureToString(&signature, fullSignature, &length);
 
-  Value string = OBJ_VAL(copyStringLength(fullSignature, length));
-  uint8_t constant = makeConstant(string);
-
-  emitByteArg(OP_INVOKE_1, constant);
+  callMethod(1, fullSignature, length);
 #else
   switch (operatorType) {
     case TOKEN_STAR_STAR: emitByte(OP_EXPONENT); break;
@@ -978,7 +1009,7 @@ static void unary(bool canAssign) {
   int length;
   signatureToString(&signature, fullSignature, &length);
 
-  emitByteArg(OP_INVOKE_0, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
+  callMethod(0, fullSignature, length);
 #else
   switch (operatorType) {
     case TOKEN_NOT: emitByte(OP_NOT); break;
@@ -1011,7 +1042,7 @@ ParseRule rules[] = {
   /* TOKEN_RIGHT_PAREN   */ UNUSED,
   /* TOKEN_LEFT_BRACKET  */ BOTH(list, subscript, BP_CALL),
   /* TOKEN_RIGHT_BRACKET */ UNUSED,
-  /* TOKEN_LEFT_BRACE    */ BOTH(lambda, callFunc, BP_CALL),
+  /* TOKEN_LEFT_BRACE    */ BOTH(lambda, callFunction, BP_CALL),
   /* TOKEN_RIGHT_BRACE   */ UNUSED,
   /* TOKEN_SEMICOLON     */ UNUSED,
   /* TOKEN_COMMA         */ UNUSED,
@@ -1165,7 +1196,10 @@ static void function(FunctionType type) {
   }
   expect(TOKEN_RIGHT_PAREN, "Expecting ')' after parameters");
 
-  if (matchLine()) {
+  if (match(TOKEN_EQ)) {
+    expression();
+    emitByte(OP_RETURN);
+  } else if (matchLine()) {
     expect(TOKEN_INDENT, "Expecting an indent before function body");
     block(true);
   } else {
@@ -1291,12 +1325,16 @@ static void method() {
     FREE_ARRAY(bool, signature.asProperty, MAX_PARAMETERS);
   }
 
-  if (matchLine()) {
+  if (match(TOKEN_EQ)) {
+    expression();
+    emitByte(OP_RETURN);
+  } else if (matchLine()) {
     expect(TOKEN_INDENT, "Expecting an indent before method body");
     block(true);
-  } else {
-    expect(TOKEN_LEFT_BRACE, "Expecting '{' before method body");
+  } else if (match(TOKEN_LEFT_BRACE)) {
     block(false);
+  } else {
+    statement();
   }
 
   ObjFunction* result = endCompiler();
@@ -1401,8 +1439,16 @@ static void expressionStatement() {
 }
 
 static void printStatement() {
+#if DEBUG_OP_PRINT
   expression();
   emitByte(OP_PRINT);
+#else
+  emitByteArg(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyStringLength("Sys", 3))));
+  expression();
+  callMethod(1, "print(1)", 8);
+  // The method returns None, so pop that.
+  emitByte(OP_POP);
+#endif
 }
 
 static void breakStatement() {
@@ -1619,14 +1665,15 @@ static void eachStatement() {
   emitByteArg(OP_GET_LOCAL, seqSlot);
   emitByteArg(OP_GET_LOCAL, iterSlot);
 
-  emitByteArg(OP_INVOKE_1, makeConstant(OBJ_VAL(copyStringLength("iterate(1)", 10))));
+  callMethod(1, "iterate(1)", 10);
   emitByteArg(OP_SET_LOCAL, iterSlot);
 
   current->loop->exitJump = emitJump(OP_JUMP_FALSY);
 
+  emitByte(OP_POP);
   emitByteArg(OP_GET_LOCAL, seqSlot);
   emitByteArg(OP_GET_LOCAL, iterSlot);
-  emitByteArg(OP_INVOKE_1, makeConstant(OBJ_VAL(copyStringLength("iteratorValue(1)", 16))));
+  callMethod(1, "iteratorValue(1)", 16);
 
   pushScope(); // Loop variable
   addLocal(name);
@@ -1752,7 +1799,7 @@ static void whenStatement() {
         expect(TOKEN_RIGHT_ARROW, "Expecting '->' after case value");
 
 #if METHOD_CALL_OPERATORS
-        emitByteArg(OP_INVOKE_1, makeConstant(OBJ_VAL(copyStringLength("==(1)", 5))));
+        callMethod(1, "==(1)", 5);
 #else
         emitByte(OP_EQUAL);
 #endif
@@ -1858,6 +1905,9 @@ static void statement() {
   } else {
     if (parser.printResult && current->scopeDepth == 0) {
       parser.onExpression = true;
+#if !DEBUG_OP_PRINT
+      emitByteArg(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyStringLength("Sys", 3))));
+#endif
       expression();
     } else expressionStatement();
   }
@@ -1877,12 +1927,14 @@ ObjFunction* compile(const char* source, const char* module, bool inRepl) {
   advance();
 
 #if DEBUG_PRINT_TOKENS
-  do {
-    printf("%d\n", parser.current.type);
-    advance();
-  } while (!match(TOKEN_EOF));
+  if (strlen(module) != 4 || memcmp("core", module, 4) != 0) {
+    do {
+      printf("%d\n", parser.current.type);
+      advance();
+    } while (!match(TOKEN_EOF));
 
-  return NULL;
+    return NULL;
+  }
 #endif
 
   matchLine();
@@ -1891,6 +1943,10 @@ ObjFunction* compile(const char* source, const char* module, bool inRepl) {
   while (!match(TOKEN_EOF)) {
     if (parser.onExpression) {
       emitByte(OP_POP);
+#if !DEBUG_OP_PRINT
+      // One more for the Sys class.
+      emitByte(OP_POP);
+#endif
       parser.onExpression = false;
     }
     declaration();

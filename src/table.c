@@ -100,7 +100,7 @@ bool tableDelete(Table* table, ObjString* key) {
 
   // Place a tombstone in the entry.
   entry->key = NULL;
-  entry->value = BOOL_VAL(true);
+  entry->value = UNDEFINED_VAL;
   return true;
 }
 

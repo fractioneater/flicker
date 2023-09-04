@@ -669,9 +669,11 @@ DEF_NATIVE(string_startsWith) {
   RETURN_BOOL(memcmp(string->chars, search->chars, search->length) == 0);
 }
 
-DEF_NATIVE(string_plus) {
+DEF_NATIVE(string_concatenate) {
   if (!validateString(args[1], "Right operand")) return false;
-  RETURN_OBJ(stringFormat("##", args[0], args[1]));
+  ObjString* a = AS_STRING(args[0]);
+  ObjString* b = AS_STRING(args[1]);
+  RETURN_OBJ(stringFormat("##", a, b));
 }
 
 DEF_NATIVE(string_subscript) {
@@ -712,7 +714,7 @@ DEF_NATIVE(sys_gc) {
 }
 
 DEF_NATIVE(sys_writeString) {
-  printf("%s\n", AS_CSTRING(args[1]));
+  printf("%s", AS_CSTRING(args[1]));
   RETURN_VAL(args[1]);
 }
 
@@ -762,7 +764,7 @@ void initializeCore(VM* vm) {
 
   NATIVE(vm->objectClass, "same(2)", object_same);
 
-  interpret(coreSource, "<core>", false);
+  interpret(coreSource, "core", false);
 
   GET_CORE_CLASS(vm->boolClass, "Bool");
   NATIVE(vm->boolClass, "not()", bool_not);
@@ -837,7 +839,7 @@ void initializeCore(VM* vm) {
   GET_CORE_CLASS(vm->stringClass, "String");
   NATIVE(vm->stringClass->obj.cls, "fromCodePoint(1)", string_fromCodePoint);
   NATIVE(vm->stringClass->obj.cls, "fromByte(1)", string_fromByte);
-  NATIVE(vm->stringClass, "+(1)", string_plus);
+  NATIVE(vm->stringClass, "concatenate(1)", string_concatenate);
   NATIVE(vm->stringClass, "get(1)", string_subscript);
   NATIVE(vm->stringClass, "byteAt(1)", string_byteAt);
   NATIVE(vm->stringClass, "byteCount", string_byteCount);

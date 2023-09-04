@@ -2,13 +2,319 @@ class Bool {}
 class Function {}
 class `None` {}
 class Number {}
-class String {}
-class List {}
-class Range {}
-class Sys
-  static writeObject(obj)
-    var string = obj.toString 
-    if (string is String)
-      writeString(string)
+
+class Sequence
+  all(function)
+    var result = True
+    each (element in this)
+      result = function(element)
+      if (not result) return False
+    return True
+  
+  any(function)
+    var result = False
+    each (element in this)
+      result = function(element)
+      if (result) return True
+    return False
+  
+  contains(item)
+    each (element in this)
+      if (element == item) return True
+    return False
+  
+  count(function)
+    var result = 0
+    each (element in this)
+      if (function(element)) result = result + 1
+    return result
+  
+  forEach(function)
+    each (element in this)
+      function(element)
+  
+  attribute isEmpty = if (this.iterate(None)) False else True
+  
+  map(transformation) = MapSequence(this, transformation)
+  
+  skip(count)
+    if ((not count is Number) or (not count.isInteger) or (count < 0))
+      return
+    
+    return SkipSequence(this, count)
+  
+  take(count)
+    if ((not count is Number) or (not count.isInteger) or (count < 0))
+      return
+    
+    return TakeSequence(this, count)
+  
+  where(predicate) = WhereSequence(this, predicate)
+  
+  reduce(acc, function)
+    each (element in this)
+      acc = function(acc, element)
+    return acc
+  
+  reduce(function)
+    var iter = this.iterate(None)
+    if (not iter) return
+
+    var result = this.iteratorValue(iter)
+    while (iter = this.iterate(iter))
+      result = function(result, this.iteratorValue(iter))
+    
+    return result
+  
+  join() = this.join(", ")
+  
+  join(sep)
+    var result = ""
+
+    for (var i = 0; i < this.size; i = i + 1)
+      if (i != 0) result = result + sep
+      result = result + this[i].toString()
+    
+    return result
+  
+  toList()
+    var result = List()
+    each (element in this)
+      result.add(element)
+    return result
+
+class MapSequence < Sequence
+  init(+sequence, +function)
+    pass
+
+  iterate(iterator) = this.sequence.iterate(iterator)
+  
+  iteratorValue(iterator)
+    return this.function(this.sequence.iteratorValue(iterator))
+
+class SkipSequence < Sequence
+  init(+sequence, +count)
+    pass
+  
+  iterate(iterator)
+    if (iterator)
+      return this.sequence.iterate(iterator)
     else
-      writeString("[invalid toString method]")
+      iterator = this.sequence.iterate(iterator)
+      for (var count = this.count; count > 0 and iterator; count = count - 1)
+        iterator = this.sequence.iterate(iterator)
+      return iterator
+
+  iteratorValue(iterator) = this.sequence.iteratorValue(iterator)
+
+class TakeSequence < Sequence
+  init(+sequence, +count)
+    pass
+  
+  iterate(iterator)
+    if (not iterator) this.taken = 1 else this.taken = this.taken + 1
+    return if (this.taken > this.count) None else this.sequence.iterate(iterator)
+  
+  iteratorValue(iterator) = this.sequence.iteratorValue(iterator)
+
+class WhereSequence < Sequence
+  init(+sequence, +function)
+    pass
+  
+  iterate(iterator)
+    while (iterator = this.sequence.iterate(iterator))
+      if (this.function(this.sequence.iteratorValue(iterator))) break
+    return iterator
+  
+  iteratorValue(iterator)
+    return this.sequence.iteratorValue(iterator)
+
+class String < Sequence
+  attribute bytes = StringByteSequence(this)
+  attribute codePoints = StringCodePointSequence(this)
+  
+  +(other) = this.concatenate(other.toString())
+  
+  *(count)
+    if ((not count is Num) or (not count.isInteger) or count < 0)
+      return
+    
+    var result = ""
+    each (i in 0:count)
+      result = result + this
+    return result
+  
+  split(delimiter)
+    if ((not delimiter is String) or delimiter.isEmpty)
+      return
+    
+    var result = []
+
+    var last = 0
+    var index = 0
+    
+    var delimiterSize = delimiter.byteCount
+    var size = this.byteCount
+
+    while (last < size and (index = indexOf(delimiter, last)) != -1)
+      result.add(this[last:index])
+      last = index + delimiterSize
+    
+    if (last < size)
+      result.add(this[last..-1])
+    else
+      result.add("")
+    
+    return result
+  
+  replace(from, to)
+    if ((not from is String) or from.isEmpty or (not to is String))
+      return    
+
+    var result = ""
+
+    var last = 0
+    var index = 0
+
+    var fromSize = from.byteCount
+    var size = this.byteCount
+
+    while (last < size and (index = indexOf(from, last)) != -1)
+      result = result + this[last:index] + to
+      last = index + fromSize
+    
+    if (last < size) result = result + this[last..-1]
+
+    return result
+  
+  trim() = this.trim_("\t\r\n ", True, True)
+  trim(chars) = this.trim_(chars, True, True)
+  trimEnd() = this.trim_("\t\r\n ", False, True)
+  trimEnd(chars) = this.trim_(chars, False, True)
+  trimStart() = this.trim_("\t\r\n ", True, False)
+  trimStart(chars) = this.trim_(chars, True, False)
+  
+  trim_(chars, trimStart, trimEnd)
+    if (not chars is String)
+      return
+    
+    var codePoints = chars.codePoints.toList()
+
+    var start
+    if (trimStart)
+      while (start = iterate(start))
+        if (not codePoints.contains(this.codePointAt(start))) break
+      
+      if (start == False) return ""
+    else start = 0
+    
+    var end
+    if (trimEnd)
+      end = this.byteCount - 1
+      while (end >= start)
+        var codePoint = this.codePointAt(end)
+        if (codePoint == -1 and not codePoints.contains(codePoint)) break
+        end = end - 1
+      
+      if (end < start) return ""
+    else end = -1
+
+    return this[start..end]
+
+class StringByteSequence < Sequence
+  init(+string)
+    pass
+  
+  attribute count = this.string.byteCount
+
+  get(index) = this.string.byteAt(index)
+  iterate(iterator) = this.string.iterateByte(iterator)
+  iteratorValue(iterator) = this.string.byteAt(iterator)
+
+class StringCodePointSequence < Sequence
+  init(+string)
+    pass
+
+  attribute count = this.string.count
+  
+  get(index) = this.string.codePointAt(index)
+  iterate(iterator) = this.string.iterate(iterator)
+  iteratorValue(iterator) = this.string.codePointAt(iterator)
+
+class List < Sequence
+  +(other)
+    var result = this[0..-1]
+    each (element in other)
+      result.add(element)
+    return result
+  
+  *(count)
+    if ((not count is Number) or (not count.isInteger) or count < 0)
+      return
+    
+    var result = []
+    each (i in 0:count)
+      result.addAll(this)
+    return result
+  
+  addAll(other)
+    each (element in other)
+      this.add(element)
+
+  sort() = this.sort { |low, high| low < high }
+
+  sort(comparer)
+    if (not comparer is Function)
+      return
+    this.quicksort(0, this.size - 1, comparer)
+
+  quicksort(low, high, comparer)
+    if (low < high)
+      var p = this.partition(low, high, comparer)
+      quicksort(low, p - 1, comparer)
+      quicksort(p + 1, high, comparer)
+  
+  partition(low, high, comparer)
+    var p = this[high]
+    var i = low - 1
+    each (j in low..(high - 1))
+      if (comparer(this[j], p))
+        i = i + 1
+        var t = this[i]
+        this[i] = this[j]
+        this[j] = t
+    var t = this[i + 1]
+    this[i + 1] = this[high]
+    this[high] = t
+    return i + 1
+  
+  toString() = "[=(this.join())]"
+
+class Range < Sequence {}
+
+class Sys
+  static `print`()
+    Sys.writeString("\n")
+  
+  static `print`(obj)
+    Sys.writeObject(obj)
+    Sys.writeString("\n")
+    return obj
+  
+  static printAll(sequence)
+    each (object in sequence) Sys.writeObject(object)
+    Sys.writeString("\n")
+  
+  static write(obj)
+    Sys.writeObject(obj)
+    return obj
+
+  static writeAll(sequence)
+    each(object in sequence) Sys.writeObject(object)
+
+  static writeObject(obj)
+    var string = obj.toString()
+    if (string is String)
+      Sys.writeString(string)
+    else
+      Sys.writeString("[invalid toString()]")

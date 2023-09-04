@@ -17,9 +17,9 @@ typedef struct {
   const char* current;
   int line;
 
-  // The lexer needs some state to keep track of interpolation.
+  // The lexer needs some variables to keep track of interpolation.
   int parens[MAX_INTERPOLATION_NESTING];
-  int numParens;
+  int parenCount;
 
   // The lexer also needs to keep track of the indentation.
   bool checkIndent;
@@ -37,7 +37,7 @@ void initLexer(const char* source) {
   lexer.start = source;
   lexer.current = source;
   lexer.line = 1;
-  lexer.numParens = 0;
+  lexer.parenCount = 0;
   lexer.checkIndent = true;
   lexer.dedentCount = 0;
   intArrayInit(&lexer.indents);
@@ -361,21 +361,22 @@ static Token string() {
 
     if (atEnd()) return errorToken("Unterminated string.");
 
-    if (c == '<') {
-      if (lexer.numParens < MAX_INTERPOLATION_NESTING) {
-        lexer.parens[lexer.numParens++] = 1;
+    if (c == '=' && peek() == '(') {
+      if (lexer.parenCount < MAX_INTERPOLATION_NESTING) {
         type = TOKEN_INTERPOLATION;
+        advance();
+        lexer.parens[lexer.parenCount++] = 1;
         break;
       }
 
-      return errorToken("Too many nested strings.");
+      return errorToken("Too many nested strings");
     }
 
     if (c == '\\') {
       switch (advance()) {
         case '\\': byteArrayWrite(&string, '\\'); break;
         case '"':  byteArrayWrite(&string, '"'); break;
-        case '<':  byteArrayWrite(&string, '<'); break;
+        case '=':  byteArrayWrite(&string, '='); break;
         case '0':  byteArrayWrite(&string, '\0'); break;
         case 'a':  byteArrayWrite(&string, '\a'); break;
         case 'b':  byteArrayWrite(&string, '\b'); break;
@@ -480,8 +481,17 @@ Token scanToken() {
     char c = advance();
 
     switch (c) {
-      case '(': return makeToken(TOKEN_LEFT_PAREN);
-      case ')': return makeToken(TOKEN_RIGHT_PAREN);
+      case '(': {
+        if (lexer.parenCount > 0) lexer.parens[lexer.parenCount - 1]++;
+        return makeToken(TOKEN_LEFT_PAREN);
+      }
+      case ')': {
+        if (lexer.parenCount > 0 && --lexer.parens[lexer.parenCount - 1] == 0) {
+          lexer.parenCount--;
+          return string();
+        }
+        return makeToken(TOKEN_RIGHT_PAREN);
+      }
       case '[': return makeToken(TOKEN_LEFT_BRACKET);
       case ']': return makeToken(TOKEN_RIGHT_BRACKET);
       case '{': return makeToken(TOKEN_LEFT_BRACE);

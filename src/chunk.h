@@ -45,7 +45,11 @@ typedef enum {
   OP_NOT,
   OP_NEGATE,
 #endif
+#if !DEBUG_OP_PRINT
+  OP_OUTPUT,
+#else
   OP_PRINT,
+#endif
   OP_JUMP,
   OP_JUMP_FALSY,
   OP_JUMP_TRUTHY,

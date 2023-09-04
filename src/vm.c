@@ -220,7 +220,7 @@ static Value peekInt(int distance) {
 }
 
 static bool isFalsy(Value value) {
-  if (IS_NUMBER(value) && AS_NUMBER(value) == 0) return true;
+  // if (IS_NUMBER(value) && AS_NUMBER(value) == 0) return true;
   return IS_NONE(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 
@@ -671,11 +671,18 @@ static InterpretResult run() {
         push(NUMBER_VAL(-AS_NUMBER(pop())));
         break;
 #endif
+#if !DEBUG_OP_PRINT
+      case OP_OUTPUT: {
+        printf("= > ");
+        break;
+      }
+#else
       case OP_PRINT: {
         printValue(pop());
         printf("\n");
         break;
       }
+#endif
       case OP_JUMP: {
         uint16_t offset = READ_SHORT();
         ip += offset;
@@ -767,11 +774,13 @@ static InterpretResult run() {
         closeUpvalues(frame->slots);
         vm.frameCount--;
         if (vm.frameCount == 0) {
+#ifdef DEBUG_OP_PRINT
           if (result != NONE_VAL) {
             printf("= > ");
             printValue(result);
             printf("\n");
           }
+#endif
           pop();
           return INTERPRET_OK;
         }
