@@ -1637,6 +1637,14 @@ static void eachStatement() {
   expect(TOKEN_LEFT_PAREN, "Expecting '(' after 'each'");
   expect(TOKEN_IDENTIFIER, "Expecting a loop variable");
   Token name = parser.previous;
+  Token index;
+  bool hasIndex;
+  if (match(TOKEN_LEFT_BRACKET)) {
+    hasIndex = true;
+    expect(TOKEN_IDENTIFIER, "Expecting an index variable");
+    index = parser.previous;
+    expect(TOKEN_RIGHT_BRACKET, "Expecting ']' after index variable");
+  }
 
   expect(TOKEN_IN, "Expecting 'in' after loop variable");
   matchLine();
@@ -1678,6 +1686,11 @@ static void eachStatement() {
   pushScope(); // Loop variable
   addLocal(name);
   markInitialized();
+  if (hasIndex) {
+    emitByteArg(OP_GET_LOCAL, iterSlot);
+    addLocal(index);
+    markInitialized();
+  }
 
   if (matchLine()) {
     expect(TOKEN_INDENT, "Expecting an indent before body");

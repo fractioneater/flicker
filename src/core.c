@@ -155,7 +155,7 @@ DEF_NATIVE(list_swap) {
   ObjList* list = AS_LIST(args[0]);
   uint32_t indexA = validateIndex(args[1], list->count, "Index 0");
   if (indexA == UINT32_MAX) return false;
-  uint32_t indexB = validateIndex(args[1], list->count, "Index 1");
+  uint32_t indexB = validateIndex(args[2], list->count, "Index 1");
   if (indexB == UINT32_MAX) return false;
 
   Value a = list->items[indexA];
@@ -718,6 +718,22 @@ DEF_NATIVE(sys_writeString) {
   RETURN_VAL(args[1]);
 }
 
+DEF_NATIVE(sys_input) {
+  printf("%s", AS_CSTRING(args[1]));
+
+  char* buffer = NULL;
+  uint64_t length;
+  int read;
+  read = getline(&buffer, &length, stdin);
+  if (read == -1) {
+    RETURN_OBJ(copyStringLength("", 0));
+  }
+
+  buffer[strcspn(buffer, "\r\n")] = '\0';
+
+  RETURN_OBJ(takeString(buffer, length));
+}
+
 /////////////////////////////
 // End of natives          //
 /////////////////////////////
@@ -886,6 +902,7 @@ void initializeCore(VM* vm) {
   NATIVE(sysClass->obj.cls, "clock", sys_clock);
   NATIVE(sysClass->obj.cls, "gc()", sys_gc);
   NATIVE(sysClass->obj.cls, "writeString(1)", sys_writeString);
+  NATIVE(sysClass->obj.cls, "input(1)", sys_input);
 
   // Some string objects were created before stringClass even existed. Those
   // strings have a NULL classObj, so that needs to be fixed.

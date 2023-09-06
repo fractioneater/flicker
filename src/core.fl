@@ -261,7 +261,8 @@ class List < Sequence
     each (element in other)
       this.add(element)
 
-  sort() = this.sort { |low, high| low < high }
+  sort()
+    this.sort { |low, high| return low <= high }
 
   sort(comparer)
     if (not comparer is Function)
@@ -271,21 +272,17 @@ class List < Sequence
   quicksort(low, high, comparer)
     if (low < high)
       var p = this.partition(low, high, comparer)
-      quicksort(low, p - 1, comparer)
-      quicksort(p + 1, high, comparer)
+      this.quicksort(low, p - 1, comparer)
+      this.quicksort(p + 1, high, comparer)
   
   partition(low, high, comparer)
-    var p = this[high]
+    var pivot = this[high]
     var i = low - 1
-    each (j in low..(high - 1))
-      if (comparer(this[j], p))
+    each (j in low:high)
+      if (comparer(this[j], pivot))
         i = i + 1
-        var t = this[i]
-        this[i] = this[j]
-        this[j] = t
-    var t = this[i + 1]
-    this[i + 1] = this[high]
-    this[high] = t
+        this.swap(i, j)
+    this.swap(i + 1, high)
     return i + 1
   
   toString() = "[=(this.join())]"
@@ -318,3 +315,5 @@ class Sys
       Sys.writeString(string)
     else
       Sys.writeString("[invalid toString()]")
+
+  static input() = Sys.input("")
