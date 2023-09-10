@@ -836,7 +836,7 @@ static void if_(bool canAssign) {
 
 static void stringInterpolation(bool canAssign) {
   emitByteArg(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyStringLength("List", 4))));
-  callMethod(0, "new()", 5);
+  emitByte(OP_CALL_0);
   uint8_t addConstant = makeConstant(OBJ_VAL(copyStringLength("addCore(1)", 10)));
 
   do {
@@ -888,7 +888,7 @@ static void variable(bool canAssign) {
 
 static void list(bool canAssign) {
   emitByteArg(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyStringLength("List", 4))));
-  callMethod(0, "new()", 5);
+  emitByte(OP_CALL_0);
   
   do {
     matchLine();
@@ -1329,8 +1329,8 @@ static void method() {
           break;
         }
         emitByteArg(OP_GET_LOCAL, 0);
-        emitByteArg(OP_GET_LOCAL, i);
-        Local local = current->locals[i];
+        emitByteArg(OP_GET_LOCAL, i + 1);
+        Local local = current->locals[i + 1];
         emitByteArg(OP_SET_PROPERTY, identifierConstant(&local.name));
         emitByte(OP_POP);
       }
