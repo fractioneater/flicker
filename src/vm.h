@@ -26,6 +26,7 @@ typedef struct {
   ObjClass* numberClass;
   ObjClass* rangeClass;
   ObjClass* stringClass;
+  bool coreInitialized;
 
   CallFrame frames[FRAMES_MAX];
   int frameCount;

@@ -35,14 +35,11 @@ void printValue(Value value) {
   } else if (IS_NONE(value)) {
     printf("None");
   } else if (IS_NUMBER(value)) {
-    double num = AS_NUMBER(value);
-    if (isnan(num)) {
-      printf("NaN");
-    } else {
-      printf("%g", num);
-    }
+    printf("%s", numberToCString(AS_NUMBER(value)));
   } else if (IS_OBJ(value)) {
     printObject(value);
+  } else if (IS_UNDEFINED(value)) {
+    printf("Undefined");
   }
 #else
   switch (value.type) {

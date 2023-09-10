@@ -84,6 +84,7 @@ static void blackenObject(Obj* object) {
     case OBJ_CLASS: {
       ObjClass* cls = (ObjClass*)object;
       markObject((Obj*)cls->name);
+      markValue(cls->initializer);
       markTable(&cls->methods);
       break;
     }
@@ -136,6 +137,7 @@ static void freeObject(Obj* object) {
     case OBJ_CLASS: {
       ObjClass* cls = (ObjClass*)object;
       freeTable(&cls->methods);
+      // Do I need to free the initializer? (it's a value)
       FREE(ObjClass, object);
       break;
     }

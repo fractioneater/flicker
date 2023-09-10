@@ -53,7 +53,7 @@ struct Obj {
 
 typedef struct {
   Obj obj;
-  int arity;
+  uint8_t arity;
   int upvalueCount;
   Chunk chunk;
   ObjString* name;
@@ -105,6 +105,8 @@ struct ObjClass {
   Obj obj;
   ObjClass* superclass;
   ObjString* name;
+  Value initializer;
+  uint8_t arity;
   Table methods;
 };
 
@@ -143,6 +145,7 @@ int listIndexOf(ObjList* list, Value value);
 ObjString* takeString(char* chars, int length);
 ObjString* copyStringLength(const char* chars, int length);
 ObjString* copyString(const char* chars);
+const char* numberToCString(double value);
 ObjString* numberToString(double value);
 ObjString* stringFromCodePoint(int value);
 ObjString* stringFromByte(uint8_t byte);

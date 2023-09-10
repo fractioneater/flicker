@@ -311,9 +311,9 @@ class Sys
 
   static writeObject(obj)
     var string = obj.toString()
-    if (string is String)
-      Sys.writeString(string)
-    else
-      Sys.writeString("[invalid toString()]")
+    if (not string is String)
+      string = "[Invalid toString()]"
+    
+    Sys.writeString(string)
 
   static input() = Sys.input("")

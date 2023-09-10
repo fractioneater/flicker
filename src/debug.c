@@ -1,6 +1,7 @@
 #include "debug.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "object.h"
 #include "value.h"
@@ -135,13 +136,8 @@ int disassembleInstruction(Chunk* chunk, int offset) {
     case OP_NEGATE:
       return simpleInstruction("OP_NEGATE", offset);
 #endif
-#if !DEBUG_OP_PRINT
-    case OP_OUTPUT:
-      return simpleInstruction("OP_OUTPUT", offset);
-#else
     case OP_PRINT:
       return simpleInstruction("OP_PRINT", offset);
-#endif
     case OP_JUMP:
       return jumpInstruction("OP_JUMP", 1, chunk, offset);
     case OP_JUMP_FALSY:
@@ -276,6 +272,8 @@ int disassembleInstruction(Chunk* chunk, int offset) {
       return simpleInstruction("OP_RETURN", offset);
     case OP_CLASS:
       return constantInstruction("OP_CLASS", chunk, offset);
+    case OP_INITIALIZER:
+      return simpleInstruction("OP_INITIALIZER", offset);
     case OP_METHOD_INSTANCE:
       return constantInstruction("OP_METHOD_INSTANCE", chunk, offset);
     case OP_METHOD_STATIC:

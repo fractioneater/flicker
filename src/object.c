@@ -41,6 +41,8 @@ ObjClass* newSingleClass(ObjString* name) {
   ObjClass* cls = ALLOCATE_OBJ(ObjClass, OBJ_CLASS, NULL);
   cls->name = name;
   cls->superclass = NULL;
+  cls->initializer = UNDEFINED_VAL;
+  cls->arity = 0;
   initTable(&cls->methods);
   return cls;
 }
@@ -215,6 +217,22 @@ ObjString* copyStringLength(const char* chars, int length) {
 
 ObjString* copyString(const char* chars) {
   return copyStringLength(chars, (int)strlen(chars));
+}
+
+const char* numberToCString(double value) {
+  if (isnan(value)) return "NaN";
+  if (isinf(value)) {
+    if (value > 0.0) {
+      return "Infinity";
+    } else {
+      return "-Infinity";
+    }
+  }
+
+  char* buffer = ALLOCATE(char, 24);
+  int length = sprintf(buffer, "%.14g", value);
+  buffer[length] = '\0';
+  return buffer;
 }
 
 ObjString* numberToString(double value) {

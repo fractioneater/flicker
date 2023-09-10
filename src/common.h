@@ -24,15 +24,12 @@
 #define DEBUG_PRINT_TOKENS 0
 
 // Print the bytecode instructions immediately after compiling.
+// 0 to disable, 1 to print only user code, 2 to print everything.
 #define DEBUG_PRINT_CODE 0
 
 // Print the bytecode instructions as they run.
-#define DEBUG_TRACE_EXECUTION 0
-
-// Use OP_PRINT to print values, which declutters the instructions a bit.
-// With this method, the toString() method isn't called automatically,
-// so you'll have to do print value.toString() if you want it to be correct.
-#define DEBUG_OP_PRINT 0
+// 0 to disable, 1 to print only user code, 2 to print everything.
+#define DEBUG_TRACE_EXECUTION 1
 
 // Always run GC whenever the vm or compiler messes with memory.
 #define DEBUG_STRESS_GC 0

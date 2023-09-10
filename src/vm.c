@@ -15,26 +15,6 @@
 
 VM vm;
 
-// static Value inputNative(int argCount, Value* args) {
-//   if (argCount > 1) {
-//     // Arity error
-//   } else if (argCount == 1) {
-//     printValue(args[0]);
-//   }
-
-//   char* buffer = NULL;
-//   uint64_t length;
-//   int read;
-//   read = getline(&buffer, &length, stdin);
-//   if (read == -1) {
-//     return OBJ_VAL(copyStringLength("", 0));
-//   }
-
-//   buffer[strcspn(buffer, "\r\n")] = '\0';
-
-//   return OBJ_VAL(takeString(buffer, length));
-// }
-
 // static Value readFileNative(int argCount, Value* args) {
 //   if (argCount != 1) {
 //     // Arity error
@@ -69,23 +49,6 @@ VM vm;
 //   return NONE_VAL;
 // }
 
-// static Value gcNative(int argCount, Value* args) {
-//   if (argCount != 0) {
-//     // Arity error
-//   }
-
-//   collectGarbage();
-//   return NONE_VAL;
-// }
-
-// static Value clockNative(int argCount, Value* args) {
-//   if (argCount != 0) {
-//     // Arity error
-//   }
-
-//   return NUMBER_VAL((double)clock() / CLOCKS_PER_SEC);
-// }
-
 // static Value errorNative(int argCount, Value* args) {
 //   if (argCount > 1) {
 //     // Arity error
@@ -93,40 +56,6 @@ VM vm;
 
 //   if (IS_STRING(args[0])) {
 //     fprintf(stderr, "%s\n", AS_CSTRING(args[0]));
-//   }
-
-//   return NONE_VAL;
-// }
-
-// static Value listAddNative(int argCount, Value* args) {
-//   if (argCount != 2) {
-//     // Arity error
-//   }
-
-//   if (IS_LIST(args[0])) {
-//     ObjList* list = AS_LIST(args[0]);
-//     Value item = args[1];
-//     listAppend(list, item);
-//     return item;
-//   }
-
-//   return NONE_VAL;
-// }
-
-// static Value listDeleteNative(int argCount, Value* args) {
-//   if (argCount != 2) {
-//     // Arity error
-//   }
-
-//   if (IS_LIST(args[0]) && IS_NUMBER(args[1])) {
-//     ObjList* list = AS_LIST(args[0]);
-//     int index = AS_NUMBER(args[1]);
-
-//     if (!isValidListIndex(list, index)) {
-//       // Out of bounds error
-//     }
-
-//     return listDeleteAt(list, index);
 //   }
 
 //   return NONE_VAL;
@@ -176,19 +105,12 @@ void initVM() {
   vm.initString = NULL;
   vm.initString = copyStringLength("init", 4);
 
-  // defineNativeFunction("input", inputNative);
-  // defineNativeFunction("readFile", readFileNative);
-  // defineNativeFunction("add", listAddNative);
-  // defineNativeFunction("delete", listDeleteNative);
-
-  // ObjClass* sysClass = defineNativeClass("Sys");
-
-  // defineNativeMethod(sysClass, "gc", gcNative);
-  // defineNativeMethod(sysClass, "clock", clockNative);
-  // defineNativeMethod(sysClass, "error", errorNative);
-
-#if !DEBUG_REMOVE_CORE
+#if DEBUG_REMOVE_CORE
+  vm.coreInitialized = true;
+#else
+  vm.coreInitialized = false;
   initializeCore(&vm);
+  vm.coreInitialized = true;
 #endif
 }
 
@@ -197,6 +119,15 @@ void freeVM() {
   freeTable(&vm.strings);
   vm.initString = NULL;
   freeObjects();
+}
+
+static void printStack() {
+  for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
+    printf("[ ");
+    printValue(*slot);
+    printf(" ]");
+  }
+  printf("\n");
 }
 
 void push(Value value) {
@@ -258,14 +189,29 @@ static bool callValue(Value callee, int argCount) {
       case OBJ_CLASS: {
         ObjClass* cls = AS_CLASS(callee);
         vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(cls));
-        Value initializer;
-        if (tableGet(&cls->methods, vm.initString, &initializer)) {
-          return callArity(AS_CLOSURE(initializer), argCount);
-        } else if (argCount != 0) {
-          runtimeError("Expected 0 arguments but got %d", argCount);
-          return false;
+
+        if (cls->initializer == UNDEFINED_VAL) {
+          if (argCount != 0) {
+            runtimeError("Expected 0 arguments but got %d", argCount);
+            return false;
+          }
+          return true;
         }
-        return true;
+
+        Value initializer = cls->initializer;
+        if (IS_NATIVE(initializer)) {
+          if (argCount != cls->arity) {
+            runtimeError("Expected %d argument%s but got %d", cls->arity, cls->arity == 1 ? "" : "s", argCount);
+            return false;
+          }
+
+          ObjNative* nativeObj = AS_NATIVE(initializer);
+          bool success = nativeObj->function(vm.stackTop - argCount - 1);
+          vm.stackTop -= argCount;
+          return success;
+        }
+
+        return callArity(AS_CLOSURE(initializer), argCount);
       }
       case OBJ_CLOSURE:
         return callArity(AS_CLOSURE(callee), argCount);
@@ -416,15 +362,16 @@ static InterpretResult run() {
   } while (false)
 
   for (;;) {
-#if DEBUG_TRACE_EXECUTION
+#if DEBUG_TRACE_EXECUTION == 2
     printf("        ");
-    for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
-      printf("[ ");
-      printValue(*slot);
-      printf(" ]");
-    }
-    printf("\n");
+    printStack();
     disassembleInstruction(&frame->closure->function->chunk, (int)(ip - frame->closure->function->chunk.code));
+#elif DEBUG_TRACE_EXECUTION == 1
+    if (vm.coreInitialized) {
+      printf("        ");
+      printStack();
+      disassembleInstruction(&frame->closure->function->chunk, (int)(ip - frame->closure->function->chunk.code));
+    }
 #endif
     uint8_t instruction;
     switch (instruction = READ_BYTE()) {
@@ -671,18 +618,16 @@ static InterpretResult run() {
         push(NUMBER_VAL(-AS_NUMBER(pop())));
         break;
 #endif
-#if !DEBUG_OP_PRINT
-      case OP_OUTPUT: {
-        printf("= > ");
-        break;
-      }
-#else
       case OP_PRINT: {
-        printValue(pop());
-        printf("\n");
+        Value output = peek();
+        if (IS_STRING(output)) {
+          printf("%s\n", AS_STRING(output)->chars);
+        } else {
+          printf("%s\n", "[invalid toString]");
+        }
+        pop(); // The string
         break;
       }
-#endif
       case OP_JUMP: {
         uint16_t offset = READ_SHORT();
         ip += offset;
@@ -774,13 +719,11 @@ static InterpretResult run() {
         closeUpvalues(frame->slots);
         vm.frameCount--;
         if (vm.frameCount == 0) {
-#ifdef DEBUG_OP_PRINT
           if (result != NONE_VAL) {
             printf("= > ");
             printValue(result);
             printf("\n");
           }
-#endif
           pop();
           return INTERPRET_OK;
         }
@@ -806,6 +749,11 @@ static InterpretResult run() {
         push(OBJ_VAL(new));
         break;
       }
+      case OP_INITIALIZER: {
+        ObjClass* cls = AS_CLASS(peek2());
+        cls->initializer = pop();
+        break;
+      }
       case OP_METHOD_INSTANCE:
         defineMethod(READ_STRING());
         break;
@@ -827,7 +775,7 @@ InterpretResult interpret(const char* source, const char* module, bool inRepl) {
   ObjFunction* function = compile(source, module, inRepl);
   if (function == NULL) return INTERPRET_COMPILE_ERROR;
 
-#if DEBUG_PRINT_CODE
+#if DEBUG_PRINT_CODE == 2
   printf("\n");
 #endif
 

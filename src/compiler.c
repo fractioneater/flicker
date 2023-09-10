@@ -160,6 +160,7 @@ typedef struct Compiler {
 } Compiler;
 
 typedef struct ClassCompiler {
+  bool hasInitializer;
   struct ClassCompiler* enclosing;
 } ClassCompiler;
 
@@ -385,20 +386,30 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 
 static ObjFunction* endCompiler() {
   if (current->scopeDepth == 0 && parser.onExpression && parser.printResult) {
-#if DEBUG_OP_PRINT
+    emitByte(OP_DUP);
+    emitByte(OP_NONE);
+    callMethod(1, "==(1)", 5);
+    
+    int isNone = emitJump(OP_JUMP_TRUTHY);
+    emitByte(OP_POP);
+
+    callMethod(0, "toString()", 10);
+    emitByte(OP_RETURN);
+
+    patchJump(isNone);
+    emitByte(OP_POP);
+    // None is already on the stack, so I don't need to add another.
     emitByte(OP_RETURN);
   } else emitReturn();
-#else
-    emitByte(OP_OUTPUT);
-    callMethod(1, "print(1)", 8);
-    parser.onExpression = false;
-  }
-  emitReturn();
-#endif
+
   ObjFunction* function = current->function;
 
-#if DEBUG_PRINT_CODE
+#if DEBUG_PRINT_CODE == 2
   if (!parser.hadError) {
+    disassembleChunk(currentChunk(), function->name != NULL ? function->name->chars : "main");
+  }
+#elif DEBUG_PRINT_CODE == 1
+  if (!parser.hadError && !(strlen(parser.module) == 4 && memcmp(parser.module, "core", 4) == 0)) {
     disassembleChunk(currentChunk(), function->name != NULL ? function->name->chars : "main");
   }
 #endif
@@ -1255,7 +1266,7 @@ static void method() {
   bool isAttribute = match(TOKEN_ATTRIBUTE);
 
   if (isAttribute && (isStatic || match(TOKEN_STATIC))) {
-    error("Attribute methods cannot be static");
+    error("Attributes cannot be static");
   }
 
 #if METHOD_CALL_OPERATORS
@@ -1275,6 +1286,8 @@ static void method() {
   if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
     if (isStatic) error("Initializers cannot be static");
     type = TYPE_INITIALIZER;
+    if (currentClass->hasInitializer) error("Classes can only have one initializer");
+    currentClass->hasInitializer = true;
   }
 
   Compiler compiler;
@@ -1309,8 +1322,8 @@ static void method() {
 #endif
 
   if (signature.asProperty != NULL) {
-    for (int i = 1; i <= current->function->arity; i++) {
-      if (signature.asProperty[i - 1]) {
+    for (int i = 0; i < current->function->arity; i++) {
+      if (signature.asProperty[i]) {
         if (isStatic) {
           error("Can only store fields through non-static methods");
           break;
@@ -1345,9 +1358,12 @@ static void method() {
     emitByte(compiler.upvalues[i].index);
   }
 
-  uint8_t constant = makeConstant(OBJ_VAL(copyStringLength(fullSignature, length)));
-
-  emitByteArg(OP_METHOD_INSTANCE + isStatic, constant);
+  if (type == TYPE_INITIALIZER) {
+    emitByte(OP_INITIALIZER); //- TODO NEXT: Test this
+  } else {
+    uint8_t constant = makeConstant(OBJ_VAL(copyStringLength(fullSignature, length)));
+    emitByteArg(OP_METHOD_INSTANCE + isStatic, constant);
+  }
 }
 
 static void classDeclaration() {
@@ -1371,6 +1387,7 @@ static void classDeclaration() {
   defineVariable(nameConstant);
 
   ClassCompiler classCompiler;
+  classCompiler.hasInitializer = false;
   classCompiler.enclosing = currentClass;
   currentClass = &classCompiler;
 
@@ -1439,16 +1456,9 @@ static void expressionStatement() {
 }
 
 static void printStatement() {
-#if DEBUG_OP_PRINT
   expression();
+  callMethod(0, "toString()", 10);
   emitByte(OP_PRINT);
-#else
-  emitByteArg(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyStringLength("Sys", 3))));
-  expression();
-  callMethod(1, "print(1)", 8);
-  // The method returns None, so pop that.
-  emitByte(OP_POP);
-#endif
 }
 
 static void breakStatement() {
@@ -1918,9 +1928,6 @@ static void statement() {
   } else {
     if (parser.printResult && current->scopeDepth == 0) {
       parser.onExpression = true;
-#if !DEBUG_OP_PRINT
-      emitByteArg(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyStringLength("Sys", 3))));
-#endif
       expression();
     } else expressionStatement();
   }
@@ -1956,10 +1963,6 @@ ObjFunction* compile(const char* source, const char* module, bool inRepl) {
   while (!match(TOKEN_EOF)) {
     if (parser.onExpression) {
       emitByte(OP_POP);
-#if !DEBUG_OP_PRINT
-      // One more for the Sys class.
-      emitByte(OP_POP);
-#endif
       parser.onExpression = false;
     }
     declaration();

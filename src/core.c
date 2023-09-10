@@ -64,6 +64,8 @@ DEF_NATIVE(function_toString) {
 // List          //
 ///////////////////
 
+DEF_NATIVE(list_init) { RETURN_OBJ(newList(0)); }
+
 DEF_NATIVE(list_filled) {
   if (!validateInt(args[1], "Size")) return false;
   if (AS_NUMBER(args[1]) < 0) RETURN_ERROR("Size cannot be negative");
@@ -77,8 +79,6 @@ DEF_NATIVE(list_filled) {
 
   RETURN_OBJ(list);
 }
-
-DEF_NATIVE(list_new) { RETURN_OBJ(newList(0)); }
 
 DEF_NATIVE(list_add) {
   listAppend(AS_LIST(args[0]), args[1]);
@@ -713,6 +713,11 @@ DEF_NATIVE(sys_gc) {
   RETURN_NONE;
 }
 
+DEF_NATIVE(sys_printString) {
+  printf("%s\n", AS_CSTRING(args[1]));
+  RETURN_VAL(args[1]);
+}
+
 DEF_NATIVE(sys_writeString) {
   printf("%s", AS_CSTRING(args[1]));
   RETURN_VAL(args[1]);
@@ -871,8 +876,8 @@ void initializeCore(VM* vm) {
   NATIVE(vm->stringClass, "toString()", string_toString);
 
   GET_CORE_CLASS(vm->listClass, "List");
+  NATIVE_INIT(vm->listClass, list_init, 0);
   NATIVE(vm->listClass->obj.cls, "filled(2)", list_filled);
-  NATIVE(vm->listClass->obj.cls, "new()", list_new);
   NATIVE(vm->listClass, "get(1)", list_subscript);
   NATIVE(vm->listClass, "set(2)", list_subscriptSet);
   NATIVE(vm->listClass, "add(1)", list_add);
@@ -901,6 +906,7 @@ void initializeCore(VM* vm) {
   GET_CORE_CLASS(sysClass, "Sys");
   NATIVE(sysClass->obj.cls, "clock", sys_clock);
   NATIVE(sysClass->obj.cls, "gc()", sys_gc);
+  NATIVE(sysClass->obj.cls, "printString(1)", sys_printString);
   NATIVE(sysClass->obj.cls, "writeString(1)", sys_writeString);
   NATIVE(sysClass->obj.cls, "input(1)", sys_input);
 

@@ -313,9 +313,9 @@ static const char* coreSource __attribute__((unused)) =
 "\n"
 "  static writeObject(obj)\n"
 "    var string = obj.toString()\n"
-"    if (string is String)\n"
-"      Sys.writeString(string)\n"
-"    else\n"
-"      Sys.writeString(\"[invalid toString()]\")\n"
+"    if (not string is String)\n"
+"      string = \"[Invalid toString()]\"\n"
+"    \n"
+"    Sys.writeString(string)\n"
 "\n"
 "  static input() = Sys.input(\"\")\n";
