@@ -705,6 +705,41 @@ void attributeSignature(Signature* signature) {
   signature->type = SIG_ATTRIBUTE;
 }
 
+static Token syntheticToken(const char* text) {
+  Token token;
+  token.start = text;
+  token.length = (int)strlen(text);
+  return token;
+}
+
+static void namedVariable(Token name, bool canAssign) {
+  uint8_t getOp, setOp;
+  int arg = resolveLocal(current, &name);
+  if (arg != -1) {
+    getOp = OP_GET_LOCAL;
+    setOp = OP_SET_LOCAL;
+  } else if ((arg = resolveUpvalue(current, &name)) != -1) {
+    getOp = OP_GET_UPVALUE;
+    setOp = OP_SET_UPVALUE;
+  } else {
+    arg = identifierConstant(&name);
+    getOp = OP_GET_GLOBAL;
+    setOp = OP_SET_GLOBAL;
+  }
+
+  if (canAssign && match(TOKEN_EQ)) {
+    matchLine();
+    expression();
+    emitByteArg(setOp, (uint8_t)arg);
+  } else {
+    emitByteArg(getOp, (uint8_t)arg);
+  }
+}
+
+static void variable(bool canAssign) {
+  namedVariable(parser.previous, canAssign);
+}
+
 static void call(bool canAssign) {
   uint8_t argCount = argumentList();
   emitByte(OP_CALL_0 + argCount);
@@ -715,23 +750,28 @@ static void callFunction(bool canAssign) {
   emitByte(OP_CALL_1);
 }
 
-static void getMethod() {
+static void callable(bool canAssign) {
+  advance();
+  ParseRule* rule = getRule(parser.previous.type);
+  if (rule->signatureFn == NULL) {
+    error("Expecting a method name after '::'");
+  }
+
   Signature signature = signatureFromToken(SIG_METHOD);
-
-  match(TOKEN_LEFT_BRACKET);
-
-  double argCount = 0;
-  if (!check(TOKEN_RIGHT_BRACKET)) {
-    expect(TOKEN_NUMBER, "Expecting a parameter number");
-    argCount = AS_NUMBER(parser.previous.value);
+  if (match(TOKEN_LEFT_PAREN)) {
+    if (match(TOKEN_RIGHT_PAREN)) {
+      signature.arity = 0;
+    } else {
+      expect(TOKEN_NUMBER, "Expecting a parameter count");
+      double num = parser.previous.value;
+      signature.arity = (int)trunc(num);
+      if (num != signature.arity) {
+        error("Parameter count must be an integer");
+      }
+    }
+  } else {
+    signature.type = SIG_ATTRIBUTE;
   }
-
-  signature.arity = (int)trunc(argCount);
-  if (signature.arity > MAX_PARAMETERS) {
-    error("Methods cannot have this many parameters");
-  }
-
-  expect(TOKEN_RIGHT_BRACKET, "Expecting ']' after parameter count");
 
   char fullSignature[MAX_METHOD_SIGNATURE];
   int length;
@@ -742,10 +782,6 @@ static void getMethod() {
 
 static void dot(bool canAssign) {
   expect(TOKEN_IDENTIFIER, "Expecting a property name after '.'");
-  if (check(TOKEN_LEFT_BRACKET)) {
-    getMethod();
-    return;
-  }
   
   uint8_t name = identifierConstant(&parser.previous);
   Signature signature = signatureFromToken(SIG_METHOD);
@@ -773,6 +809,56 @@ static void dot(bool canAssign) {
   } else {
     emitByteArg(OP_GET_PROPERTY, name);
   }
+}
+
+static void super_(bool canAssign) {
+  if (currentClass == NULL) {
+    error("Can't use 'super' outside of a class");
+  }
+
+  expect(TOKEN_DOT, "Expecting '.' after 'super'");
+  expect(TOKEN_IDENTIFIER, "Expecting a superclass method name");
+
+  uint8_t name = identifierConstant(&parser.previous);
+  Signature signature = signatureFromToken(SIG_METHOD);
+
+  namedVariable(syntheticToken("this"), false);
+  if (match(TOKEN_LEFT_PAREN) || match(TOKEN_LEFT_BRACE)) {
+    uint8_t argCount;
+    if (parser.previous.type == TOKEN_LEFT_BRACE) {
+      lambda(false);
+      argCount = 1;
+      signature.arity = 1;
+    } else {
+      matchLine();
+      argCount = argumentList();
+      signature.arity = argCount;
+    }
+
+    namedVariable(syntheticToken("super"), false);
+
+    char fullSignature[MAX_METHOD_SIGNATURE];
+    int length;
+    signatureToString(&signature, fullSignature, &length);
+
+    emitByteArg(OP_SUPER_0 + argCount, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
+  } else {
+    namedVariable(syntheticToken("super"), false);
+    emitByteArg(OP_GET_SUPER, name);
+  }
+}
+
+static void this_(bool canAssign) {
+  if (currentClass == NULL) {
+    error("Can't use 'this' outside of a class");
+    return;
+  }
+  if (current->type == TYPE_STATIC_METHOD) {
+    error("Can't use 'this' in a static method");
+    return;
+  }
+
+  namedVariable(parser.previous, false);
 }
 
 static void literal(bool canAssign) {
@@ -855,35 +941,7 @@ static void stringInterpolation(bool canAssign) {
   emitByteArg(OP_INVOKE_1, addConstant);
 
   emitConstant(OBJ_VAL(copyStringLength("", 0)));
-  callMethod(1, "join(1)", 7);
-}
-
-static void namedVariable(Token name, bool canAssign) {
-  uint8_t getOp, setOp;
-  int arg = resolveLocal(current, &name);
-  if (arg != -1) {
-    getOp = OP_GET_LOCAL;
-    setOp = OP_SET_LOCAL;
-  } else if ((arg = resolveUpvalue(current, &name)) != -1) {
-    getOp = OP_GET_UPVALUE;
-    setOp = OP_SET_UPVALUE;
-  } else {
-    arg = identifierConstant(&name);
-    getOp = OP_GET_GLOBAL;
-    setOp = OP_SET_GLOBAL;
-  }
-
-  if (canAssign && match(TOKEN_EQ)) {
-    matchLine();
-    expression();
-    emitByteArg(setOp, (uint8_t)arg);
-  } else {
-    emitByteArg(getOp, (uint8_t)arg);
-  }
-}
-
-static void variable(bool canAssign) {
-  namedVariable(parser.previous, canAssign);
+  callMethod(1, "joinToString(1)", 15);
 }
 
 static void list(bool canAssign) {
@@ -913,47 +971,6 @@ static void subscript(bool canAssign) {
   } else {
     callMethod(1, "get(1)", 6);
   }
-}
-
-static Token syntheticToken(const char* text) {
-  Token token;
-  token.start = text;
-  token.length = (int)strlen(text);
-  return token;
-}
-
-static void super_(bool canAssign) {
-  if (currentClass == NULL) {
-    error("Can't use 'super' outside of a class");
-  }
-
-  expect(TOKEN_DOT, "Expecting '.' after 'super'");
-  expect(TOKEN_IDENTIFIER, "Expecting a superclass method name");
-  uint8_t name = identifierConstant(&parser.previous);
-
-  namedVariable(syntheticToken("this"), false);
-  if (match(TOKEN_LEFT_PAREN)) {
-    matchLine();
-    uint8_t argCount = argumentList();
-    namedVariable(syntheticToken("super"), false);
-    emitByteArg(OP_SUPER_0 + argCount, name);
-  } else {
-    namedVariable(syntheticToken("super"), false);
-    emitByteArg(OP_GET_SUPER, name);
-  }
-}
-
-static void this_(bool canAssign) {
-  if (currentClass == NULL) {
-    error("Can't use 'this' outside of a class");
-    return;
-  }
-  if (current->type == TYPE_STATIC_METHOD) {
-    error("Can't use 'this' in a static method");
-    return;
-  }
-
-  namedVariable(parser.previous, false);
 }
 
 static void binary(bool canAssign) {
@@ -1057,15 +1074,17 @@ ParseRule rules[] = {
   /* TOKEN_RIGHT_BRACE   */ UNUSED,
   /* TOKEN_SEMICOLON     */ UNUSED,
   /* TOKEN_COMMA         */ UNUSED,
-  /* TOKEN_COLON         */ INFIX_OPERATOR(BP_RANGE, ":"),
   /* TOKEN_PLUS          */ INFIX_OPERATOR(BP_TERM, "+"),
   /* TOKEN_SLASH         */ INFIX_OPERATOR(BP_FACTOR, "/"),
   /* TOKEN_PERCENT       */ INFIX_OPERATOR(BP_FACTOR, "%"),
   /* TOKEN_PIPE          */ INFIX_OPERATOR(BP_BIT_OR, "|"),
   /* TOKEN_CARET         */ INFIX_OPERATOR(BP_BIT_XOR, "^"),
   /* TOKEN_AMPERSAND     */ INFIX_OPERATOR(BP_BIT_AND, "&"),
+  /* TOKEN_TILDE         */ PREFIX_OPERATOR(BP_UNARY, "~"),
   /* TOKEN_DOT           */ INFIX(dot, BP_CALL),
   /* TOKEN_DOT_DOT       */ INFIX_OPERATOR(BP_RANGE, ".."),
+  /* TOKEN_COLON         */ INFIX_OPERATOR(BP_RANGE, ":"),
+  /* TOKEN_COLON_COLON   */ INFIX(callable, BP_CALL),
   /* TOKEN_STAR          */ INFIX_OPERATOR(BP_FACTOR, "*"),
   /* TOKEN_STAR_STAR     */ INFIX_OPERATOR(BP_EXPONENT, "**"),
   /* TOKEN_MINUS         */ OPERATOR(BP_TERM, "-"),

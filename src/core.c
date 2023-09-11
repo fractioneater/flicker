@@ -313,7 +313,7 @@ DEF_NATIVE(number_notEquals) {
 }
 
 DEF_NATIVE(number_bitwiseNot) {
-  RETURN_NUMBER(!(uint32_t)AS_NUMBER(args[0]));
+  RETURN_NUMBER(~(uint32_t)AS_NUMBER(args[0]));
 }
 
 DEF_NATIVE(number_dotDot) {

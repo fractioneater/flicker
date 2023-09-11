@@ -66,9 +66,9 @@ class Sequence
     
     return result
   
-  join() = this.join(", ")
+  joinToString() = this.joinToString(", ")
   
-  join(sep)
+  joinToString(sep)
     var result = ""
 
     for (var i = 0; i < this.size; i = i + 1)
@@ -260,6 +260,9 @@ class List < Sequence
   addAll(other)
     each (element in other)
       this.add(element)
+  
+  map(transformation)
+    return super.map(transformation).toList()
 
   sort()
     this.sort { |low, high| return low <= high }
@@ -285,7 +288,7 @@ class List < Sequence
     this.swap(i + 1, high)
     return i + 1
   
-  toString() = "[=(this.join())]"
+  toString() = "[=(this.joinToString())]"
 
 class Range < Sequence {}
 

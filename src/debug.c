@@ -23,7 +23,12 @@ static int constantInstruction(const char* name, Chunk* chunk, int offset) {
 
 static int invokeInstruction(const char* name, Chunk* chunk, int offset) {
   uint8_t constant = chunk->code[offset + 1];
-  uint8_t argCount = chunk->code[offset] - OP_INVOKE_0;
+  uint8_t argCount;
+  if (name[3] == 'S') {
+    argCount = chunk->code[offset] - OP_SUPER_0;
+  } else {
+    argCount = chunk->code[offset] - OP_INVOKE_0;
+  }
   printf("%-16s %4d '", name, constant);
   printValue(chunk->constants.values[constant]);
   printf("'  (%d args)\n", argCount);

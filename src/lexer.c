@@ -498,14 +498,15 @@ Token scanToken() {
       case '}': return makeToken(TOKEN_RIGHT_BRACE);
       case ';': return makeToken(TOKEN_SEMICOLON);
       case ',': return makeToken(TOKEN_COMMA);
-      case ':': return makeToken(TOKEN_COLON);
       case '+': return makeToken(TOKEN_PLUS);
       case '/': return makeToken(TOKEN_SLASH);
       case '%': return makeToken(TOKEN_PERCENT);
       case '|': return makeToken(TOKEN_PIPE);
       case '^': return makeToken(TOKEN_CARET);
       case '&': return makeToken(TOKEN_AMPERSAND);
+      case '~': return makeToken(TOKEN_TILDE);
       case '.': return makeToken(match('.') ? TOKEN_DOT_DOT : TOKEN_DOT);
+      case ':': return makeToken(match(':') ? TOKEN_COLON_COLON : TOKEN_COLON);
       case '*': return makeToken(match('*') ? TOKEN_STAR_STAR : TOKEN_STAR);
       case '-': return makeToken(match('>') ? TOKEN_RIGHT_ARROW : TOKEN_MINUS);
       case '!': return makeToken(match('=') ? TOKEN_BANG_EQ : TOKEN_BANG);

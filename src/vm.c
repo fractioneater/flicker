@@ -264,7 +264,7 @@ static bool invoke(ObjString* name, int argCount) {
 static bool bindMethod(ObjClass* cls, ObjString* name) {
   Value method;
   if (!tableGet(&cls->methods, name, &method)) {
-    runtimeError("Undefined property '%s'", name->chars);
+    runtimeError("Undefined method '%s'", name->chars);
     return false;
   }
 
@@ -450,7 +450,7 @@ static InterpretResult run() {
       }
       case OP_GET_PROPERTY: {
         Value receiver = peek();
-        ObjClass* cls = getClass(peek());
+        ObjClass* cls = getClass(receiver);
         ObjString* property = READ_STRING();
 
         if (IS_INSTANCE(receiver)) {
@@ -471,25 +471,20 @@ static InterpretResult run() {
           return INTERPRET_RUNTIME_ERROR;
         }
 
-        switch (AS_OBJ(attribute)->type) {
-          case OBJ_NATIVE: {
-            ObjNative* native = AS_NATIVE(attribute);
-            // Replaces the instance with the result.
-            if (!native->function(vm.stackTop - 1)) {
-              return INTERPRET_RUNTIME_ERROR;
-            }
-
-            break;
+        if (IS_NATIVE(attribute)) {
+          ObjNative* native = AS_NATIVE(attribute);
+          // Replaces the instance with the result.
+          if (!native->function(vm.stackTop - 1)) {
+            return INTERPRET_RUNTIME_ERROR;
           }
-          default:
-            frame->ip = ip;
-            if (!call(AS_CLOSURE(attribute), 0)) {
-              return INTERPRET_RUNTIME_ERROR;
-            }
-            frame = &vm.frames[vm.frameCount - 1];
-            ip = frame->ip;
+        } else {
+          frame->ip = ip;
+          if (!call(AS_CLOSURE(attribute), 0)) {
+            return INTERPRET_RUNTIME_ERROR;
+          }
+          frame = &vm.frames[vm.frameCount - 1];
+          ip = frame->ip;
         }
-
         break;
       }
       case OP_SET_PROPERTY: {
@@ -507,11 +502,28 @@ static InterpretResult run() {
         break;
       }
       case OP_GET_SUPER: {
-        ObjString* name = READ_STRING();
-        ObjClass* superclass = AS_CLASS(pop());
+        ObjClass* superclass = getClass(peek());
+        ObjString* property = READ_STRING();
 
-        if (!bindMethod(superclass, name)) {
+        Value attribute;
+        if (!tableGet(&superclass->methods, property, &attribute)) {
+          frame->ip = ip;
+          runtimeError("Undefined property '%s'", property->chars);
           return INTERPRET_RUNTIME_ERROR;
+        }
+
+        if (IS_NATIVE(attribute)) {
+          ObjNative* native = AS_NATIVE(attribute);
+          if (!native->function(vm.stackTop - 1)) {
+            return INTERPRET_RUNTIME_ERROR;
+          }
+        } else {
+          frame->ip = ip;
+          if (!call(AS_CLOSURE(attribute), 0)) {
+            return INTERPRET_RUNTIME_ERROR;
+          }
+          frame = &vm.frames[vm.frameCount - 1];
+          ip = frame->ip;
         }
         break;
       }
