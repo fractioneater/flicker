@@ -1113,6 +1113,7 @@ ParseRule rules[] = {
   /* TOKEN_EACH          */ UNUSED,
   /* TOKEN_ELIF          */ UNUSED,
   /* TOKEN_ELSE          */ UNUSED,
+  /* TOKEN_PRINT_ERROR   */ UNUSED,
   /* TOKEN_FALSE         */ PREFIX(literal, BP_NONE),
   /* TOKEN_FOR           */ UNUSED,
   /* TOKEN_FUN           */ UNUSED,
@@ -1478,6 +1479,12 @@ static void printStatement() {
   expression();
   callMethod(0, "toString()", 10);
   emitByte(OP_PRINT);
+}
+
+static void errorStatement() {
+  expression();
+  callMethod(0, "toString()", 10);
+  emitByte(OP_ERROR);
 }
 
 static void breakStatement() {
@@ -1931,6 +1938,7 @@ static void declaration() {
 
 static void statement() {
   if (match(TOKEN_PRINT)) printStatement();
+  else if (match(TOKEN_PRINT_ERROR)) errorStatement();
   else if (match(TOKEN_PASS)) return;
   else if (match(TOKEN_BREAK)) breakStatement();
   else if (match(TOKEN_CONTINUE)) continueStatement();

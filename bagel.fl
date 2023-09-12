@@ -1,18 +1,11 @@
 class Bagel
-  attribute warm
-    if (this.cooked)
-      print "warm"
-      return True
-    else
-      print "cold"
-      return False
-  static isGood()
-    return True
   cook()
-    this.cooked = True
+    print "toasting"
 
-var new = Bagel()
+class PumpkinBagel < Bagel
+  cook()
+    super.cook()
+    print "spreading cream cheese"
+
+var new = PumpkinBagel()
 new.cook()
-print new.cooked
-print Bagel.isGood()
-print new.warm

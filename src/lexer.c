@@ -173,6 +173,8 @@ static TokenType identifierType() {
             case 's': return checkKeyword(3, 1, "e", TOKEN_ELSE);
           }
         }
+      } else if (lexer.start[1] == 'r') {
+        if (lexer.current - lexer.start > 4) return checkKeyword(2, 3, "ror", TOKEN_PRINT_ERROR);
       }
       break;
     case 'F': return checkKeyword(1, 4, "alse", TOKEN_FALSE);

@@ -12,6 +12,7 @@
 #include "memory.h"
 #include "object.h"
 #include "primitive.h"
+#include "shishua.h"
 #include "utils.h"
 #include "value.h"
 
@@ -450,6 +451,47 @@ DEF_NATIVE(object_toString) {
 
 DEF_NATIVE(object_type) { RETURN_OBJ(getClass(args[0])); }
 
+/////////////////////
+// Random          //
+/////////////////////
+
+DEF_NATIVE(random_randByte) {
+  // I feel like this is an example where accessing the seed property
+  // is very necessary, and so is being able to use all of the functions
+  // in randomBuffer.h, so this might have to be more than just a class.
+
+  // An object might work, I don't know.
+
+  // I should just fix superclass calls first.
+
+  uint64_t seed[4];
+  if (IS_NONE(args[1])) { // TODO: This is definitely not the best way. Use a random seed.
+    seed[0] = 0;
+    seed[1] = 0;
+    seed[2] = 0;
+    seed[3] = 0;
+  } else if (IS_NUMBER(args[1])) {
+    if (!validateInt(args[1], "Seed")) return false;
+    seed[0] = (uint64_t)AS_NUMBER(args[1]);
+    seed[1] = seed[2] = seed[3] = 0;
+  } else if (IS_LIST(args[1])) {
+    ObjList* list = AS_LIST(args[1]);
+    if (list->count != 4) RETURN_ERROR("Seed list must have 4 elements");
+    for (int i = 0; i < 4; i++) {
+      if (!validateInt(list->items[i], "Seed")) return false;
+      seed[i] = (uint64_t)list->items[i];
+    }
+  }
+
+  PrngState state;
+  prngInit(&state, seed); // Shouldn't init each time, only once.
+  uint8_t buf[BUFSIZE];
+  prngGen(&state, buf, sizeof(buf));
+  printf("%d\n", buf[0]);
+  double rand = (double)buf[0];
+  RETURN_NUMBER(rand);
+}
+
 ////////////////////
 // Range          //
 ////////////////////
@@ -856,6 +898,10 @@ void initializeCore(VM* vm) {
   NATIVE(vm->numberClass, "sign", number_sign);
   NATIVE(vm->numberClass, "toString()", number_toString);
   NATIVE(vm->numberClass, "truncate()", number_truncate);
+
+  ObjClass* randomClass;
+  GET_CORE_CLASS(randomClass, "Random");
+  NATIVE(randomClass, "randByte(1)", random_randByte);
 
   GET_CORE_CLASS(vm->stringClass, "String");
   NATIVE(vm->stringClass->obj.cls, "fromCodePoint(1)", string_fromCodePoint);

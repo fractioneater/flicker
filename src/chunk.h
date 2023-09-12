@@ -46,6 +46,7 @@ typedef enum {
   OP_NEGATE,
 #endif
   OP_PRINT,
+  OP_ERROR,
   OP_JUMP,
   OP_JUMP_FALSY,
   OP_JUMP_TRUTHY,

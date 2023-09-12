@@ -121,6 +121,7 @@ void freeVM() {
   freeObjects();
 }
 
+#if DEBUG_TRACE_EXECUTION
 static void printStack() {
   for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
     printf("[ ");
@@ -129,6 +130,7 @@ static void printStack() {
   }
   printf("\n");
 }
+#endif
 
 void push(Value value) {
   *vm.stackTop++ = value;
@@ -178,6 +180,12 @@ static bool callArity(ObjClosure* closure, int argCount) {
   return call(closure, argCount);
 }
 
+static bool callNative(ObjNative* native, int argCount) {
+  bool success = native->function(vm.stackTop - argCount - 1);
+  vm.stackTop -= argCount;
+  return success;
+}
+
 static bool callValue(Value callee, int argCount) {
   if (IS_OBJ(callee)) {
     switch (OBJ_TYPE(callee)) {
@@ -205,28 +213,35 @@ static bool callValue(Value callee, int argCount) {
             return false;
           }
 
-          ObjNative* nativeObj = AS_NATIVE(initializer);
-          bool success = nativeObj->function(vm.stackTop - argCount - 1);
-          vm.stackTop -= argCount;
-          return success;
+          return callNative(AS_NATIVE(initializer), argCount);
         }
 
         return callArity(AS_CLOSURE(initializer), argCount);
       }
       case OBJ_CLOSURE:
         return callArity(AS_CLOSURE(callee), argCount);
-      case OBJ_NATIVE: {
-        ObjNative* nativeObj = AS_NATIVE(callee);
-        bool success = nativeObj->function(vm.stackTop - argCount - 1);
-        vm.stackTop -= argCount;
-        return success;
-      }
+      case OBJ_NATIVE:
+        return callNative(AS_NATIVE(callee), argCount);
       default:
         break; // Non-callable object type.
     }
   }
   runtimeError("Can only call functions and classes");
   return false;
+}
+
+static bool invokeFromClass(ObjClass* cls, ObjString* name, int argCount) {
+  Value method;
+  if (!tableGet(&cls->methods, name, &method)) {
+    runtimeError("%s does not implement '%s'", cls->name->chars, name->chars);
+    return false;
+  }
+  
+  if (IS_NATIVE(method)) {
+    return callNative(AS_NATIVE(method), argCount);
+  }
+
+  return call(AS_CLOSURE(method), argCount);
 }
 
 static bool invoke(ObjString* name, int argCount) {
@@ -245,20 +260,7 @@ static bool invoke(ObjString* name, int argCount) {
     }
   }
 
-  Value method;
-  if (!tableGet(&cls->methods, name, &method)) {
-    runtimeError("%s does not implement '%s'", cls->name->chars, name->chars);
-    return false;
-  }
-
-  if (IS_NATIVE(method)) {
-    ObjNative* nativeObj = AS_NATIVE(method);
-    bool success = nativeObj->function(vm.stackTop - argCount - 1);
-    vm.stackTop -= argCount;
-    return success;
-  }
-
-  return call(AS_CLOSURE(method), argCount);
+  return invokeFromClass(cls, name, argCount);
 }
 
 static bool bindMethod(ObjClass* cls, ObjString* name) {
@@ -635,9 +637,20 @@ static InterpretResult run() {
         if (IS_STRING(output)) {
           printf("%s\n", AS_STRING(output)->chars);
         } else {
-          printf("%s\n", "[invalid toString]");
+          printf("%s\n", "[invalid toString() method]");
         }
         pop(); // The string
+        break;
+      }
+      case OP_ERROR: {
+        Value output = peek();
+        frame->ip = ip;
+        if (IS_STRING(output)) {
+          runtimeError(AS_CSTRING(output));
+        } else {
+          runtimeError("[invalid toString() method]");
+        }
+        return INTERPRET_RUNTIME_ERROR;
         break;
       }
       case OP_JUMP: {
@@ -694,17 +707,12 @@ static InterpretResult run() {
         int argCount = instruction - OP_SUPER_0;
         ObjString* name = READ_STRING();
         ObjClass* superclass = AS_CLASS(pop());
-        Value method;
-        if (!tableGet(&superclass->methods, name, &method)) {
-          runtimeError("Undefined method '%s'", name->chars);
+        frame->ip = ip;
+        if (!invokeFromClass(superclass, name, argCount)) {
           return INTERPRET_RUNTIME_ERROR;
         }
-
-        if (!call(AS_CLOSURE(method), argCount)) {
-          return INTERPRET_RUNTIME_ERROR;
-        }
-
         frame = &vm.frames[vm.frameCount - 1];
+        ip = frame->ip;
         break;
       }
       case OP_CLOSURE: {
