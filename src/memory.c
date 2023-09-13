@@ -108,9 +108,6 @@ static void blackenObject(Obj* object) {
       markTable(&instance->fields);
       break;
     }
-    case OBJ_UPVALUE:
-      markValue(((ObjUpvalue*)object)->closed);
-      break;
     case OBJ_LIST: {
       ObjList* list = (ObjList*)object;
       for (int i = 0; i < list->count; i++) {
@@ -118,9 +115,13 @@ static void blackenObject(Obj* object) {
       }
       break;
     }
+    case OBJ_UPVALUE:
+      markValue(((ObjUpvalue*)object)->closed);
+      break;
     case OBJ_NATIVE:
-    case OBJ_STRING:
+    case OBJ_PRNG:
     case OBJ_RANGE:
+    case OBJ_STRING:
       break;
   }
 }
@@ -159,24 +160,27 @@ static void freeObject(Obj* object) {
       FREE(ObjInstance, object);
       break;
     }
-    case OBJ_NATIVE:
-      FREE(ObjNative, object);
-      break;
     case OBJ_LIST: {
       ObjList* list = (ObjList*)object;
       FREE_ARRAY(Value*, list->items, list->count);
       FREE(ObjList, object);
       break;
     }
+    case OBJ_NATIVE:
+      FREE(ObjNative, object);
+      break;
+    case OBJ_PRNG:
+      FREE(ObjPrng, object);
+      break;
+    case OBJ_RANGE:
+      FREE(ObjRange, object);
+      break;
     case OBJ_STRING: {
       ObjString* string = (ObjString*)object;
       FREE_ARRAY(char, string->chars, string->length + 1);
       FREE(ObjString, object);
       break;
     }
-    case OBJ_RANGE:
-      FREE(ObjRange, object);
-      break;
     case OBJ_UPVALUE:
       FREE(ObjUpvalue, object);
       break;

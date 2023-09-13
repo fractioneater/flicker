@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include <time.h>
 
 #include "memory.h"
@@ -455,41 +456,50 @@ DEF_NATIVE(object_type) { RETURN_OBJ(getClass(args[0])); }
 // Random          //
 /////////////////////
 
-DEF_NATIVE(random_randByte) {
-  // I feel like this is an example where accessing the seed property
-  // is very necessary, and so is being able to use all of the functions
-  // in randomBuffer.h, so this might have to be more than just a class.
+DEF_NATIVE(random_init) {
+  struct timeval time;
+  gettimeofday(&time, NULL);
+  srand(time.tv_usec);
+  uint64_t seed[4] = {rand(), rand(), rand(), rand()};
+  RETURN_OBJ(newPrng(seed));
+}
 
-  // An object might work, I don't know.
-
-  // I should just fix superclass calls first.
-
+DEF_NATIVE(random_seed) {
   uint64_t seed[4];
-  if (IS_NONE(args[1])) { // TODO: This is definitely not the best way. Use a random seed.
-    seed[0] = 0;
-    seed[1] = 0;
-    seed[2] = 0;
-    seed[3] = 0;
-  } else if (IS_NUMBER(args[1])) {
+  if (IS_NUMBER(args[1])) {
     if (!validateInt(args[1], "Seed")) return false;
+
     seed[0] = (uint64_t)AS_NUMBER(args[1]);
     seed[1] = seed[2] = seed[3] = 0;
   } else if (IS_LIST(args[1])) {
     ObjList* list = AS_LIST(args[1]);
     if (list->count != 4) RETURN_ERROR("Seed list must have 4 elements");
+
     for (int i = 0; i < 4; i++) {
       if (!validateInt(list->items[i], "Seed")) return false;
       seed[i] = (uint64_t)list->items[i];
     }
+  } else {
+    RETURN_ERROR("Seed must be either a number or a list");
   }
 
-  PrngState state;
-  prngInit(&state, seed); // Shouldn't init each time, only once.
-  uint8_t buf[BUFSIZE];
-  prngGen(&state, buf, sizeof(buf));
-  printf("%d\n", buf[0]);
-  double rand = (double)buf[0];
-  RETURN_NUMBER(rand);
+  RETURN_OBJ(newPrng(seed));
+}
+
+DEF_NATIVE(random_randBytes) {
+  ObjPrng* prng = AS_PRNG(args[0]);
+  if (!validateInt(args[1], "Byte count")) return false;
+
+  int count = (int)AS_NUMBER(args[1]);
+  ObjList* output = newList(count);
+  uint8_t buffer[count];
+
+  fillPrng(prng, buffer, count);
+  for (int i = 0; i < count; i++) {
+    output->items[i] = NUMBER_VAL(buffer[i]);
+  }
+
+  RETURN_OBJ(output);
 }
 
 ////////////////////
@@ -899,9 +909,10 @@ void initializeCore(VM* vm) {
   NATIVE(vm->numberClass, "toString()", number_toString);
   NATIVE(vm->numberClass, "truncate()", number_truncate);
 
-  ObjClass* randomClass;
-  GET_CORE_CLASS(randomClass, "Random");
-  NATIVE(randomClass, "randByte(1)", random_randByte);
+  GET_CORE_CLASS(vm->randomClass, "Random");
+  NATIVE_INIT(vm->randomClass, random_init, 0);
+  NATIVE(vm->randomClass->obj.cls, "seed(1)", random_seed);
+  NATIVE(vm->randomClass, "randBytes(1)", random_randBytes);
 
   GET_CORE_CLASS(vm->stringClass, "String");
   NATIVE(vm->stringClass->obj.cls, "fromCodePoint(1)", string_fromCodePoint);

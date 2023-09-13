@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "memory.h"
+#include "shishua.h"
 #include "table.h"
 #include "utils.h"
 #include "value.h"
@@ -105,12 +106,6 @@ ObjInstance* newInstance(ObjClass* cls) {
   return instance;
 }
 
-ObjNative* newNative(NativeFn function) {
-  ObjNative* obj = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE, NULL);
-  obj->function = function;
-  return obj;
-}
-
 ObjList* newList(uint32_t count) {
   Value* array = NULL;
   if (count > 0) array = ALLOCATE(Value, count);
@@ -168,6 +163,32 @@ int listIndexOf(ObjList* list, Value value) {
   }
 
   return -1;
+}
+
+ObjNative* newNative(NativeFn function) {
+  ObjNative* obj = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE, NULL);
+  obj->function = function;
+  return obj;
+}
+
+ObjPrng* newPrng(uint64_t seed[4]) {
+  ObjPrng* prng = ALLOCATE_OBJ(ObjPrng, OBJ_PRNG, vm.randomClass);
+  prngInit(&prng->state, seed);
+  fillPrngBuffer(prng);
+  return prng;
+}
+
+void fillPrngBuffer(ObjPrng* prng) {
+  prngGen(&prng->state, prng->buffer, PRNG_BUFFER_SIZE);
+  prng->bufferIndex = 0;
+}
+
+ObjRange* newRange(double from, double to, bool isInclusive) {
+  ObjRange* range = ALLOCATE_OBJ(ObjRange, OBJ_RANGE, vm.rangeClass);
+  range->from = from;
+  range->to = to;
+  range->isInclusive = isInclusive;
+  return range;
 }
 
 static ObjString* allocateString(char* chars, int length, uint32_t hash) {
@@ -413,14 +434,6 @@ Value indexFromString(ObjString* string, int index) {
   }
 }
 
-ObjRange* newRange(double from, double to, bool isInclusive) {
-  ObjRange* range = ALLOCATE_OBJ(ObjRange, OBJ_RANGE, vm.rangeClass);
-  range->from = from;
-  range->to = to;
-  range->isInclusive = isInclusive;
-  return range;
-}
-
 ObjUpvalue* newUpvalue(Value* slot) {
   ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE, NULL);
   upvalue->closed = NONE_VAL;
@@ -454,9 +467,6 @@ void printObject(Value value) {
     case OBJ_INSTANCE:
       printf("%s instance", AS_INSTANCE(value)->obj.cls->name->chars);
       break;
-    case OBJ_NATIVE:
-      printf("<native fn>");
-      break;
     case OBJ_LIST: {
       ObjList* list = AS_LIST(value);
       printf("[");
@@ -467,8 +477,11 @@ void printObject(Value value) {
       printf("]");
       break;
     }
-    case OBJ_STRING:
-      printf("%s", AS_CSTRING(value));
+    case OBJ_NATIVE:
+      printf("<native fn>");
+      break;
+    case OBJ_PRNG:
+      printf("Random instance");
       break;
     case OBJ_RANGE: {
       ObjRange* range = AS_RANGE(value);
@@ -477,6 +490,9 @@ void printObject(Value value) {
       printValue(NUMBER_VAL(range->to));
       break;
     }
+    case OBJ_STRING:
+      printf("%s", AS_CSTRING(value));
+      break;
     case OBJ_UPVALUE:
       printf("upvalue");
       break;

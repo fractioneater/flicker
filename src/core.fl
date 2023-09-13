@@ -3,15 +3,7 @@ class Function {}
 class `None` {}
 class Number {}
 class Random
-  init()
-    this.seed = None
-
-  static seed(seed)
-    var new = Random()
-    new.seed = seed
-    return new
-  
-  randByte() = this.randByte(this.seed)
+  randByte() = this.randBytes(1)[0]
 
 class Sequence
   all(function)

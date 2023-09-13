@@ -24,6 +24,7 @@ typedef struct {
   ObjClass* listClass;
   ObjClass* noneClass;
   ObjClass* numberClass;
+  ObjClass* randomClass;
   ObjClass* rangeClass;
   ObjClass* stringClass;
   bool coreInitialized;

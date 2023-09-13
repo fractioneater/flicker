@@ -3,6 +3,7 @@
 
 #include "chunk.h"
 #include "common.h"
+#include "shishua.h"
 #include "table.h"
 #include "value.h"
 
@@ -13,21 +14,23 @@
 #define IS_CLOSURE(value)      isObjType(value, OBJ_CLOSURE)
 #define IS_FUNCTION(value)     isObjType(value, OBJ_FUNCTION)
 #define IS_INSTANCE(value)     isObjType(value, OBJ_INSTANCE)
-#define IS_NATIVE(value)       isObjType(value, OBJ_NATIVE)
 #define IS_LIST(value)         isObjType(value, OBJ_LIST)
-#define IS_STRING(value)       isObjType(value, OBJ_STRING)
+#define IS_NATIVE(value)       isObjType(value, OBJ_NATIVE)
+#define IS_PRNG(value)         isObjType(value, OBJ_PRNG)
 #define IS_RANGE(value)        isObjType(value, OBJ_RANGE)
+#define IS_STRING(value)       isObjType(value, OBJ_STRING)
 
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod*)AS_OBJ(value))
 #define AS_CLASS(value)        ((ObjClass*)AS_OBJ(value))
 #define AS_CLOSURE(value)      ((ObjClosure*)AS_OBJ(value))
 #define AS_FUNCTION(value)     ((ObjFunction*)AS_OBJ(value))
 #define AS_INSTANCE(value)     ((ObjInstance*)AS_OBJ(value))
-#define AS_NATIVE(value)       (((ObjNative*)AS_OBJ(value)))
 #define AS_LIST(value)         ((ObjList*)AS_OBJ(value))
+#define AS_NATIVE(value)       ((ObjNative*)AS_OBJ(value))
+#define AS_PRNG(value)         ((ObjPrng*)AS_OBJ(value))
+#define AS_RANGE(value)        ((ObjRange*)AS_OBJ(value))
 #define AS_STRING(value)       ((ObjString*)AS_OBJ(value))
 #define AS_CSTRING(value)      (((ObjString*)AS_OBJ(value))->chars)
-#define AS_RANGE(value)        ((ObjRange*)AS_OBJ(value))
 
 typedef enum {
   OBJ_BOUND_METHOD,
@@ -35,10 +38,11 @@ typedef enum {
   OBJ_CLOSURE,
   OBJ_FUNCTION,
   OBJ_INSTANCE,
-  OBJ_NATIVE,
   OBJ_LIST,
-  OBJ_STRING,
+  OBJ_NATIVE,
+  OBJ_PRNG,
   OBJ_RANGE,
+  OBJ_STRING,
   OBJ_UPVALUE
 } ObjType;
 
@@ -87,6 +91,13 @@ typedef struct {
   bool isInclusive;
 } ObjRange;
 
+typedef struct {
+  Obj obj;
+  PrngState state;
+  uint8_t buffer[PRNG_BUFFER_SIZE];
+  size_t bufferIndex;
+} ObjPrng;
+
 typedef struct ObjUpvalue {
   Obj obj;
   Value* location;
@@ -133,14 +144,19 @@ ObjFunction* newFunction();
 
 ObjInstance* newInstance(ObjClass* cls);
 
-ObjNative* newNative(NativeFn function);
-
 ObjList* newList(uint32_t count);
 void listClear(ObjList* list);
 void listAppend(ObjList* list, Value value);
 void listInsertAt(ObjList* list, uint32_t index, Value value);
 Value listDeleteAt(ObjList* list, uint32_t index);
 int listIndexOf(ObjList* list, Value value);
+
+ObjNative* newNative(NativeFn function);
+
+ObjPrng* newPrng(uint64_t seed[4]);
+void fillPrngBuffer(ObjPrng* prng);
+
+ObjRange* newRange(double from, double to, bool isInclusive);
 
 ObjString* takeString(char* chars, int length);
 ObjString* copyStringLength(const char* chars, int length);
@@ -155,11 +171,26 @@ ObjString* stringCodePointAt(ObjString* string, uint32_t index);
 uint32_t stringFind(ObjString* string, ObjString* search, uint32_t start);
 Value indexFromString(ObjString* string, int index);
 
-ObjRange* newRange(double from, double to, bool isInclusive);
-
 ObjUpvalue* newUpvalue(Value* slot);
 
 void printObject(Value value);
+
+static inline void fillPrng(ObjPrng* prng, uint8_t* buffer, size_t size) {
+  size_t bytesLeft = size, bytesFilled = 0, chunkSize;
+  while (bytesLeft > 0) {
+    chunkSize = PRNG_BUFFER_SIZE - prng->bufferIndex;
+    if (chunkSize > bytesLeft) {
+      chunkSize = bytesLeft;
+    }
+    memcpy(&buffer[bytesFilled], &prng->buffer[prng->bufferIndex], chunkSize);
+    prng->bufferIndex += chunkSize;
+    bytesFilled += chunkSize;
+    bytesLeft -= chunkSize;
+    if (prng->bufferIndex >= PRNG_BUFFER_SIZE) {
+      fillPrngBuffer(prng);
+    }
+  }
+}
 
 static inline bool isValidListIndex(ObjList* list, uint32_t index) {
   return (index < 0) ? (-list->count <= index) : (index <= list->count - 1);
