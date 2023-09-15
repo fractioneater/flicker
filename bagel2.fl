@@ -1,0 +1,12 @@
+# Testing merged lines for call traces.
+
+fun bad()
+  print 50 / "yes"
+
+fun a(calls)
+  if (calls == 24)
+    bad()
+  else
+    a(calls + 1)
+
+a(0)

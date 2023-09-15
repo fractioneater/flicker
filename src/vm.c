@@ -68,7 +68,7 @@ static void resetStack() {
 }
 
 static inline void printTrace(ObjFunction* function, int line) {
-  fprintf(stderr, " line %d in ", line);
+  fprintf(stderr, "  line %d in ", line);
   if (function->name == NULL) {
     fprintf(stderr, "main\n");
   } else {
@@ -91,18 +91,21 @@ void runtimeError(const char* format, ...) {
       if (repetitions == 0) {
         printTrace(function, function->chunk.lines[instruction]);
       } else {
-        if (repetitions > 3) {
+        if (repetitions > 2) {
+          // No need to print it twice here, it's printed once before it gets
+          // recognized as a repeat.
           printTrace(prevFunction, prevLine);
-          fprintf(stderr, "  ... call repeated %d more times\n", repetitions);
+          fprintf(stderr, "  ... call repeated %d more times\n", repetitions - 1);
         } else {
-          for (int j = 0; i <= repetitions; j++) {
+          for (int j = 0; j < repetitions; j++) {
             printTrace(prevFunction, prevLine);
           }
         }
+
         repetitions = 0;
-      }
-      if (i == vm.frameCount - 1) {
-        printTrace(function, function->chunk.lines[instruction]);
+        if (i == vm.frameCount - 1) {
+          printTrace(function, function->chunk.lines[instruction]);
+        }
       }
       prevFunction = function;
       prevLine = function->chunk.lines[instruction];
