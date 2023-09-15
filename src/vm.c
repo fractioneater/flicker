@@ -67,24 +67,54 @@ static void resetStack() {
   vm.openUpvalues = NULL;
 }
 
+static inline void printTrace(ObjFunction* function, int line) {
+  fprintf(stderr, " line %d in ", line);
+  if (function->name == NULL) {
+    fprintf(stderr, "main\n");
+  } else {
+    fprintf(stderr, "%s()\n", function->name->chars);
+  }
+}
+
 void runtimeError(const char* format, ...) {
+  fprintf(stderr, "Traceback (most recent call last):\n");
+  int repetitions = 0;
+  int prevLine = 0;
+  ObjFunction* prevFunction = NULL;
+  for (int i = 0; i < vm.frameCount; i++) {
+    CallFrame* frame = &vm.frames[i];
+    ObjFunction* function = frame->closure->function;
+    size_t instruction = frame->ip - function->chunk.code - 1;
+    if (i != vm.frameCount - 1 && (function == prevFunction && function->chunk.lines[instruction] == prevLine)) {
+      repetitions++;
+    } else {
+      if (repetitions == 0) {
+        printTrace(function, function->chunk.lines[instruction]);
+      } else {
+        if (repetitions > 3) {
+          printTrace(prevFunction, prevLine);
+          fprintf(stderr, "  ... call repeated %d more times\n", repetitions);
+        } else {
+          for (int j = 0; i <= repetitions; j++) {
+            printTrace(prevFunction, prevLine);
+          }
+        }
+        repetitions = 0;
+      }
+      if (i == vm.frameCount - 1) {
+        printTrace(function, function->chunk.lines[instruction]);
+      }
+      prevFunction = function;
+      prevLine = function->chunk.lines[instruction];
+    }
+  }
+  
+  fprintf(stderr, "Error: ");
   va_list args;
   va_start(args, format);
   vfprintf(stderr, format, args);
   va_end(args);
   fputs("\n", stderr);
-
-  for (int i = vm.frameCount - 1; i >= 0; i--) {
-    CallFrame* frame = &vm.frames[i];
-    ObjFunction* function = frame->closure->function;
-    size_t instruction = frame->ip - function->chunk.code - 1;
-    fprintf(stderr, "[line %d] in ", function->chunk.lines[instruction]);
-    if (function->name == NULL) {
-      fprintf(stderr, "script\n");
-    } else {
-      fprintf(stderr, "%s()\n", function->name->chars);
-    }
-  }
 
   resetStack();
 }
