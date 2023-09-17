@@ -88,25 +88,20 @@ void runtimeError(const char* format, ...) {
     if (i != vm.frameCount - 1 && (function == prevFunction && function->chunk.lines[instruction] == prevLine)) {
       repetitions++;
     } else {
-      if (repetitions == 0) {
-        printTrace(function, function->chunk.lines[instruction]);
+      // One call trace can have up to 3 lines.
+      if (repetitions > 2) {
+        // No need to print it twice here, it's printed once before it gets
+        // recognized as a repeat.
+        printTrace(prevFunction, prevLine);
+        fprintf(stderr, "  ... call repeated %d more times\n", repetitions - 1);
       } else {
-        if (repetitions > 2) {
-          // No need to print it twice here, it's printed once before it gets
-          // recognized as a repeat.
+        for (int j = 0; j < repetitions; j++) {
           printTrace(prevFunction, prevLine);
-          fprintf(stderr, "  ... call repeated %d more times\n", repetitions - 1);
-        } else {
-          for (int j = 0; j < repetitions; j++) {
-            printTrace(prevFunction, prevLine);
-          }
-        }
-
-        repetitions = 0;
-        if (i == vm.frameCount - 1) {
-          printTrace(function, function->chunk.lines[instruction]);
         }
       }
+
+      printTrace(function, function->chunk.lines[instruction]);
+      repetitions = 0;
       prevFunction = function;
       prevLine = function->chunk.lines[instruction];
     }
