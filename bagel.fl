@@ -3,11 +3,14 @@
 class Bagel
   cook()
     print "toasting"
+    this.finish("nothing")
+  
+  finish(ingredient)
+    print "finished with =(ingredient)"
 
 class PumpkinBagel < Bagel
-  cook()
-    super.cook()
-    print "spreading cream cheese"
+  finish(ingredient)
+    super.finish("cream cheese")
 
 var new = PumpkinBagel()
 new.cook()

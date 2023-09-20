@@ -88,7 +88,7 @@ void runtimeError(const char* format, ...) {
     if (i != vm.frameCount - 1 && (function == prevFunction && function->chunk.lines[instruction] == prevLine)) {
       repetitions++;
     } else {
-      // One call trace can have up to 3 lines.
+      // If calls are repeated, they can have up to 3 lines.
       if (repetitions > 2) {
         // No need to print it twice here, it's printed once before it gets
         // recognized as a repeat.

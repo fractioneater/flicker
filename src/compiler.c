@@ -43,6 +43,7 @@ typedef enum {
   BP_EQUALITY,    // == !=
   BP_COMPARISON,  // < > <= >=
   BP_IS,          // is
+  BP_IN,          // in
   BP_BIT_OR,      // |
   BP_BIT_XOR,     // ^
   BP_BIT_AND,     // &
@@ -258,9 +259,9 @@ static void emitByte(uint8_t byte) {
   writeChunk(currentChunk(), byte, parser.previous.line);
 }
 
-static void emitByteArg(uint8_t instruction, uint8_t arg) {
-  emitByte(instruction);
-  emitByte(arg);
+static void emitBytes(uint8_t byte1, uint8_t byte2) {
+  emitByte(byte1);
+  emitByte(byte2);
 }
 
 static void emitLoop(int loopStart) {
@@ -282,7 +283,7 @@ static int emitJump(uint8_t instruction) {
 
 static void emitReturn() {
   if (current->type == TYPE_INITIALIZER) {
-    emitByteArg(OP_GET_LOCAL, 0);
+    emitBytes(OP_GET_LOCAL, 0);
   } else {
     emitByte(OP_NONE);
   }
@@ -301,11 +302,11 @@ static uint8_t makeConstant(Value value) {
 }
 
 static void emitConstant(Value value) {
-  emitByteArg(OP_CONSTANT, makeConstant(value));
+  emitBytes(OP_CONSTANT, makeConstant(value));
 }
 
 static inline void callMethod(int argCount, const char* name, int length) {
-  emitByteArg(OP_INVOKE_0 + argCount, makeConstant(OBJ_VAL(copyStringLength(name, length))));
+  emitBytes(OP_INVOKE_0 + argCount, makeConstant(OBJ_VAL(copyStringLength(name, length))));
 }
 
 static void patchJump(int offset) {
@@ -386,7 +387,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 
 static ObjFunction* endCompiler() {
   if (current->scopeDepth == 0 && parser.onExpression && parser.printResult) {
-    emitByte(OP_DUP);
+    emitByte(OP_DUP); //- TODO NEXT: This doesn't always work.
     emitByte(OP_NONE);
     callMethod(1, "==(1)", 5);
     
@@ -570,7 +571,7 @@ static void defineVariable(uint8_t global) {
     return;
   }
 
-  emitByteArg(OP_DEFINE_GLOBAL, global);
+  emitBytes(OP_DEFINE_GLOBAL, global);
 }
 
 static void signatureParameterList(char name[MAX_METHOD_SIGNATURE], int* length, int arity) {
@@ -730,9 +731,9 @@ static void namedVariable(Token name, bool canAssign) {
   if (canAssign && match(TOKEN_EQ)) {
     matchLine();
     expression();
-    emitByteArg(setOp, (uint8_t)arg);
+    emitBytes(setOp, (uint8_t)arg);
   } else {
-    emitByteArg(getOp, (uint8_t)arg);
+    emitBytes(getOp, (uint8_t)arg);
   }
 }
 
@@ -777,7 +778,7 @@ static void callable(bool canAssign) {
   int length;
   signatureToString(&signature, fullSignature, &length);
 
-  emitByteArg(OP_GET_METHOD, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
+  emitBytes(OP_GET_METHOD, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
 }
 
 static void dot(bool canAssign) {
@@ -788,7 +789,7 @@ static void dot(bool canAssign) {
 
   if (canAssign && match(TOKEN_EQ)) {
     expression();
-    emitByteArg(OP_SET_PROPERTY, name);
+    emitBytes(OP_SET_PROPERTY, name);
   } else if (match(TOKEN_LEFT_PAREN) || match(TOKEN_LEFT_BRACE)) {
     uint8_t argCount;
     if (parser.previous.type == TOKEN_LEFT_BRACE) {
@@ -807,7 +808,7 @@ static void dot(bool canAssign) {
 
     callMethod(argCount, fullSignature, length);
   } else {
-    emitByteArg(OP_GET_PROPERTY, name);
+    emitBytes(OP_GET_PROPERTY, name);
   }
 }
 
@@ -816,36 +817,65 @@ static void super_(bool canAssign) {
     error("Can't use 'super' outside of a class");
   }
 
-  expect(TOKEN_DOT, "Expecting '.' after 'super'");
-  expect(TOKEN_IDENTIFIER, "Expecting a superclass method name");
-
-  uint8_t name = identifierConstant(&parser.previous);
-  Signature signature = signatureFromToken(SIG_METHOD);
-
-  namedVariable(syntheticToken("this"), false);
-  if (match(TOKEN_LEFT_PAREN) || match(TOKEN_LEFT_BRACE)) {
-    uint8_t argCount;
-    if (parser.previous.type == TOKEN_LEFT_BRACE) {
-      lambda(false);
-      argCount = 1;
-      signature.arity = 1;
-    } else {
-      matchLine();
-      argCount = argumentList();
-      signature.arity = argCount;
+  Signature signature;
+  uint8_t instruction;
+  if (match(TOKEN_COLON_COLON)) {
+    advance();
+    ParseRule* rule = getRule(parser.previous.type);
+    if (rule->signatureFn == NULL) {
+      error("Expecting a method name after '::'");
     }
 
-    namedVariable(syntheticToken("super"), false);
+    signature = signatureFromToken(SIG_METHOD);
 
-    char fullSignature[MAX_METHOD_SIGNATURE];
-    int length;
-    signatureToString(&signature, fullSignature, &length);
+    if (match(TOKEN_LEFT_PAREN)) {
+      if (match(TOKEN_RIGHT_PAREN)) {
+        signature.arity = 0;
+      } else {
+        expect(TOKEN_NUMBER, "Expecting a parameter count");
+        double num = parser.previous.value;
+        signature.arity = (int)trunc(num);
+        if (num != signature.arity) {
+          error("Parameter count must be an integer");
+        }
+      }
+    } else {
+      signature.type = SIG_ATTRIBUTE;
+    }
 
-    emitByteArg(OP_SUPER_0 + argCount, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
+    instruction = OP_GET_SUPER;
   } else {
+    expect(TOKEN_DOT, "Expecting '.' after 'super'");
+    expect(TOKEN_IDENTIFIER, "Expecting a superclass method name");
+    signature = signatureFromToken(SIG_METHOD);
+
+    uint8_t argCount = 0;
+
+    namedVariable(syntheticToken("this"), false);
+    if (match(TOKEN_LEFT_PAREN) || match(TOKEN_LEFT_BRACE)) {
+      if (parser.previous.type == TOKEN_LEFT_BRACE) {
+        lambda(false);
+        argCount = 1;
+        signature.arity = 1;
+      } else {
+        matchLine();
+        argCount = argumentList();
+        signature.arity = argCount;
+      }
+    } else {
+      signature.type = SIG_ATTRIBUTE;
+    }
+
+    //- TODO NEXT: For some reason this doesn't always produce the superclass.
     namedVariable(syntheticToken("super"), false);
-    emitByteArg(OP_GET_SUPER, name);
+    instruction = OP_SUPER_0 + argCount;
   }
+
+  char fullSignature[MAX_METHOD_SIGNATURE];
+  int length;
+  signatureToString(&signature, fullSignature, &length);
+
+  emitBytes(instruction, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
 }
 
 static void this_(bool canAssign) {
@@ -921,31 +951,31 @@ static void if_(bool canAssign) {
 }
 
 static void stringInterpolation(bool canAssign) {
-  emitByteArg(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyStringLength("List", 4))));
+  emitBytes(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyStringLength("List", 4))));
   emitByte(OP_CALL_0);
   uint8_t addConstant = makeConstant(OBJ_VAL(copyStringLength("addCore(1)", 10)));
 
   do {
     emitConstant(parser.previous.value);
-    emitByteArg(OP_INVOKE_1, addConstant);
+    emitBytes(OP_INVOKE_1, addConstant);
 
     matchLine();
     expression();
-    emitByteArg(OP_INVOKE_1, addConstant);
+    emitBytes(OP_INVOKE_1, addConstant);
 
     matchLine();
   } while (match(TOKEN_INTERPOLATION));
 
   expect(TOKEN_STRING, "Expecting an end to string interpolation");
   emitConstant(parser.previous.value);
-  emitByteArg(OP_INVOKE_1, addConstant);
+  emitBytes(OP_INVOKE_1, addConstant);
 
   emitConstant(OBJ_VAL(copyStringLength("", 0)));
   callMethod(1, "joinToString(1)", 15);
 }
 
 static void list(bool canAssign) {
-  emitByteArg(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyStringLength("List", 4))));
+  emitBytes(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyStringLength("List", 4))));
   emitByte(OP_CALL_0);
   
   do {
@@ -977,6 +1007,8 @@ static void binary(bool canAssign) {
   TokenType operatorType = parser.previous.type;
   ParseRule* rule = getRule(operatorType);
 
+  bool negate = (operatorType == TOKEN_IS && match(TOKEN_NOT));
+
   matchLine();
 
   if (operatorType == TOKEN_STAR_STAR) {
@@ -993,6 +1025,9 @@ static void binary(bool canAssign) {
   signatureToString(&signature, fullSignature, &length);
 
   callMethod(1, fullSignature, length);
+  if (negate) {
+    callMethod(0, "not()", 5);
+  }
 #else
   switch (operatorType) {
     case TOKEN_STAR_STAR: emitByte(OP_EXPONENT); break;
@@ -1133,7 +1168,7 @@ ParseRule rules[] = {
   /* TOKEN_THIS          */ PREFIX(this_, BP_NONE),
   /* TOKEN_TRUE          */ PREFIX(literal, BP_NONE),
   /* TOKEN_VAR           */ UNUSED,
-  /* TOKEN_WHEN          */ UNUSED, // TODO: When expressions
+  /* TOKEN_WHEN          */ UNUSED, //- TODO: When expressions
   /* TOKEN_WHILE         */ UNUSED,
   /* TOKEN_INDENT        */ UNUSED,
   /* TOKEN_DEDENT        */ UNUSED,
@@ -1239,7 +1274,7 @@ static void function(FunctionType type) {
   }
 
   ObjFunction* function = endCompiler();
-  emitByteArg(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+  emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
 
   for (int i = 0; i < function->upvalueCount; i++) {
     emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
@@ -1273,7 +1308,7 @@ static void lambda(bool canAssign) {
   block(false);
 
   ObjFunction* function = endCompiler();
-  emitByteArg(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+  emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
 
   for (int i = 0; i < function->upvalueCount; i++) {
     emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
@@ -1348,10 +1383,10 @@ static void method() {
           error("Can only store fields through non-static methods");
           break;
         }
-        emitByteArg(OP_GET_LOCAL, 0);
-        emitByteArg(OP_GET_LOCAL, i + 1);
+        emitBytes(OP_GET_LOCAL, 0);
+        emitBytes(OP_GET_LOCAL, i + 1);
         Local local = current->locals[i + 1];
-        emitByteArg(OP_SET_PROPERTY, identifierConstant(&local.name));
+        emitBytes(OP_SET_PROPERTY, identifierConstant(&local.name));
         emitByte(OP_POP);
       }
     }
@@ -1371,7 +1406,7 @@ static void method() {
   }
 
   ObjFunction* result = endCompiler();
-  emitByteArg(OP_CLOSURE, makeConstant(OBJ_VAL(result)));
+  emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(result)));
 
   for (int i = 0; i < result->upvalueCount; i++) {
     emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
@@ -1382,7 +1417,7 @@ static void method() {
     emitByte(OP_INITIALIZER); //- TODO NEXT: Test this
   } else {
     uint8_t constant = makeConstant(OBJ_VAL(copyStringLength(fullSignature, length)));
-    emitByteArg(OP_METHOD_INSTANCE + isStatic, constant);
+    emitBytes(OP_METHOD_INSTANCE + isStatic, constant);
   }
 }
 
@@ -1400,10 +1435,10 @@ static void classDeclaration() {
       error("A class can't inherit from itself");
     }
   } else {
-    emitByteArg(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyString("Object"))));
+    emitBytes(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyString("Object"))));
   }
 
-  emitByteArg(OP_CLASS, nameConstant);
+  emitBytes(OP_CLASS, nameConstant);
   defineVariable(nameConstant);
 
   ClassCompiler classCompiler;
@@ -1706,24 +1741,24 @@ static void eachStatement() {
   Loop loop;
   startLoop(&loop);
 
-  emitByteArg(OP_GET_LOCAL, seqSlot);
-  emitByteArg(OP_GET_LOCAL, iterSlot);
+  emitBytes(OP_GET_LOCAL, seqSlot);
+  emitBytes(OP_GET_LOCAL, iterSlot);
 
   callMethod(1, "iterate(1)", 10);
-  emitByteArg(OP_SET_LOCAL, iterSlot);
+  emitBytes(OP_SET_LOCAL, iterSlot);
 
   current->loop->exitJump = emitJump(OP_JUMP_FALSY);
 
   emitByte(OP_POP);
-  emitByteArg(OP_GET_LOCAL, seqSlot);
-  emitByteArg(OP_GET_LOCAL, iterSlot);
+  emitBytes(OP_GET_LOCAL, seqSlot);
+  emitBytes(OP_GET_LOCAL, iterSlot);
   callMethod(1, "iteratorValue(1)", 16);
 
   pushScope(); // Loop variable
   addLocal(name);
   markInitialized();
   if (hasIndex) {
-    emitByteArg(OP_GET_LOCAL, iterSlot);
+    emitBytes(OP_GET_LOCAL, iterSlot);
     addLocal(index);
     markInitialized();
   }
@@ -1780,10 +1815,10 @@ static void whenStatement() {
   expression();
   //- TODO: Possibly make custom operators, like this:
   //
-  // when (variable)
-  //   >= 3 -> something()
-  //   == 3 -> somethingElse()
-  //   3 -> somethingElse() # same as ==
+  //  when (variable)
+  //    >= 3 -> something()
+  //    == 3 -> somethingElse()
+  //    3 -> somethingElse() # same as ==
   //
   expect(TOKEN_RIGHT_PAREN, "Expecting ')' after value");
 
@@ -1898,7 +1933,7 @@ static void whenStatement() {
   emitByte(OP_POP); // The switch value
 }
 
-// TODO: Try to reduce the amount of "expecting a newline after statement" errors.
+//- TODO: Try to reduce the amount of "expecting a newline after statement" errors.
 static void synchronize() {
   parser.panicMode = false;
 

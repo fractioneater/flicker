@@ -29,7 +29,7 @@
 
 // Print the bytecode instructions as they run.
 // 0 to disable, 1 to print only user code, 2 to print everything.
-#define DEBUG_TRACE_EXECUTION 0
+#define DEBUG_TRACE_EXECUTION 1
 
 // Always run GC whenever the vm or compiler messes with memory.
 #define DEBUG_STRESS_GC 0

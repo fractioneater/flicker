@@ -40,13 +40,13 @@ class Sequence
   map(transformation) = MapSequence(this, transformation)
   
   skip(count)
-    if ((not count is Number) or (not count.isInteger) or count < 0)
+    if ((count is not Number) or (not count.isInteger) or count < 0)
       error "Count must be a positive integer"
     
     return SkipSequence(this, count)
   
   take(count)
-    if ((not count is Number) or (not count.isInteger) or count < 0)
+    if ((count is not Number) or (not count.isInteger) or count < 0)
       error "Count must be a positive integer"
     
     return TakeSequence(this, count)
@@ -138,7 +138,7 @@ class String < Sequence
   +(other) = this.concatenate(other.toString())
   
   *(count)
-    if ((not count is Number) or (not count.isInteger) or count < 0)
+    if ((count is not Number) or (not count.isInteger) or count < 0)
       error "Count must be a positive integer"
     
     var result = ""
@@ -147,7 +147,7 @@ class String < Sequence
     return result
   
   split(delimiter)
-    if ((not delimiter is String) or delimiter.isEmpty)
+    if ((delimiter is not String) or delimiter.isEmpty)
       error "Delimiter must be a string"
     
     var result = []
@@ -170,9 +170,9 @@ class String < Sequence
     return result
   
   replace(from, to)
-    if ((not from is String) or from.isEmpty)
+    if ((from is not String) or from.isEmpty)
       error "From value must be a non-empty string"
-    if (not to is String)
+    if (to is not String)
       error "To value must be a string"
 
     var result = ""
@@ -199,7 +199,7 @@ class String < Sequence
   trimStart(chars) = this.trim_(chars, True, False)
   
   trim_(chars, trimStart, trimEnd)
-    if (not chars is String)
+    if (chars is not String)
       error "Character being trimmed must be a string"
     
     var codePoints = chars.codePoints.toList()
@@ -253,7 +253,7 @@ class List < Sequence
     return result
   
   *(count)
-    if ((not count is Number) or (not count.isInteger) or count < 0)
+    if ((count is not Number) or (not count.isInteger) or count < 0)
       error "Count must be a positive integer"
     
     var result = []
@@ -272,7 +272,7 @@ class List < Sequence
     this.sort { |low, high| return low <= high }
 
   sort(comparer)
-    if (not comparer is Function)
+    if (comparer is not Function)
       error "Comparer must be a function"
     this.quicksort(0, this.size - 1, comparer)
 
@@ -318,8 +318,8 @@ class Sys
 
   static writeObject(obj)
     var string = obj.toString()
-    if (not string is String)
-      string = "[Invalid toString()]"
+    if (string is not String)
+      string = "[invalid toString() method]"
     
     Sys.writeString(string)
 
