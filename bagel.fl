@@ -1,16 +1,26 @@
 # Testing superclass method calls.
 
+# It looks like the error only occurs in methods with the same name,
+# because it's trying to find the method in the subclass instead of the
+# superclass.
+
+# If the methods have different names, there won't be a subclass
+# method shadowing the superclass method, and it will be able to call
+# the superclass method from the subclass (which is not what I want,
+# it should be loading the superclass with OP_GET_UPVALUE 0).
+
 class Bagel
   cook()
     print "toasting"
     this.finish("nothing")
   
-  finish(ingredient)
+  superFinish(ingredient)
     print "finished with =(ingredient)"
 
 class PumpkinBagel < Bagel
   finish(ingredient)
-    super.finish("cream cheese")
+    var s = super::superFinish(1)
+    s("cream cheese")
 
 var new = PumpkinBagel()
 new.cook()

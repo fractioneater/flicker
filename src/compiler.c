@@ -764,11 +764,12 @@ static void callable(bool canAssign) {
       signature.arity = 0;
     } else {
       expect(TOKEN_NUMBER, "Expecting a parameter count");
-      double num = parser.previous.value;
+      double num = AS_NUMBER(parser.previous.value);
       signature.arity = (int)trunc(num);
       if (num != signature.arity) {
         error("Parameter count must be an integer");
       }
+      expect(TOKEN_RIGHT_PAREN, "Expecting ')' after parameter count");
     }
   } else {
     signature.type = SIG_ATTRIBUTE;
@@ -778,7 +779,7 @@ static void callable(bool canAssign) {
   int length;
   signatureToString(&signature, fullSignature, &length);
 
-  emitBytes(OP_GET_METHOD, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
+  emitBytes(OP_BIND_METHOD, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
 }
 
 static void dot(bool canAssign) {
@@ -833,17 +834,18 @@ static void super_(bool canAssign) {
         signature.arity = 0;
       } else {
         expect(TOKEN_NUMBER, "Expecting a parameter count");
-        double num = parser.previous.value;
+        double num = AS_NUMBER(parser.previous.value);
         signature.arity = (int)trunc(num);
         if (num != signature.arity) {
           error("Parameter count must be an integer");
         }
+        expect(TOKEN_RIGHT_PAREN, "Expecting ')' after parameter count");
       }
     } else {
       signature.type = SIG_ATTRIBUTE;
     }
 
-    instruction = OP_GET_SUPER;
+    instruction = OP_BIND_SUPER;
   } else {
     expect(TOKEN_DOT, "Expecting '.' after 'super'");
     expect(TOKEN_IDENTIFIER, "Expecting a superclass method name");

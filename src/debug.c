@@ -89,13 +89,13 @@ int disassembleInstruction(Chunk* chunk, int offset) {
       return byteInstruction("OP_GET_UPVALUE", chunk, offset);
     case OP_SET_UPVALUE:
       return byteInstruction("OP_SET_UPVALUE", chunk, offset);
-    case OP_GET_METHOD:
-      return constantInstruction("OP_GET_METHOD", chunk, offset);
     case OP_GET_PROPERTY:
       return constantInstruction("OP_GET_PROPERTY", chunk, offset);
     case OP_SET_PROPERTY:
       return constantInstruction("OP_SET_PROPERTY", chunk, offset);
-    case OP_GET_SUPER:
+    case OP_BIND_METHOD:
+      return constantInstruction("OP_GET_METHOD", chunk, offset);
+    case OP_BIND_SUPER:
       return constantInstruction("OP_GET_SUPER", chunk, offset);
 #if !METHOD_CALL_OPERATORS
     case OP_EQUAL:

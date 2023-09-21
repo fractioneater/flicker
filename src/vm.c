@@ -68,11 +68,11 @@ static void resetStack() {
 }
 
 static inline void printTrace(ObjFunction* function, int line) {
-  fprintf(stderr, "  line %d in ", line);
+  fprintf(stderr, "  line %d in \033[1m", line);
   if (function->name == NULL) {
-    fprintf(stderr, "main\n");
+    fprintf(stderr, "main\033[0m\n");
   } else {
-    fprintf(stderr, "%s()\n", function->name->chars);
+    fprintf(stderr, "%s()\033[0m\n", function->name->chars);
   }
 }
 
@@ -462,22 +462,6 @@ static InterpretResult run() {
         *frame->closure->upvalues[slot]->location = peek();
         break;
       }
-      case OP_GET_METHOD: {
-        if (!IS_INSTANCE(peek())) {
-          runtimeError("Can only get methods from instances");
-          return INTERPRET_RUNTIME_ERROR;
-        }
-
-        ObjInstance* instance = AS_INSTANCE(peek());
-        ObjString* method = READ_STRING();
-
-        frame->ip = ip;
-        if (!bindMethod(instance->obj.cls, method)) {
-          return INTERPRET_RUNTIME_ERROR;
-        }
-
-        break;
-      }
       case OP_GET_PROPERTY: {
         Value receiver = peek();
         ObjClass* cls = getClass(receiver);
@@ -531,30 +515,31 @@ static InterpretResult run() {
         push(value);
         break;
       }
-      case OP_GET_SUPER: {
-        ObjClass* superclass = getClass(peek());
-        ObjString* property = READ_STRING();
-
-        Value attribute;
-        if (!tableGet(&superclass->methods, property, &attribute)) {
-          frame->ip = ip;
-          runtimeError("Undefined property '%s'", property->chars);
+      case OP_BIND_METHOD: {
+        if (!IS_INSTANCE(peek())) {
+          runtimeError("Can only get methods from instances");
           return INTERPRET_RUNTIME_ERROR;
         }
 
-        if (IS_NATIVE(attribute)) {
-          ObjNative* native = AS_NATIVE(attribute);
-          if (!native->function(vm.stackTop - 1)) {
-            return INTERPRET_RUNTIME_ERROR;
-          }
-        } else {
-          frame->ip = ip;
-          if (!call(AS_CLOSURE(attribute), 0)) {
-            return INTERPRET_RUNTIME_ERROR;
-          }
-          frame = &vm.frames[vm.frameCount - 1];
-          ip = frame->ip;
+        ObjInstance* instance = AS_INSTANCE(peek());
+        ObjString* method = READ_STRING();
+
+        frame->ip = ip;
+        if (!bindMethod(instance->obj.cls, method)) {
+          return INTERPRET_RUNTIME_ERROR;
         }
+
+        break;
+      }
+      case OP_BIND_SUPER: {
+        ObjClass* superclass = getClass(peek());
+        ObjString* method = READ_STRING();
+
+        frame->ip = ip;
+        if (!bindMethod(superclass, method)) {
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
         break;
       }
 #if !METHOD_CALL_OPERATORS
