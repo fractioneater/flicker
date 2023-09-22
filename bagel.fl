@@ -1,26 +1,16 @@
-# Testing superclass method calls.
+# Sadly there are no bagels to be found in this file.
 
-# It looks like the error only occurs in methods with the same name,
-# because it's trying to find the method in the subclass instead of the
-# superclass.
+class A
+  method()
+    print "A method"
 
-# If the methods have different names, there won't be a subclass
-# method shadowing the superclass method, and it will be able to call
-# the superclass method from the subclass (which is not what I want,
-# it should be loading the superclass with OP_GET_UPVALUE 0).
-
-class Bagel
-  cook()
-    print "toasting"
-    this.finish("nothing")
+class B < A
+  method()
+    print "B method"
   
-  superFinish(ingredient)
-    print "finished with =(ingredient)"
+  test()
+    super.method()
 
-class PumpkinBagel < Bagel
-  finish(ingredient)
-    var s = super::superFinish(1)
-    s("cream cheese")
+class C < B {}
 
-var new = PumpkinBagel()
-new.cook()
+C().test()

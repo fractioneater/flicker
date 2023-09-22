@@ -778,7 +778,6 @@ static InterpretResult run() {
         ObjClass* new = newClass(READ_STRING());
         bindSuperclass(new, AS_CLASS(superclass));
 
-        pop(); // Superclass
         push(OBJ_VAL(new));
         break;
       }

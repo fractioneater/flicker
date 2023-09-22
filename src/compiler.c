@@ -1482,6 +1482,7 @@ static void classDeclaration() {
 
   if (!indentationBased || !check(TOKEN_EOF)) expect(blockEnd, message);
 
+  emitByte(OP_POP); // Class
   popScope();
 
   currentClass = currentClass->enclosing;
