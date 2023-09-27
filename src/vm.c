@@ -15,52 +15,6 @@
 
 VM vm;
 
-// static Value readFileNative(int argCount, Value* args) {
-//   if (argCount != 1) {
-//     // Arity error
-//   }
-
-//   if (IS_STRING(args[0])) {
-//     FILE* file = fopen(AS_CSTRING(args[0]), "rb");
-//     if (file == NULL) {
-//       // Couldn't open file
-//     }
-
-//     fseek(file, 0L, SEEK_END);
-//     size_t fileSize = ftell(file);
-//     rewind(file);
-
-//     char* buffer = ALLOCATE(char, fileSize + 1);
-//     if (buffer == NULL) {
-//       // Not enough memory
-//     }
-
-//     size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
-//     if (bytesRead < fileSize) {
-//       // Couldn't read file
-//     }
-
-//     buffer[bytesRead] = '\0';
-//     fclose(file);
-
-//     return OBJ_VAL(takeString(buffer, fileSize + 1));
-//   }
-
-//   return NONE_VAL;
-// }
-
-// static Value errorNative(int argCount, Value* args) {
-//   if (argCount > 1) {
-//     // Arity error
-//   }
-
-//   if (IS_STRING(args[0])) {
-//     fprintf(stderr, "%s\n", AS_CSTRING(args[0]));
-//   }
-
-//   return NONE_VAL;
-// }
-
 static void resetStack() {
   vm.stackTop = vm.stack;
   vm.frameCount = 0;
@@ -360,9 +314,12 @@ static InterpretResult run() {
 #define READ_BYTE() (*ip++)
 #define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
 
-#define READ_CONSTANT() (frame->closure->function->chunk.constants.values[READ_BYTE()])
+#define READ_CONSTANT()                      \
+  (frame->closure->function->chunk.constants \
+       .values[*ip++ >= 0x80 ? (ip++, ((ip[-2] & 0x7f) << 8) | ip[-1]) : ip[-1]])
 
 #define READ_STRING() AS_STRING(READ_CONSTANT())
+#if !METHOD_CALL_OPERATORS
 #define BINARY_OP(valueType, op)                          \
   do {                                                    \
     if (!IS_NUMBER(peek()) || !IS_NUMBER(peek2())) {      \
@@ -390,6 +347,7 @@ static InterpretResult run() {
     }                                                     \
     push(valueType((int)trunc(a) op (int)trunc(b)));      \
   } while (false)
+#endif
 
   for (;;) {
 #if DEBUG_TRACE_EXECUTION == 2

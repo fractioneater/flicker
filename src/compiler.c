@@ -259,6 +259,20 @@ static void emitByte(uint8_t byte) {
   writeChunk(currentChunk(), byte, parser.previous.line);
 }
 
+static void emitVariableBytes(int arg) {
+  if (arg < 0x80) {
+    emitByte((uint8_t)arg);
+  } else {
+    emitByte(((arg >> 8) & 0xff) | 0x80);
+    emitByte(arg & 0xff);
+  }
+}
+
+static void emitVariableArg(uint8_t instruction, int arg) {
+  emitByte(instruction);
+  emitVariableBytes(arg);
+}
+
 static void emitBytes(uint8_t byte1, uint8_t byte2) {
   emitByte(byte1);
   emitByte(byte2);
@@ -291,22 +305,28 @@ static void emitReturn() {
   emitByte(OP_RETURN);
 }
 
-static uint8_t makeConstant(Value value) {
+static int makeConstant(Value value) {
   int constant = addConstant(currentChunk(), value);
-  if (constant > UINT8_MAX) {
+  if (constant > MAX_CONSTANTS) {
     error("Too many constants in one chunk");
     return 0;
   }
 
-  return (uint8_t)constant;
+  return constant;
 }
 
 static void emitConstant(Value value) {
-  emitBytes(OP_CONSTANT, makeConstant(value));
+  emitByte(OP_CONSTANT);
+  emitVariableBytes(makeConstant(value));
+}
+
+static void emitConstantArg(uint8_t instruction, Value arg) {
+  emitByte(instruction);
+  emitVariableBytes(makeConstant(arg));
 }
 
 static inline void callMethod(int argCount, const char* name, int length) {
-  emitBytes(OP_INVOKE_0 + argCount, makeConstant(OBJ_VAL(copyStringLength(name, length))));
+  emitConstantArg(OP_INVOKE_0 + argCount, OBJ_VAL(copyStringLength(name, length)));
 }
 
 static void patchJump(int offset) {
@@ -461,7 +481,7 @@ static void lambda(bool canAssign);
 static ParseRule* getRule(TokenType type);
 static void expressionBp(BindingPower bp);
 
-static uint8_t identifierConstant(Token* name) {
+static int identifierConstant(Token* name) {
   return makeConstant(OBJ_VAL(copyStringLength(name->start, name->length)));
 }
 
@@ -551,7 +571,7 @@ static void declareVariable() {
   addLocal(*name);
 }
 
-static uint8_t parseVariable(const char* errorMessage) {
+static int parseVariable(const char* errorMessage) {
   expect(TOKEN_IDENTIFIER, errorMessage);
 
   declareVariable();
@@ -565,13 +585,13 @@ static void markInitialized() {
   current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
-static void defineVariable(uint8_t global) {
+static void defineVariable(int global) {
   if (current->scopeDepth > 0) {
     markInitialized();
     return;
   }
 
-  emitBytes(OP_DEFINE_GLOBAL, global);
+  emitVariableArg(OP_DEFINE_GLOBAL, global);
 }
 
 static void signatureParameterList(char name[MAX_METHOD_SIGNATURE], int* length, int arity) {
@@ -634,7 +654,7 @@ static void finishParameterList(Signature* signature) {
 
     signature->asProperty[signature->arity - 1] = match(TOKEN_PLUS);
 
-    uint8_t constant = parseVariable("Expecting a parameter name");
+    int constant = parseVariable("Expecting a parameter name");
     defineVariable(constant);
   } while (match(TOKEN_COMMA));
 }
@@ -665,7 +685,7 @@ void binarySignature(Signature* signature) {
   signature->asProperty = NULL;
 
   expect(TOKEN_LEFT_PAREN, "Expecting '(' after operator name");
-  uint8_t constant = parseVariable("Expecting a parameter name");
+  int constant = parseVariable("Expecting a parameter name");
   defineVariable(constant);
   expect(TOKEN_RIGHT_PAREN, "Expecting ')' after parameter name");
 }
@@ -684,7 +704,7 @@ void mixedSignature(Signature* signature) {
     signature->arity = 1;
     signature->asProperty = NULL;
 
-    uint8_t constant = parseVariable("Expecting a parameter name");
+    int constant = parseVariable("Expecting a parameter name");
     defineVariable(constant);
     expect(TOKEN_RIGHT_PAREN, "Expecting ')' after parameter name");
   }
@@ -731,9 +751,17 @@ static void namedVariable(Token name, bool canAssign) {
   if (canAssign && match(TOKEN_EQ)) {
     matchLine();
     expression();
-    emitBytes(setOp, (uint8_t)arg);
+    if (setOp == OP_SET_GLOBAL) {
+      emitVariableArg(setOp, arg);
+    } else {
+      emitBytes(setOp, (uint8_t)arg);
+    }
   } else {
-    emitBytes(getOp, (uint8_t)arg);
+    if (getOp == OP_GET_GLOBAL) {
+      emitVariableArg(getOp, arg);
+    } else {
+      emitBytes(getOp, (uint8_t)arg);
+    }
   }
 }
 
@@ -779,18 +807,18 @@ static void callable(bool canAssign) {
   int length;
   signatureToString(&signature, fullSignature, &length);
 
-  emitBytes(OP_BIND_METHOD, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
+  emitConstantArg(OP_BIND_METHOD, OBJ_VAL(copyStringLength(fullSignature, length)));
 }
 
 static void dot(bool canAssign) {
   expect(TOKEN_IDENTIFIER, "Expecting a property name after '.'");
   
-  uint8_t name = identifierConstant(&parser.previous);
+  int name = identifierConstant(&parser.previous);
   Signature signature = signatureFromToken(SIG_METHOD);
 
   if (canAssign && match(TOKEN_EQ)) {
     expression();
-    emitBytes(OP_SET_PROPERTY, name);
+    emitVariableArg(OP_SET_PROPERTY, name);
   } else if (match(TOKEN_LEFT_PAREN) || match(TOKEN_LEFT_BRACE)) {
     uint8_t argCount;
     if (parser.previous.type == TOKEN_LEFT_BRACE) {
@@ -809,7 +837,7 @@ static void dot(bool canAssign) {
 
     callMethod(argCount, fullSignature, length);
   } else {
-    emitBytes(OP_GET_PROPERTY, name);
+    emitVariableArg(OP_GET_PROPERTY, name);
   }
 }
 
@@ -868,7 +896,6 @@ static void super_(bool canAssign) {
       signature.type = SIG_ATTRIBUTE;
     }
 
-    //- TODO NEXT: For some reason this doesn't always produce the superclass.
     namedVariable(syntheticToken("super"), false);
     instruction = OP_SUPER_0 + argCount;
   }
@@ -877,7 +904,7 @@ static void super_(bool canAssign) {
   int length;
   signatureToString(&signature, fullSignature, &length);
 
-  emitBytes(instruction, makeConstant(OBJ_VAL(copyStringLength(fullSignature, length))));
+  emitConstantArg(instruction, OBJ_VAL(copyStringLength(fullSignature, length)));
 }
 
 static void this_(bool canAssign) {
@@ -953,31 +980,31 @@ static void if_(bool canAssign) {
 }
 
 static void stringInterpolation(bool canAssign) {
-  emitBytes(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyStringLength("List", 4))));
+  emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyStringLength("List", 4)));
   emitByte(OP_CALL_0);
-  uint8_t addConstant = makeConstant(OBJ_VAL(copyStringLength("addCore(1)", 10)));
+  int addConstant = makeConstant(OBJ_VAL(copyStringLength("addCore(1)", 10)));
 
   do {
     emitConstant(parser.previous.value);
-    emitBytes(OP_INVOKE_1, addConstant);
+    emitVariableArg(OP_INVOKE_1, addConstant);
 
     matchLine();
     expression();
-    emitBytes(OP_INVOKE_1, addConstant);
+    emitVariableArg(OP_INVOKE_1, addConstant);
 
     matchLine();
   } while (match(TOKEN_INTERPOLATION));
 
   expect(TOKEN_STRING, "Expecting an end to string interpolation");
   emitConstant(parser.previous.value);
-  emitBytes(OP_INVOKE_1, addConstant);
+  emitVariableArg(OP_INVOKE_1, addConstant);
 
   emitConstant(OBJ_VAL(copyStringLength("", 0)));
   callMethod(1, "joinToString(1)", 15);
 }
 
 static void list(bool canAssign) {
-  emitBytes(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyStringLength("List", 4))));
+  emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyStringLength("List", 4)));
   emitByte(OP_CALL_0);
   
   do {
@@ -1147,6 +1174,7 @@ ParseRule rules[] = {
   /* TOKEN_BREAK         */ UNUSED,
   /* TOKEN_CLASS         */ UNUSED,
   /* TOKEN_CONTINUE      */ UNUSED,
+  /* TOKEN_DO            */ UNUSED,
   /* TOKEN_EACH          */ UNUSED,
   /* TOKEN_ELIF          */ UNUSED,
   /* TOKEN_ELSE          */ UNUSED,
@@ -1258,7 +1286,7 @@ static void function(FunctionType type) {
         errorAtCurrent("Too many parameters");
       }
 
-      uint8_t constant = parseVariable("Expecting a parameter name");
+      int constant = parseVariable("Expecting a parameter name");
       defineVariable(constant);
     } while (match(TOKEN_COMMA));
   }
@@ -1276,7 +1304,7 @@ static void function(FunctionType type) {
   }
 
   ObjFunction* function = endCompiler();
-  emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+  emitConstantArg(OP_CLOSURE, OBJ_VAL(function));
 
   for (int i = 0; i < function->upvalueCount; i++) {
     emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
@@ -1299,7 +1327,7 @@ static void lambda(bool canAssign) {
         if (current->function->arity > MAX_PARAMETERS) {
           errorAtCurrent("Too many parameters");
         }
-        uint8_t constant = parseVariable("Expecting a parameter name");
+        int constant = parseVariable("Expecting a parameter name");
         defineVariable(constant);
       } while (match(TOKEN_COMMA));
       expect(TOKEN_PIPE, "Expecting '|' after parameters");
@@ -1310,7 +1338,7 @@ static void lambda(bool canAssign) {
   block(false);
 
   ObjFunction* function = endCompiler();
-  emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(function)));
+  emitConstantArg(OP_CLOSURE, OBJ_VAL(function));
 
   for (int i = 0; i < function->upvalueCount; i++) {
     emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
@@ -1362,7 +1390,7 @@ static void method() {
 #else
 
   expect(TOKEN_IDENTIFIER, "Expecting a method name");
-  uint8_t constant = identifierConstant(&parser.previous);
+  int constant = identifierConstant(&parser.previous);
 
   FunctionType type = isStatic ? TYPE_STATIC_METHOD : TYPE_METHOD;
   if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
@@ -1388,7 +1416,7 @@ static void method() {
         emitBytes(OP_GET_LOCAL, 0);
         emitBytes(OP_GET_LOCAL, i + 1);
         Local local = current->locals[i + 1];
-        emitBytes(OP_SET_PROPERTY, identifierConstant(&local.name));
+        emitVariableArg(OP_SET_PROPERTY, identifierConstant(&local.name));
         emitByte(OP_POP);
       }
     }
@@ -1408,7 +1436,7 @@ static void method() {
   }
 
   ObjFunction* result = endCompiler();
-  emitBytes(OP_CLOSURE, makeConstant(OBJ_VAL(result)));
+  emitConstantArg(OP_CLOSURE, OBJ_VAL(result));
 
   for (int i = 0; i < result->upvalueCount; i++) {
     emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
@@ -1416,17 +1444,16 @@ static void method() {
   }
 
   if (type == TYPE_INITIALIZER) {
-    emitByte(OP_INITIALIZER); //- TODO NEXT: Test this
+    emitByte(OP_INITIALIZER);
   } else {
-    uint8_t constant = makeConstant(OBJ_VAL(copyStringLength(fullSignature, length)));
-    emitBytes(OP_METHOD_INSTANCE + isStatic, constant);
+    emitConstantArg(OP_METHOD_INSTANCE + isStatic, OBJ_VAL(copyStringLength(fullSignature, length)));
   }
 }
 
 static void classDeclaration() {
   expect(TOKEN_IDENTIFIER, "Expecting a class name");
   Token className = parser.previous;
-  uint8_t nameConstant = identifierConstant(&parser.previous);
+  int nameConstant = identifierConstant(&parser.previous);
   declareVariable();
 
   if (match(TOKEN_LT)) {
@@ -1437,10 +1464,10 @@ static void classDeclaration() {
       error("A class can't inherit from itself");
     }
   } else {
-    emitBytes(OP_GET_GLOBAL, makeConstant(OBJ_VAL(copyString("Object"))));
+    emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyString("Object")));
   }
 
-  emitBytes(OP_CLASS, nameConstant);
+  emitVariableArg(OP_CLASS, nameConstant);
   defineVariable(nameConstant);
 
   ClassCompiler classCompiler;
@@ -1489,14 +1516,14 @@ static void classDeclaration() {
 }
 
 static void funDeclaration() {
-  uint8_t global = parseVariable("Expecting a function name");
+  int global = parseVariable("Expecting a function name");
   markInitialized();
   function(TYPE_FUNCTION);
   defineVariable(global);
 }
 
 static void varDeclaration() {
-  uint8_t global = parseVariable("Expecting a variable name");
+  int global = parseVariable("Expecting a variable name");
 
   if (match(TOKEN_EQ)) {
     matchLine();
@@ -1623,21 +1650,18 @@ static void whileStatement() {
 
   current->loop->label = label;
 
-  expect(TOKEN_LEFT_PAREN, "Expecting '(' after 'while'");
-  matchLine();
-
-  expression();
-
-  matchLine();
-  expect(TOKEN_RIGHT_PAREN, "Expecting ')' after condition");
+  expression(); // Condition
 
   current->loop->exitJump = emitJump(OP_JUMP_FALSY);
   emitByte(OP_POP);
-  
-  if (matchLine()) {
+
+  if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
+    statement();
+  } else {
+    expect(TOKEN_LINE, "Expecting a linebreak after condition");
     expect(TOKEN_INDENT, "Expecting an indent before body");
     block(true);
-  } else statement();
+  }
 
   endLoop();
 
@@ -1653,9 +1677,6 @@ static void forStatement() {
     label = ALLOCATE(Token, 1);
     memcpy(label, &parser.previous, sizeof(Token));
   }
-
-  expect(TOKEN_LEFT_PAREN, "Expecting '(' after 'for'");
-  matchLine();
 
   if (match(TOKEN_SEMICOLON)) {
     // No initializer.
@@ -1682,23 +1703,23 @@ static void forStatement() {
     emitByte(OP_POP);
   }
 
-  if (!match(TOKEN_RIGHT_PAREN)) {
+  if (!check(TOKEN_DO) && !check(TOKEN_LINE)) {
     int bodyJump = emitJump(OP_JUMP);
     int incrementStart = currentChunk()->count;
     expressionStatement();
-
-    matchLine();
-    expect(TOKEN_RIGHT_PAREN, "Expecting ')' after for clauses");
 
     emitLoop(current->loop->start);
     current->loop->start = incrementStart;
     patchJump(bodyJump);
   }
 
-  if (matchLine()) {
+  if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
+    statement();
+  } else {
+    expect(TOKEN_LINE, "Expecting a linebreak after condition");
     expect(TOKEN_INDENT, "Expecting an indent before body");
     block(true);
-  } else statement();
+  }
 
   endLoop();
   popScope();
@@ -1708,9 +1729,10 @@ static void forStatement() {
 
 static void eachStatement() {
   pushScope(); // Scope for hidden iterator variables
-  expect(TOKEN_LEFT_PAREN, "Expecting '(' after 'each'");
+
   expect(TOKEN_IDENTIFIER, "Expecting a loop variable");
   Token name = parser.previous;
+
   Token index;
   bool hasIndex;
   if (match(TOKEN_LEFT_BRACKET)) {
@@ -1738,9 +1760,6 @@ static void eachStatement() {
   markInitialized();
   int iterSlot = current->localCount - 1;
 
-  matchLine();
-  expect(TOKEN_RIGHT_PAREN, "Expecting ')' after loop expression");
-
   Loop loop;
   startLoop(&loop);
 
@@ -1766,10 +1785,13 @@ static void eachStatement() {
     markInitialized();
   }
 
-  if (matchLine()) {
+  if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
+    statement();
+  } else {
+    expect(TOKEN_LINE, "Expecting a linebreak after condition");
     expect(TOKEN_INDENT, "Expecting an indent before body");
     block(true);
-  } else statement();
+  }
 
   popScope(); // Loop variable
 
@@ -1779,21 +1801,18 @@ static void eachStatement() {
 }
 
 static void ifStatement() {
-  expect(TOKEN_LEFT_PAREN, "Expecting '(' after 'if'");
-  matchLine();
-
   expression();
-
-  matchLine();
-  expect(TOKEN_RIGHT_PAREN, "Expecting ')' after condition");
 
   int thenJump = emitJump(OP_JUMP_FALSY);
   emitByte(OP_POP);
-  if (matchLine()) {
+
+  if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
+    statement();
+  } else {
+    expect(TOKEN_LINE, "Expecting a linebreak after condition");
     expect(TOKEN_INDENT, "Expecting an indent before body");
     block(true);
   }
-  else statement();
 
   int elseJump = emitJump(OP_JUMP);
 
@@ -1802,11 +1821,13 @@ static void ifStatement() {
 
   if (match(TOKEN_ELIF)) ifStatement();
   else if (match(TOKEN_ELSE)) {
-    if (matchLine()) {
+    if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
+      statement();
+    } else {
+      expect(TOKEN_LINE, "Expecting a linebreak after 'else'");
       expect(TOKEN_INDENT, "Expecting an indent before body");
       block(true);
     }
-    else statement();
   }
   patchJump(elseJump);
 }
@@ -1814,16 +1835,15 @@ static void ifStatement() {
 #define MAX_WHEN_CASES 256
 
 static void whenStatement() {
-  expect(TOKEN_LEFT_PAREN, "Expecting '(' after 'when'");
   expression();
+  match(TOKEN_DO);
+
   //- TODO: Possibly make custom operators, like this:
   //
-  //  when (variable)
-  //    >= 3 -> something()
-  //    == 3 -> somethingElse()
-  //    3 -> somethingElse() # same as ==
-  //
-  expect(TOKEN_RIGHT_PAREN, "Expecting ')' after value");
+  //  when variable
+  //    >= 3 do something()
+  //    == 3 do somethingElse()
+  //    3 do somethingElse() # same as ==
 
   bool indentationBased;
   int blockEnd;
@@ -1880,10 +1900,8 @@ static void whenStatement() {
 
         //- TODO: Add multiple expressions to compare to, like this:
         //
-        // when (var)
-        //   is 3 | 4 -> print "3 or 4"
-
-        expect(TOKEN_RIGHT_ARROW, "Expecting '->' after case value");
+        //  when var
+        //    is 3 | 4 do print "3 or 4"
 
 #if METHOD_CALL_OPERATORS
         callMethod(1, "==(1)", 5);
@@ -1895,8 +1913,11 @@ static void whenStatement() {
         // Pop the comparison result
         emitByte(OP_POP);
 
-        if (matchLine()) {
-          expect(TOKEN_INDENT, "Expecting an indent before block");
+        if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
+          statement();
+        } else {
+          expect(TOKEN_LINE, "Expecting a linebreak after case");
+          expect(TOKEN_INDENT, "Expecting an indent before body");
           block(true);
         }
       } else {
@@ -1904,11 +1925,13 @@ static void whenStatement() {
           error("Can't have a default case first");
         }
         state = 2;
-        expect(TOKEN_RIGHT_ARROW, "Expecting '->' after else case");
         previousCaseSkip = -1;
 
-        if (matchLine()) {
-          expect(TOKEN_INDENT, "Expecting an indent before block");
+        if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
+          statement();
+        } else {
+          expect(TOKEN_LINE, "Expecting a linebreak after condition");
+          expect(TOKEN_INDENT, "Expecting an indent before body");
           block(true);
         }
       }
@@ -1986,11 +2009,7 @@ static void statement() {
   else if (match(TOKEN_EACH)) eachStatement();
   else if (match(TOKEN_IF)) ifStatement();
   else if (match(TOKEN_WHEN)) whenStatement();
-  else if (match(TOKEN_LEFT_BRACE)) {
-    pushScope();
-    block(false);
-    popScope();
-  } else {
+  else {
     if (parser.printResult && current->scopeDepth == 0) {
       parser.onExpression = true;
       expression();

@@ -6,33 +6,38 @@ class Random
   randByte() = this.randBytes(1)[0]
 
 class Sequence
+  attribute count
+    var result = 0
+    each i in this do result = result + 1
+    return result
+
   all(function)
     var result = True
-    each (element in this)
+    each element in this
       result = function(element)
-      if (not result) return False
+      if not result do return False
     return True
   
   any(function)
     var result = False
-    each (element in this)
+    each element in this
       result = function(element)
-      if (result) return True
+      if result do return True
     return False
   
   contains(item)
-    each (element in this)
-      if (element == item) return True
+    each element in this
+      if element == item do return True
     return False
   
   count(function)
     var result = 0
-    each (element in this)
-      if (function(element)) result = result + 1
+    each element in this
+      if function(element) do result = result + 1
     return result
   
   forEach(function)
-    each (element in this)
+    each element in this
       function(element)
   
   attribute isEmpty = if (this.iterate(None)) False else True
@@ -40,13 +45,13 @@ class Sequence
   map(transformation) = MapSequence(this, transformation)
   
   skip(count)
-    if ((count is not Number) or (not count.isInteger) or count < 0)
+    if (count is not Number) or (not count.isInteger) or count < 0
       error "Count must be a positive integer"
     
     return SkipSequence(this, count)
   
   take(count)
-    if ((count is not Number) or (not count.isInteger) or count < 0)
+    if (count is not Number) or (not count.isInteger) or count < 0
       error "Count must be a positive integer"
     
     return TakeSequence(this, count)
@@ -54,16 +59,16 @@ class Sequence
   where(predicate) = WhereSequence(this, predicate)
   
   reduce(acc, function)
-    each (element in this)
+    each element in this
       acc = function(acc, element)
     return acc
   
   reduce(function)
     var iter = this.iterate(None)
-    if (not iter) return
+    if not iter do return
 
     var result = this.iteratorValue(iter)
-    while (iter = this.iterate(iter))
+    while iter = this.iterate(iter)
       result = function(result, this.iteratorValue(iter))
     
     return result
@@ -73,15 +78,15 @@ class Sequence
   joinToString(sep)
     var result = ""
 
-    for (var i = 0; i < this.size; i = i + 1)
-      if (i != 0) result = result + sep
-      result = result + this[i].toString()
+    each item[index] in this
+      if index != 0 do result = result + sep
+      result = result + item.toString()
     
     return result
   
   toList()
     var result = List()
-    each (element in this)
+    each element in this
       result.add(element)
     return result
 
@@ -99,11 +104,11 @@ class SkipSequence < Sequence
     pass
   
   iterate(iterator)
-    if (iterator)
+    if iterator
       return this.sequence.iterate(iterator)
     else
       iterator = this.sequence.iterate(iterator)
-      for (var count = this.count; count > 0 and iterator; count = count - 1)
+      for var count = this.count; count > 0 and iterator; count = count - 1
         iterator = this.sequence.iterate(iterator)
       return iterator
 
@@ -114,7 +119,7 @@ class TakeSequence < Sequence
     pass
   
   iterate(iterator)
-    if (not iterator) this.taken = 1 else this.taken = this.taken + 1
+    if not iterator do this.taken = 1 else do this.taken = this.taken + 1
     return if (this.taken > this.count) None else this.sequence.iterate(iterator)
   
   iteratorValue(iterator) = this.sequence.iteratorValue(iterator)
@@ -124,8 +129,8 @@ class WhereSequence < Sequence
     pass
   
   iterate(iterator)
-    while (iterator = this.sequence.iterate(iterator))
-      if (this.function(this.sequence.iteratorValue(iterator))) break
+    while iterator = this.sequence.iterate(iterator)
+      if this.function(this.sequence.iteratorValue(iterator)) do break
     return iterator
   
   iteratorValue(iterator)
@@ -138,16 +143,16 @@ class String < Sequence
   +(other) = this.concatenate(other.toString())
   
   *(count)
-    if ((count is not Number) or (not count.isInteger) or count < 0)
+    if (count is not Number) or (not count.isInteger) or count < 0
       error "Count must be a positive integer"
     
     var result = ""
-    each (i in 0:count)
+    each i in 0:count
       result = result + this
     return result
   
   split(delimiter)
-    if ((delimiter is not String) or delimiter.isEmpty)
+    if (delimiter is not String) or delimiter.isEmpty
       error "Delimiter must be a string"
     
     var result = []
@@ -158,11 +163,11 @@ class String < Sequence
     var delimiterSize = delimiter.byteCount
     var size = this.byteCount
 
-    while (last < size and (index = indexOf(delimiter, last)) != -1)
+    while last < size and (index = this.indexOf(delimiter, last)) != -1
       result.add(this[last:index])
       last = index + delimiterSize
     
-    if (last < size)
+    if last < size
       result.add(this[last..-1])
     else
       result.add("")
@@ -170,9 +175,9 @@ class String < Sequence
     return result
   
   replace(from, to)
-    if ((from is not String) or from.isEmpty)
+    if (from is not String) or from.isEmpty
       error "From value must be a non-empty string"
-    if (to is not String)
+    if to is not String
       error "To value must be a string"
 
     var result = ""
@@ -183,11 +188,11 @@ class String < Sequence
     var fromSize = from.byteCount
     var size = this.byteCount
 
-    while (last < size and (index = indexOf(from, last)) != -1)
+    while last < size and (index = indexOf(from, last)) != -1
       result = result + this[last:index] + to
       last = index + fromSize
     
-    if (last < size) result = result + this[last..-1]
+    if last < size do result = result + this[last..-1]
 
     return result
   
@@ -199,29 +204,29 @@ class String < Sequence
   trimStart(chars) = this.trim_(chars, True, False)
   
   trim_(chars, trimStart, trimEnd)
-    if (chars is not String)
+    if chars is not String
       error "Character being trimmed must be a string"
     
     var codePoints = chars.codePoints.toList()
 
     var start
-    if (trimStart)
-      while (start = iterate(start))
-        if (not codePoints.contains(this.codePointAt(start))) break
+    if trimStart
+      while start = iterate(start)
+        if not codePoints.contains(this.codePointAt(start)) do break
       
-      if (start == False) return ""
-    else start = 0
+      if start == False do return ""
+    else do start = 0
     
     var end
-    if (trimEnd)
+    if trimEnd
       end = this.byteCount - 1
-      while (end >= start)
+      while end >= start
         var codePoint = this.codePointAt(end)
-        if (codePoint == -1 and not codePoints.contains(codePoint)) break
+        if codePoint != -1 and not codePoints.contains(codePoint) do break
         end = end - 1
       
-      if (end < start) return ""
-    else end = -1
+      if end < start do return ""
+    else do end = -1
 
     return this[start..end]
 
@@ -248,21 +253,21 @@ class StringCodePointSequence < Sequence
 class List < Sequence
   +(other)
     var result = this[0..-1]
-    each (element in other)
+    each element in other
       result.add(element)
     return result
   
   *(count)
-    if ((count is not Number) or (not count.isInteger) or count < 0)
+    if (count is not Number) or (not count.isInteger) or count < 0
       error "Count must be a positive integer"
     
     var result = []
-    each (i in 0:count)
+    each i in 0:count
       result.addAll(this)
     return result
   
   addAll(other)
-    each (element in other)
+    each element in other
       this.add(element)
   
   map(transformation)
@@ -272,12 +277,12 @@ class List < Sequence
     this.sort { |low, high| return low <= high }
 
   sort(comparer)
-    if (comparer is not Function)
+    if comparer is not Function
       error "Comparer must be a function"
     this.quicksort(0, this.size - 1, comparer)
 
   quicksort(low, high, comparer)
-    if (low < high)
+    if low < high
       var p = this.partition(low, high, comparer)
       this.quicksort(low, p - 1, comparer)
       this.quicksort(p + 1, high, comparer)
@@ -285,8 +290,8 @@ class List < Sequence
   partition(low, high, comparer)
     var pivot = this[high]
     var i = low - 1
-    each (j in low:high)
-      if (comparer(this[j], pivot))
+    each j in low:high
+      if comparer(this[j], pivot)
         i = i + 1
         this.swap(i, j)
     this.swap(i + 1, high)
@@ -306,7 +311,7 @@ class Sys
     return obj
   
   static printAll(sequence)
-    each (object in sequence) Sys.writeObject(object)
+    each object in sequence do Sys.writeObject(object)
     Sys.writeString("\n")
   
   static write(obj)
@@ -314,11 +319,11 @@ class Sys
     return obj
 
   static writeAll(sequence)
-    each(object in sequence) Sys.writeObject(object)
+    each object in sequence do Sys.writeObject(object)
 
   static writeObject(obj)
     var string = obj.toString()
-    if (string is not String)
+    if string is not String
       string = "[invalid toString() method]"
     
     Sys.writeString(string)

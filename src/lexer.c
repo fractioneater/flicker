@@ -163,6 +163,7 @@ static TokenType identifierType() {
         }
       }
       break;
+    case 'd': return checkKeyword(1, 1, "o", TOKEN_DO);
     case 'e':
       if (lexer.start[1] == 'a') {
         if (lexer.current - lexer.start > 2) return checkKeyword(2, 2, "ch", TOKEN_EACH);

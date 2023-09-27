@@ -9,8 +9,10 @@ typedef enum {
   OP_NONE,
   OP_TRUE,
   OP_FALSE,
+
   OP_POP,
   OP_DUP,
+
   OP_GET_LOCAL,
   OP_SET_LOCAL,
   OP_GET_GLOBAL,
@@ -20,8 +22,10 @@ typedef enum {
   OP_SET_UPVALUE,
   OP_GET_PROPERTY,
   OP_SET_PROPERTY,
+
   OP_BIND_METHOD,
   OP_BIND_SUPER,
+
 #if !METHOD_CALL_OPERATORS
   OP_EQUAL,
   OP_NOT_EQUAL,
@@ -45,6 +49,7 @@ typedef enum {
   OP_NOT,
   OP_NEGATE,
 #endif
+
   OP_PRINT,
   OP_ERROR,
   OP_JUMP,

@@ -13,16 +13,25 @@ void disassembleChunk(Chunk* chunk, const char* name) {
   }
 }
 
-static int constantInstruction(const char* name, Chunk* chunk, int offset) {
+static int variableConstant(Chunk* chunk, int offset) {
   uint8_t constant = chunk->code[offset + 1];
+  if (constant >= 0x80) {
+    uint8_t second = chunk->code[offset + 2];
+    return (((int)constant & 0x7f) << 8) | second;
+  }
+  return constant;
+}
+
+static int constantInstruction(const char* name, Chunk* chunk, int offset) {
+  int constant = variableConstant(chunk, offset);
   printf("%-16s %4d '", name, constant);
   printValue(chunk->constants.values[constant]);
   printf("'\n");
-  return offset + 2;
+  return offset + (constant >= 0x80 ? 3 : 2);
 }
 
 static int invokeInstruction(const char* name, Chunk* chunk, int offset) {
-  uint8_t constant = chunk->code[offset + 1];
+  int constant = variableConstant(chunk, offset);
   uint8_t argCount;
   if (name[3] == 'S') {
     argCount = chunk->code[offset] - OP_SUPER_0;
@@ -32,7 +41,7 @@ static int invokeInstruction(const char* name, Chunk* chunk, int offset) {
   printf("%-16s %4d '", name, constant);
   printValue(chunk->constants.values[constant]);
   printf("'  (%d args)\n", argCount);
-  return offset + 2;
+  return offset + (constant >= 0x80 ? 3 : 2);
 }
 
 static int simpleInstruction(const char* name, int offset) {
@@ -257,8 +266,8 @@ int disassembleInstruction(Chunk* chunk, int offset) {
     case OP_SUPER_16:
       return invokeInstruction("OP_SUPER_16", chunk, offset);
     case OP_CLOSURE: {
-      offset++;
-      uint8_t constant = chunk->code[offset++];
+      int constant = variableConstant(chunk, offset);
+      offset += constant >= 0x80 ? 3 : 2;
       printf("%-16s %4d ", "OP_CLOSURE", constant);
       printValue(chunk->constants.values[constant]);
       printf("\n");

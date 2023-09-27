@@ -1,4 +1,4 @@
-#include "primitive.h"
+#include "native.h"
 
 #include <math.h>
 #include <stdlib.h>

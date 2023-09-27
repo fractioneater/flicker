@@ -12,7 +12,7 @@
 
 #include "memory.h"
 #include "object.h"
-#include "primitive.h"
+#include "native.h"
 #include "shishua.h"
 #include "utils.h"
 #include "value.h"
@@ -42,7 +42,7 @@ DEF_NATIVE(class_name) { RETURN_OBJ(AS_CLASS(args[0])->name); }
 DEF_NATIVE(class_superclass) {
   ObjClass* cls = AS_CLASS(args[0]);
 
-  if (cls->superclass == NULL) RETURN_NONE;
+  if (cls->superclass == NULL) RETURN_NONE();
 
   RETURN_OBJ(cls->superclass);
 }
@@ -84,7 +84,7 @@ DEF_NATIVE(list_filled) {
 
 DEF_NATIVE(list_add) {
   listAppend(AS_LIST(args[0]), args[1]);
-  RETURN_NONE;
+  RETURN_NONE();
 }
 
 DEF_NATIVE(list_addCore) {
@@ -94,7 +94,7 @@ DEF_NATIVE(list_addCore) {
 
 DEF_NATIVE(list_clear) {
   listClear(AS_LIST(args[0]));
-  RETURN_NONE;
+  RETURN_NONE();
 }
 
 DEF_NATIVE(list_size) { RETURN_NUMBER(AS_LIST(args[0])->count); }
@@ -113,14 +113,14 @@ DEF_NATIVE(list_iterate) {
   ObjList* list = AS_LIST(args[0]);
 
   if (IS_NONE(args[1])) {
-    if (list->count == 0) RETURN_FALSE;
+    if (list->count == 0) RETURN_FALSE();
     RETURN_NUMBER(0);
   }
 
   if (!validateInt(args[1], "Iterator")) return false;
 
   double index = AS_NUMBER(args[1]);
-  if (index < 0 || index >= list->count - 1) RETURN_FALSE;
+  if (index < 0 || index >= list->count - 1) RETURN_FALSE();
 
   RETURN_NUMBER(index + 1);
 }
@@ -144,7 +144,7 @@ DEF_NATIVE(list_removeAt) {
 DEF_NATIVE(list_removeValue) {
   ObjList* list = AS_LIST(args[0]);
   int index = listIndexOf(list, args[1]);
-  if (index == -1) RETURN_NONE;
+  if (index == -1) RETURN_NONE();
   RETURN_VAL(listDeleteAt(list, index));
 }
 
@@ -164,7 +164,7 @@ DEF_NATIVE(list_swap) {
   list->items[indexA] = list->items[indexB];
   list->items[indexB] = a;
 
-  RETURN_NONE;
+  RETURN_NONE();
 }
 
 DEF_NATIVE(list_subscript) {
@@ -207,7 +207,7 @@ DEF_NATIVE(list_subscriptSet) {
 // None          //
 ///////////////////
 
-DEF_NATIVE(none_not) { RETURN_TRUE; }
+DEF_NATIVE(none_not) { RETURN_TRUE(); }
 
 DEF_NATIVE(none_toString) { RETURN_OBJ(copyStringLength("None", 4)); }
 
@@ -220,7 +220,7 @@ DEF_NATIVE(number_fromString) {
 
   ObjString* string = AS_STRING(args[1]);
 
-  if (string->length == 0) RETURN_NONE;
+  if (string->length == 0) RETURN_NONE();
 
   errno = 0;
   char* end;
@@ -230,7 +230,7 @@ DEF_NATIVE(number_fromString) {
 
   if (errno == ERANGE) RETURN_ERROR("Number literal is too large");
 
-  if (end < string->chars + string->length) RETURN_NONE;
+  if (end < string->chars + string->length) RETURN_NONE();
 
   RETURN_NUMBER(number);
 }
@@ -305,12 +305,12 @@ DEF_NATIVE(number_mod) {
 }
 
 DEF_NATIVE(number_equals) {
-  if (!IS_NUMBER(args[1])) RETURN_FALSE;
+  if (!IS_NUMBER(args[1])) RETURN_FALSE();
   RETURN_BOOL(AS_NUMBER(args[0]) == AS_NUMBER(args[1]));
 }
 
 DEF_NATIVE(number_notEquals) {
-  if (!IS_NUMBER(args[1])) RETURN_TRUE;
+  if (!IS_NUMBER(args[1])) RETURN_TRUE();
   RETURN_BOOL(AS_NUMBER(args[0]) != AS_NUMBER(args[1]));
 }
 
@@ -381,7 +381,7 @@ DEF_NATIVE(number_isInfinity) {
 
 DEF_NATIVE(number_isInteger) {
   double value = AS_NUMBER(args[0]);
-  if (isnan(value) || isinf(value)) RETURN_FALSE;
+  if (isnan(value) || isinf(value)) RETURN_FALSE();
   RETURN_BOOL(trunc(value) == value);
 }
 
@@ -417,7 +417,7 @@ DEF_NATIVE(object_same) {
   RETURN_BOOL(valuesEqual(args[1], args[2]));
 }
 
-DEF_NATIVE(object_not) { RETURN_FALSE; }
+DEF_NATIVE(object_not) { RETURN_FALSE(); }
 
 DEF_NATIVE(object_equals) {
   RETURN_BOOL(valuesEqual(args[0], args[1]));
@@ -527,7 +527,7 @@ DEF_NATIVE(range_isInclusive) {
 DEF_NATIVE(range_iterate) {
   ObjRange* range = AS_RANGE(args[0]);
 
-  if (range->from == range->to && !range->isInclusive) RETURN_FALSE;
+  if (range->from == range->to && !range->isInclusive) RETURN_FALSE();
 
   if (IS_NONE(args[1])) RETURN_NUMBER(range->from);
 
@@ -536,13 +536,13 @@ DEF_NATIVE(range_iterate) {
 
   if (range->from < range->to) {
     iterator++;
-    if (iterator > range->to) RETURN_FALSE;
+    if (iterator > range->to) RETURN_FALSE();
   } else {
     iterator--;
-    if (iterator < range->to) RETURN_FALSE;
+    if (iterator < range->to) RETURN_FALSE();
   }
 
-  if (!range->isInclusive && iterator == range->to) RETURN_FALSE;
+  if (!range->isInclusive && iterator == range->to) RETURN_FALSE();
 
   RETURN_NUMBER(iterator);
 }
@@ -634,7 +634,7 @@ DEF_NATIVE(string_endsWith) {
   ObjString* string = AS_STRING(args[0]);
   ObjString* search = AS_STRING(args[1]);
 
-  if (search->length > string->length) RETURN_FALSE;
+  if (search->length > string->length) RETURN_FALSE();
 
   RETURN_BOOL(memcmp(string->chars + string->length - search->length,
                      search->chars, search->length) == 0);
@@ -666,18 +666,18 @@ DEF_NATIVE(string_iterate) {
   ObjString* string = AS_STRING(args[0]);
 
   if (IS_NONE(args[1])) {
-    if (string->length == 0) RETURN_FALSE;
+    if (string->length == 0) RETURN_FALSE();
     RETURN_NUMBER(0);
   }
 
   if (!validateInt(args[1], "Iterator")) return false;
 
-  if (AS_NUMBER(args[1]) < 0) RETURN_FALSE;
+  if (AS_NUMBER(args[1]) < 0) RETURN_FALSE();
   uint32_t index = (uint32_t)AS_NUMBER(args[1]);
 
   do {
     index++;
-    if (index >= string->length) RETURN_FALSE;
+    if (index >= string->length) RETURN_FALSE();
   } while ((string->chars[index] & 0xc0) == 0x80);
 
   RETURN_NUMBER(index);
@@ -687,17 +687,17 @@ DEF_NATIVE(string_iterateByte) {
   ObjString* string = AS_STRING(args[0]);
 
   if (IS_NONE(args[1])) {
-    if (string->length == 0) RETURN_FALSE;
+    if (string->length == 0) RETURN_FALSE();
     RETURN_NUMBER(0);
   }
 
   if (!validateInt(args[1], "Iterator")) return false;
 
-  if (AS_NUMBER(args[1]) < 0) RETURN_FALSE;
+  if (AS_NUMBER(args[1]) < 0) RETURN_FALSE();
   uint32_t index = (uint32_t)AS_NUMBER(args[1]);
 
   index++;
-  if (index >= string->length) RETURN_FALSE;
+  if (index >= string->length) RETURN_FALSE();
 
   RETURN_NUMBER(index);
 }
@@ -716,7 +716,7 @@ DEF_NATIVE(string_startsWith) {
   ObjString* string = AS_STRING(args[0]);
   ObjString* search = AS_STRING(args[1]);
 
-  if (search->length > string->length) RETURN_FALSE;
+  if (search->length > string->length) RETURN_FALSE();
 
   RETURN_BOOL(memcmp(string->chars, search->chars, search->length) == 0);
 }
@@ -760,22 +760,42 @@ DEF_NATIVE(sys_clock) {
   RETURN_NUMBER((double)clock() / CLOCKS_PER_SEC);
 }
 
+DEF_NATIVE(sys_fileRead) {
+  if (!validateString(args[1], "Filename")) return false;
+  const char* filename = AS_CSTRING(args[1]);
+
+  FILE* file = fopen(filename, "rb");
+  if (file == NULL) {
+    RETURN_ERROR("Couldn't open file '%s'", filename);
+  }
+
+  fseek(file, 0L, SEEK_END);
+  size_t fileSize = ftell(file);
+  rewind(file);
+
+  char* buffer = ALLOCATE(char, fileSize + 1);
+  if (buffer == NULL) {
+    RETURN_ERROR("Not enough memory to read '%s'", filename);
+  }
+
+  size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
+  if (bytesRead < fileSize) {
+    RETURN_ERROR("Failed to read '%s'", file);
+  }
+
+  buffer[bytesRead] = '\0';
+  fclose(file);
+
+  RETURN_OBJ(takeString(buffer, fileSize + 1));
+}
+
 DEF_NATIVE(sys_gc) {
   collectGarbage();
-  RETURN_NONE;
-}
-
-DEF_NATIVE(sys_printString) {
-  printf("%s\n", AS_CSTRING(args[1]));
-  RETURN_VAL(args[1]);
-}
-
-DEF_NATIVE(sys_writeString) {
-  printf("%s", AS_CSTRING(args[1]));
-  RETURN_VAL(args[1]);
+  RETURN_NONE();
 }
 
 DEF_NATIVE(sys_input) {
+  if (!validateString(args[1], "Prompt")) return false;
   printf("%s", AS_CSTRING(args[1]));
 
   char* buffer = NULL;
@@ -789,6 +809,16 @@ DEF_NATIVE(sys_input) {
   buffer[strcspn(buffer, "\r\n")] = '\0';
 
   RETURN_OBJ(takeString(buffer, length));
+}
+
+DEF_NATIVE(sys_printString) {
+  printf("%s\n", AS_CSTRING(args[1]));
+  RETURN_VAL(args[1]);
+}
+
+DEF_NATIVE(sys_writeString) {
+  printf("%s", AS_CSTRING(args[1]));
+  RETURN_VAL(args[1]);
 }
 
 /////////////////////////////
@@ -962,10 +992,11 @@ void initializeCore(VM* vm) {
   ObjClass* sysClass;
   GET_CORE_CLASS(sysClass, "Sys");
   NATIVE(sysClass->obj.cls, "clock", sys_clock);
+  NATIVE(sysClass->obj.cls, "fileRead(1)", sys_fileRead);
   NATIVE(sysClass->obj.cls, "gc()", sys_gc);
+  NATIVE(sysClass->obj.cls, "input(1)", sys_input);
   NATIVE(sysClass->obj.cls, "printString(1)", sys_printString);
   NATIVE(sysClass->obj.cls, "writeString(1)", sys_writeString);
-  NATIVE(sysClass->obj.cls, "input(1)", sys_input);
 
   // Some string objects were created before stringClass even existed. Those
   // strings have a NULL classObj, so that needs to be fixed.

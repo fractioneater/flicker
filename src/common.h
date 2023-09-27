@@ -42,6 +42,8 @@
 
 // COMPILER AND VM VALUES
 
+#define MAX_CONSTANTS 0x7fff
+
 #define MAX_PARAMETERS 16
 
 #define MAX_METHOD_NAME 64

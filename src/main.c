@@ -165,7 +165,7 @@ static void repl() {
       break;
     }
 
-    interpret(line, "<input>", true);
+    interpret(line, "input", true);
   }
 }
 

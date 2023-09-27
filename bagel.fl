@@ -1,3 +1,4 @@
+# Testing superclass method calls.
 # Sadly there are no bagels to be found in this file.
 
 class A
