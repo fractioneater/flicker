@@ -278,9 +278,7 @@ ObjString* stringFromCodePoint(int value) {
   heapChars[length] = '\0';
   utf8Encode(value, (uint8_t*)heapChars);
 
-  uint32_t hash = hashString(heapChars, length);
-
-  return allocateString(heapChars, length, hash);
+  return takeString(heapChars, length);
 }
 
 ObjString* stringFromByte(uint8_t byte) {
@@ -288,9 +286,7 @@ ObjString* stringFromByte(uint8_t byte) {
   heapChars[0] = byte;
   heapChars[1] = '\0';
 
-  uint32_t hash = hashString(heapChars, 1);
-
-  return allocateString(heapChars, 1, hash);
+  return takeString(heapChars, 1);
 }
 
 ObjString* stringFromRange(ObjString* string, uint32_t start, uint32_t count, int step) {
@@ -313,9 +309,7 @@ ObjString* stringFromRange(ObjString* string, uint32_t start, uint32_t count, in
     }
   }
 
-  uint32_t hash = hashString(heapChars, length);
-
-  return allocateString(heapChars, length, hash);
+  return takeString(heapChars, length);
 }
 
 ObjString* stringFormat(const char* format, ...) {
@@ -367,9 +361,7 @@ ObjString* stringFormat(const char* format, ...) {
   }
   va_end(argList);
 
-  uint32_t hash = hashString(heapChars, totalLength);
-
-  return allocateString(heapChars, totalLength, hash);
+  return takeString(heapChars, totalLength);
 }
 
 ObjString* stringCodePointAt(ObjString* string, uint32_t index) {
@@ -414,24 +406,6 @@ uint32_t stringFind(ObjString* string, ObjString* search, uint32_t start) {
   }
 
   return UINT32_MAX;
-}
-
-Value indexFromString(ObjString* string, int index) {
-  const char* character = string->chars + index;
-
-  int codePoint = utf8Decode((uint8_t*)character, string->length - index);
-
-  if (codePoint == -1) {
-    return OBJ_VAL(copyStringLength(character, 1));
-  } else {
-    int length = utf8EncodeNumBytes(codePoint);
-
-    char* new = ALLOCATE(char, length + 1);
-    new[length] = '\0';
-
-    utf8Encode(codePoint, (uint8_t*)new);
-    return OBJ_VAL(takeString(new, length));
-  }
 }
 
 ObjUpvalue* newUpvalue(Value* slot) {

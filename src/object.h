@@ -169,7 +169,6 @@ ObjString* stringFromRange(ObjString* string, uint32_t start, uint32_t count, in
 ObjString* stringFormat(const char* format, ...);
 ObjString* stringCodePointAt(ObjString* string, uint32_t index);
 uint32_t stringFind(ObjString* string, ObjString* search, uint32_t start);
-Value indexFromString(ObjString* string, int index);
 
 ObjUpvalue* newUpvalue(Value* slot);
 

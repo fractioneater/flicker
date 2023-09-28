@@ -167,7 +167,7 @@ DEF_NATIVE(list_swap) {
   RETURN_NONE();
 }
 
-DEF_NATIVE(list_subscript) {
+DEF_NATIVE(list_get) {
   ObjList* list = AS_LIST(args[0]);
 
   if (IS_NUMBER(args[1])) {
@@ -194,7 +194,7 @@ DEF_NATIVE(list_subscript) {
   RETURN_OBJ(result);
 }
 
-DEF_NATIVE(list_subscriptSet) {
+DEF_NATIVE(list_set) {
   ObjList* list = AS_LIST(args[0]);
   uint32_t index = validateIndex(args[1], list->count, "Index");
   if (index == UINT32_MAX) return false;
@@ -728,7 +728,7 @@ DEF_NATIVE(string_concatenate) {
   RETURN_OBJ(stringFormat("##", a, b));
 }
 
-DEF_NATIVE(string_subscript) {
+DEF_NATIVE(string_get) {
   ObjString* string = AS_STRING(args[0]);
 
   if (IS_NUMBER(args[1])) {
@@ -948,7 +948,7 @@ void initializeCore(VM* vm) {
   NATIVE(vm->stringClass->obj.cls, "fromCodePoint(1)", string_fromCodePoint);
   NATIVE(vm->stringClass->obj.cls, "fromByte(1)", string_fromByte);
   NATIVE(vm->stringClass, "concatenate(1)", string_concatenate);
-  NATIVE(vm->stringClass, "get(1)", string_subscript);
+  NATIVE(vm->stringClass, "get(1)", string_get);
   NATIVE(vm->stringClass, "byteAt(1)", string_byteAt);
   NATIVE(vm->stringClass, "byteCount", string_byteCount);
   NATIVE(vm->stringClass, "codePointAt(1)", string_codePointAt);
@@ -965,8 +965,8 @@ void initializeCore(VM* vm) {
   GET_CORE_CLASS(vm->listClass, "List");
   NATIVE_INIT(vm->listClass, list_init, 0);
   NATIVE(vm->listClass->obj.cls, "filled(2)", list_filled);
-  NATIVE(vm->listClass, "get(1)", list_subscript);
-  NATIVE(vm->listClass, "set(2)", list_subscriptSet);
+  NATIVE(vm->listClass, "get(1)", list_get);
+  NATIVE(vm->listClass, "set(2)", list_set);
   NATIVE(vm->listClass, "add(1)", list_add);
   NATIVE(vm->listClass, "addCore(1)", list_addCore);
   NATIVE(vm->listClass, "clear()", list_clear);
