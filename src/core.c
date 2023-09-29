@@ -799,16 +799,15 @@ DEF_NATIVE(sys_input) {
   printf("%s", AS_CSTRING(args[1]));
 
   char* buffer = NULL;
-  uint64_t length;
-  int read;
-  read = getline(&buffer, &length, stdin);
+  size_t length;
+  int read = getline(&buffer, &length, stdin);
   if (read == -1) {
     RETURN_OBJ(copyStringLength("", 0));
   }
 
   buffer[strcspn(buffer, "\r\n")] = '\0';
 
-  RETURN_OBJ(takeString(buffer, length));
+  RETURN_OBJ(takeString(buffer, (int)strlen(buffer)));
 }
 
 DEF_NATIVE(sys_printString) {
@@ -950,6 +949,7 @@ void initializeCore(VM* vm) {
   NATIVE(vm->stringClass, "concatenate(1)", string_concatenate);
   NATIVE(vm->stringClass, "get(1)", string_get);
   NATIVE(vm->stringClass, "byteAt(1)", string_byteAt);
+  NATIVE(vm->stringClass, "length", string_byteCount);
   NATIVE(vm->stringClass, "byteCount", string_byteCount);
   NATIVE(vm->stringClass, "codePointAt(1)", string_codePointAt);
   NATIVE(vm->stringClass, "contains(1)", string_contains);
