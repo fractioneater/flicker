@@ -22,6 +22,7 @@ typedef struct {
   ObjClass* boolClass;
   ObjClass* functionClass;
   ObjClass* listClass;
+  ObjClass* mapClass;
   ObjClass* noneClass;
   ObjClass* numberClass;
   ObjClass* randomClass;

@@ -26,9 +26,9 @@
 #define RETURN_OBJ(obj)     RETURN_VAL(OBJ_VAL(obj))
 #define RETURN_NUMBER(num)  RETURN_VAL(NUMBER_VAL(num))
 #define RETURN_BOOL(value)  RETURN_VAL(BOOL_VAL(value))
-#define RETURN_NONE()       RETURN_VAL(NONE_VAL)
-#define RETURN_TRUE()       RETURN_VAL(TRUE_VAL)
-#define RETURN_FALSE()      RETURN_VAL(FALSE_VAL)
+#define RETURN_NONE         RETURN_VAL(NONE_VAL)
+#define RETURN_TRUE         RETURN_VAL(TRUE_VAL)
+#define RETURN_FALSE        RETURN_VAL(FALSE_VAL)
 
 #define ERROR(...) runtimeError(__VA_ARGS__)
 

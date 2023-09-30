@@ -42,7 +42,7 @@ DEF_NATIVE(class_name) { RETURN_OBJ(AS_CLASS(args[0])->name); }
 DEF_NATIVE(class_superclass) {
   ObjClass* cls = AS_CLASS(args[0]);
 
-  if (cls->superclass == NULL) RETURN_NONE();
+  if (cls->superclass == NULL) RETURN_NONE;
 
   RETURN_OBJ(cls->superclass);
 }
@@ -84,7 +84,7 @@ DEF_NATIVE(list_filled) {
 
 DEF_NATIVE(list_add) {
   listAppend(AS_LIST(args[0]), args[1]);
-  RETURN_NONE();
+  RETURN_NONE;
 }
 
 DEF_NATIVE(list_addCore) {
@@ -94,7 +94,7 @@ DEF_NATIVE(list_addCore) {
 
 DEF_NATIVE(list_clear) {
   listClear(AS_LIST(args[0]));
-  RETURN_NONE();
+  RETURN_NONE;
 }
 
 DEF_NATIVE(list_size) { RETURN_NUMBER(AS_LIST(args[0])->count); }
@@ -113,14 +113,14 @@ DEF_NATIVE(list_iterate) {
   ObjList* list = AS_LIST(args[0]);
 
   if (IS_NONE(args[1])) {
-    if (list->count == 0) RETURN_FALSE();
+    if (list->count == 0) RETURN_FALSE;
     RETURN_NUMBER(0);
   }
 
   if (!validateInt(args[1], "Iterator")) return false;
 
   double index = AS_NUMBER(args[1]);
-  if (index < 0 || index >= list->count - 1) RETURN_FALSE();
+  if (index < 0 || index >= list->count - 1) RETURN_FALSE;
 
   RETURN_NUMBER(index + 1);
 }
@@ -144,7 +144,7 @@ DEF_NATIVE(list_removeAt) {
 DEF_NATIVE(list_removeValue) {
   ObjList* list = AS_LIST(args[0]);
   int index = listIndexOf(list, args[1]);
-  if (index == -1) RETURN_NONE();
+  if (index == -1) RETURN_NONE;
   RETURN_VAL(listDeleteAt(list, index));
 }
 
@@ -164,7 +164,7 @@ DEF_NATIVE(list_swap) {
   list->items[indexA] = list->items[indexB];
   list->items[indexB] = a;
 
-  RETURN_NONE();
+  RETURN_NONE;
 }
 
 DEF_NATIVE(list_get) {
@@ -203,11 +203,115 @@ DEF_NATIVE(list_set) {
   RETURN_VAL(args[2]);
 }
 
+//////////////////
+// Map          //
+//////////////////
+
+DEF_NATIVE(map_init) { RETURN_OBJ(newMap()); }
+
+DEF_NATIVE(map_get) {
+  //- TODO: Support more than just strings as keys.
+  if (!validateString(args[1], "Key")) return false;
+
+  ObjMap* map = AS_MAP(args[0]);
+  Value value = mapGet(map, args[1]);
+  if (IS_UNDEFINED(value)) RETURN_NONE;
+
+  RETURN_VAL(value);
+}
+
+DEF_NATIVE(map_set) {
+  if (!validateString(args[1], "Key")) return false;
+
+  mapSet(AS_MAP(args[0]), args[1], args[2]);
+  RETURN_VAL(args[2]);
+}
+
+DEF_NATIVE(map_addCore) {
+  if (!validateString(args[1], "Key")) return false;
+
+  mapSet(AS_MAP(args[0]), args[1], args[2]);
+  RETURN_VAL(args[0]);
+}
+
+DEF_NATIVE(map_clear) {
+  mapClear(AS_MAP(args[0]));
+  RETURN_NONE;
+}
+
+DEF_NATIVE(map_containsKey) {
+  if (!validateString(args[1], "Key")) return false;
+
+  RETURN_BOOL(!IS_UNDEFINED(mapGet(AS_MAP(args[0]), args[1])));
+}
+
+DEF_NATIVE(map_size) {
+  RETURN_NUMBER(AS_MAP(args[0])->table.count);
+}
+
+DEF_NATIVE(map_remove) {
+  if (!validateString(args[1], "Key")) return false;
+
+  mapRemoveKey(AS_MAP(args[0]), args[1]);
+  RETURN_NONE;
+}
+
+DEF_NATIVE(map_iterate) {
+  ObjMap* map = AS_MAP(args[0]);
+
+  if (map->table.count == 0) RETURN_FALSE;
+
+  uint32_t index = 0;
+
+  if (!IS_NONE(args[1])) {
+    if (!validateInt(args[1], "Iterator")) return false;
+
+    if (AS_NUMBER(args[1]) < 0) RETURN_FALSE;
+    index = (uint32_t)AS_NUMBER(args[1]);
+
+    if (index >= map->table.capacity) RETURN_FALSE;
+
+    index++;
+  }
+
+  for (; index < map->table.capacity; index++) {
+    if (map->table.entries[index].key != NULL) RETURN_NUMBER(index);
+  }
+
+  RETURN_FALSE;
+}
+
+DEF_NATIVE(map_keyIteratorValue) {
+  ObjMap* map = AS_MAP(args[0]);
+  uint32_t index = validateIndex(args[1], map->table.capacity, "Iterator");
+  if (index == UINT32_MAX) return false;
+
+  Entry* entry = &map->table.entries[index];
+  if (entry->key == NULL) {
+    RETURN_ERROR("Invalid map iterator");
+  }
+
+  RETURN_OBJ(entry->key);
+}
+
+DEF_NATIVE(map_valueIteratorValue) {
+  ObjMap* map = AS_MAP(args[0]);
+  uint32_t index = validateIndex(args[1], map->table.capacity, "Iterator");
+  if (index == UINT32_MAX) return false;
+
+  Entry* entry = &map->table.entries[index];
+  if (entry->key == NULL) {
+    RETURN_ERROR("Invalid map iterator");
+  }
+
+  RETURN_VAL(entry->value);
+}
+
 ///////////////////
 // None          //
 ///////////////////
 
-DEF_NATIVE(none_not) { RETURN_TRUE(); }
+DEF_NATIVE(none_not) { RETURN_TRUE; }
 
 DEF_NATIVE(none_toString) { RETURN_OBJ(copyStringLength("None", 4)); }
 
@@ -220,7 +324,7 @@ DEF_NATIVE(number_fromString) {
 
   ObjString* string = AS_STRING(args[1]);
 
-  if (string->length == 0) RETURN_NONE();
+  if (string->length == 0) RETURN_NONE;
 
   errno = 0;
   char* end;
@@ -230,7 +334,7 @@ DEF_NATIVE(number_fromString) {
 
   if (errno == ERANGE) RETURN_ERROR("Number literal is too large");
 
-  if (end < string->chars + string->length) RETURN_NONE();
+  if (end < string->chars + string->length) RETURN_NONE;
 
   RETURN_NUMBER(number);
 }
@@ -305,12 +409,12 @@ DEF_NATIVE(number_mod) {
 }
 
 DEF_NATIVE(number_equals) {
-  if (!IS_NUMBER(args[1])) RETURN_FALSE();
+  if (!IS_NUMBER(args[1])) RETURN_FALSE;
   RETURN_BOOL(AS_NUMBER(args[0]) == AS_NUMBER(args[1]));
 }
 
 DEF_NATIVE(number_notEquals) {
-  if (!IS_NUMBER(args[1])) RETURN_TRUE();
+  if (!IS_NUMBER(args[1])) RETURN_TRUE;
   RETURN_BOOL(AS_NUMBER(args[0]) != AS_NUMBER(args[1]));
 }
 
@@ -381,7 +485,7 @@ DEF_NATIVE(number_isInfinity) {
 
 DEF_NATIVE(number_isInteger) {
   double value = AS_NUMBER(args[0]);
-  if (isnan(value) || isinf(value)) RETURN_FALSE();
+  if (isnan(value) || isinf(value)) RETURN_FALSE;
   RETURN_BOOL(trunc(value) == value);
 }
 
@@ -417,7 +521,7 @@ DEF_NATIVE(object_same) {
   RETURN_BOOL(valuesEqual(args[1], args[2]));
 }
 
-DEF_NATIVE(object_not) { RETURN_FALSE(); }
+DEF_NATIVE(object_not) { RETURN_FALSE; }
 
 DEF_NATIVE(object_equals) {
   RETURN_BOOL(valuesEqual(args[0], args[1]));
@@ -527,7 +631,7 @@ DEF_NATIVE(range_isInclusive) {
 DEF_NATIVE(range_iterate) {
   ObjRange* range = AS_RANGE(args[0]);
 
-  if (range->from == range->to && !range->isInclusive) RETURN_FALSE();
+  if (range->from == range->to && !range->isInclusive) RETURN_FALSE;
 
   if (IS_NONE(args[1])) RETURN_NUMBER(range->from);
 
@@ -536,13 +640,13 @@ DEF_NATIVE(range_iterate) {
 
   if (range->from < range->to) {
     iterator++;
-    if (iterator > range->to) RETURN_FALSE();
+    if (iterator > range->to) RETURN_FALSE;
   } else {
     iterator--;
-    if (iterator < range->to) RETURN_FALSE();
+    if (iterator < range->to) RETURN_FALSE;
   }
 
-  if (!range->isInclusive && iterator == range->to) RETURN_FALSE();
+  if (!range->isInclusive && iterator == range->to) RETURN_FALSE;
 
   RETURN_NUMBER(iterator);
 }
@@ -634,7 +738,7 @@ DEF_NATIVE(string_endsWith) {
   ObjString* string = AS_STRING(args[0]);
   ObjString* search = AS_STRING(args[1]);
 
-  if (search->length > string->length) RETURN_FALSE();
+  if (search->length > string->length) RETURN_FALSE;
 
   RETURN_BOOL(memcmp(string->chars + string->length - search->length,
                      search->chars, search->length) == 0);
@@ -666,18 +770,18 @@ DEF_NATIVE(string_iterate) {
   ObjString* string = AS_STRING(args[0]);
 
   if (IS_NONE(args[1])) {
-    if (string->length == 0) RETURN_FALSE();
+    if (string->length == 0) RETURN_FALSE;
     RETURN_NUMBER(0);
   }
 
   if (!validateInt(args[1], "Iterator")) return false;
 
-  if (AS_NUMBER(args[1]) < 0) RETURN_FALSE();
+  if (AS_NUMBER(args[1]) < 0) RETURN_FALSE;
   uint32_t index = (uint32_t)AS_NUMBER(args[1]);
 
   do {
     index++;
-    if (index >= string->length) RETURN_FALSE();
+    if (index >= string->length) RETURN_FALSE;
   } while ((string->chars[index] & 0xc0) == 0x80);
 
   RETURN_NUMBER(index);
@@ -687,17 +791,17 @@ DEF_NATIVE(string_iterateByte) {
   ObjString* string = AS_STRING(args[0]);
 
   if (IS_NONE(args[1])) {
-    if (string->length == 0) RETURN_FALSE();
+    if (string->length == 0) RETURN_FALSE;
     RETURN_NUMBER(0);
   }
 
   if (!validateInt(args[1], "Iterator")) return false;
 
-  if (AS_NUMBER(args[1]) < 0) RETURN_FALSE();
+  if (AS_NUMBER(args[1]) < 0) RETURN_FALSE;
   uint32_t index = (uint32_t)AS_NUMBER(args[1]);
 
   index++;
-  if (index >= string->length) RETURN_FALSE();
+  if (index >= string->length) RETURN_FALSE;
 
   RETURN_NUMBER(index);
 }
@@ -716,7 +820,7 @@ DEF_NATIVE(string_startsWith) {
   ObjString* string = AS_STRING(args[0]);
   ObjString* search = AS_STRING(args[1]);
 
-  if (search->length > string->length) RETURN_FALSE();
+  if (search->length > string->length) RETURN_FALSE;
 
   RETURN_BOOL(memcmp(string->chars, search->chars, search->length) == 0);
 }
@@ -791,7 +895,7 @@ DEF_NATIVE(sys_fileRead) {
 
 DEF_NATIVE(sys_gc) {
   collectGarbage();
-  RETURN_NONE();
+  RETURN_NONE;
 }
 
 DEF_NATIVE(sys_input) {
@@ -799,8 +903,8 @@ DEF_NATIVE(sys_input) {
   printf("%s", AS_CSTRING(args[1]));
 
   char* buffer = NULL;
-  size_t length;
-  int read = getline(&buffer, &length, stdin);
+  size_t bufferSize;
+  int read = getline(&buffer, &bufferSize, stdin);
   if (read == -1) {
     RETURN_OBJ(copyStringLength("", 0));
   }
@@ -978,6 +1082,20 @@ void initializeCore(VM* vm) {
   NATIVE(vm->listClass, "remove(1)", list_removeValue);
   NATIVE(vm->listClass, "indexOf(1)", list_indexOf);
   NATIVE(vm->listClass, "swap(2)", list_swap);
+
+  GET_CORE_CLASS(vm->mapClass, "Map");
+  NATIVE_INIT(vm->mapClass, map_init, 0);
+  NATIVE(vm->mapClass, "get(1)", map_get);
+  NATIVE(vm->mapClass, "set(2)", map_set);
+  NATIVE(vm->mapClass, "addCore(2)", map_addCore);
+  NATIVE(vm->mapClass, "clear()", map_clear);
+  NATIVE(vm->mapClass, "containsKey(1)", map_containsKey);
+  NATIVE(vm->mapClass, "count", map_size);
+  NATIVE(vm->mapClass, "size", map_size);
+  NATIVE(vm->mapClass, "remove(1)", map_remove);
+  NATIVE(vm->mapClass, "iterate(1)", map_iterate);
+  NATIVE(vm->mapClass, "keyIteratorValue(1)", map_keyIteratorValue);
+  NATIVE(vm->mapClass, "valueIteratorValue(1)", map_valueIteratorValue);
 
   GET_CORE_CLASS(vm->rangeClass, "Range");
   NATIVE(vm->rangeClass, "from", range_from);

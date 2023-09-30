@@ -115,6 +115,11 @@ static void blackenObject(Obj* object) {
       }
       break;
     }
+    case OBJ_MAP: {
+      ObjMap* map = (ObjMap*)object;
+      markTable(&map->table);
+      break;
+    }
     case OBJ_UPVALUE:
       markValue(((ObjUpvalue*)object)->closed);
       break;
@@ -164,6 +169,12 @@ static void freeObject(Obj* object) {
       ObjList* list = (ObjList*)object;
       FREE_ARRAY(Value*, list->items, list->count);
       FREE(ObjList, object);
+      break;
+    }
+    case OBJ_MAP: {
+      ObjMap* map = (ObjMap*)object;
+      freeTable(&map->table);
+      FREE(ObjMap, object);
       break;
     }
     case OBJ_NATIVE:

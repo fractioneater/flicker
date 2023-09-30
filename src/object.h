@@ -15,6 +15,7 @@
 #define IS_FUNCTION(value)     isObjType(value, OBJ_FUNCTION)
 #define IS_INSTANCE(value)     isObjType(value, OBJ_INSTANCE)
 #define IS_LIST(value)         isObjType(value, OBJ_LIST)
+#define IS_MAP(value)          isObjType(value, OBJ_MAP)
 #define IS_NATIVE(value)       isObjType(value, OBJ_NATIVE)
 #define IS_PRNG(value)         isObjType(value, OBJ_PRNG)
 #define IS_RANGE(value)        isObjType(value, OBJ_RANGE)
@@ -26,6 +27,7 @@
 #define AS_FUNCTION(value)     ((ObjFunction*)AS_OBJ(value))
 #define AS_INSTANCE(value)     ((ObjInstance*)AS_OBJ(value))
 #define AS_LIST(value)         ((ObjList*)AS_OBJ(value))
+#define AS_MAP(value)          ((ObjMap*)AS_OBJ(value))
 #define AS_NATIVE(value)       ((ObjNative*)AS_OBJ(value))
 #define AS_PRNG(value)         ((ObjPrng*)AS_OBJ(value))
 #define AS_RANGE(value)        ((ObjRange*)AS_OBJ(value))
@@ -39,6 +41,7 @@ typedef enum {
   OBJ_FUNCTION,
   OBJ_INSTANCE,
   OBJ_LIST,
+  OBJ_MAP,
   OBJ_NATIVE,
   OBJ_PRNG,
   OBJ_RANGE,
@@ -69,6 +72,11 @@ typedef struct {
   Obj obj;
   NativeFn function;
 } ObjNative;
+
+typedef struct {
+  Obj obj;
+  Table table;
+} ObjMap;
 
 typedef struct {
   Obj obj;
@@ -150,6 +158,12 @@ void listAppend(ObjList* list, Value value);
 void listInsertAt(ObjList* list, uint32_t index, Value value);
 Value listDeleteAt(ObjList* list, uint32_t index);
 int listIndexOf(ObjList* list, Value value);
+
+ObjMap* newMap();
+Value mapGet(ObjMap* map, Value key);
+void mapSet(ObjMap* map, Value key, Value value);
+void mapClear(ObjMap* map);
+void mapRemoveKey(ObjMap* map, Value key);
 
 ObjNative* newNative(NativeFn function);
 

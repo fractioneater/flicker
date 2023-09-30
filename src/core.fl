@@ -299,6 +299,43 @@ class List < Sequence
   
   toString() = "[=(this.joinToString())]"
 
+class Map < Sequence
+  attribute keys = MapKeySequence(this)
+  attribute values = MapValueSequence(this)
+
+  toString()
+    var result = "["
+    var first = True
+
+    each key in this.keys
+      if not first do result = result + ", "
+      first = False
+      result = result + "=(key) -> =(this[key])"
+    
+    return result + "]"
+  
+  iteratorValue(iterator) = MapEntry(this.keyIteratorValue(iterator), this.valueIteratorValue(iterator))
+
+class MapEntry
+  init(+key, +value)
+    pass
+  
+  toString() = "=(this.key)->=(this.value)"
+
+class MapKeySequence < Sequence
+  init(+map)
+    pass
+  
+  iterate(n) = this.map.iterate(n)
+  iteratorValue(iterator) = this.map.keyIteratorValue(iterator)
+
+class MapValueSequence < Sequence
+  init(+map)
+    pass
+  
+  iterate(n) = this.map.iterate(n)
+  iteratorValue(iterator) = this.map.valueIteratorValue(iterator)
+
 class Range < Sequence {}
 
 class Sys

@@ -1020,6 +1020,25 @@ static void list(bool canAssign) {
   expect(TOKEN_RIGHT_BRACKET, "Expecting ']' after list literal");
 }
 
+static void map(bool canAssign) {
+  expect(TOKEN_LEFT_BRACKET, "Expecting '[' to begin map literal");
+  emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyStringLength("Map", 3)));
+  emitByte(OP_CALL_0);
+
+  do {
+    matchLine();
+    if (check(TOKEN_RIGHT_BRACKET)) break;
+
+    expression();
+    expect(TOKEN_RIGHT_ARROW, "Expecting '->' after map key");
+    expression();
+    callMethod(2, "addCore(2)", 10);
+  } while (match(TOKEN_COMMA));
+
+  matchLine();
+  expect(TOKEN_RIGHT_BRACKET, "Expecting ']' after map literal");
+}
+
 static void subscript(bool canAssign) {
   expressionBp(BP_NOT);
   expect(TOKEN_RIGHT_BRACKET, "Expecting ']' after index");
@@ -1147,7 +1166,7 @@ ParseRule rules[] = {
   /* TOKEN_TILDE         */ PREFIX_OPERATOR(BP_UNARY, "~"),
   /* TOKEN_DOT           */ INFIX(dot, BP_CALL),
   /* TOKEN_DOT_DOT       */ INFIX_OPERATOR(BP_RANGE, ".."),
-  /* TOKEN_COLON         */ INFIX_OPERATOR(BP_RANGE, ":"),
+  /* TOKEN_COLON         */ { map, binary, BP_RANGE, ":", binarySignature },
   /* TOKEN_COLON_COLON   */ INFIX(callable, BP_CALL),
   /* TOKEN_STAR          */ INFIX_OPERATOR(BP_FACTOR, "*"),
   /* TOKEN_STAR_STAR     */ INFIX_OPERATOR(BP_EXPONENT, "**"),

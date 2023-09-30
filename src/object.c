@@ -165,10 +165,37 @@ int listIndexOf(ObjList* list, Value value) {
   return -1;
 }
 
+ObjMap* newMap() {
+  ObjMap* map = ALLOCATE_OBJ(ObjMap, OBJ_MAP, vm.mapClass);
+  Table table;
+  initTable(&table);
+  map->table = table;
+  return map;
+}
+
+Value mapGet(ObjMap* map, Value key) {
+  Value value;
+  if (tableGet(&map->table, AS_STRING(key), &value)) {
+    return value;
+  }
+
+  return UNDEFINED_VAL;
+}
+
+void mapSet(ObjMap* map, Value key, Value value) {
+  tableSet(&map->table, AS_STRING(key), value);
+}
+
+void mapClear(ObjMap* map) { freeTable(&map->table); }
+
+void mapRemoveKey(ObjMap* map, Value key) {
+  tableDelete(&map->table, AS_STRING(key));
+}
+
 ObjNative* newNative(NativeFn function) {
-  ObjNative* obj = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE, NULL);
-  obj->function = function;
-  return obj;
+  ObjNative* native = ALLOCATE_OBJ(ObjNative, OBJ_NATIVE, NULL);
+  native->function = function;
+  return native;
 }
 
 ObjPrng* newPrng(uint64_t seed[4]) {
@@ -449,6 +476,13 @@ void printObject(Value value) {
         if (i != list->count - 1) printf(", ");
       }
       printf("]");
+      break;
+    }
+    case OBJ_MAP: {
+      ObjMap* map __attribute__((unused)) = AS_MAP(value);
+      //- TODO: Printing maps.
+      //  The VM can do it just fine while running bytecode, but it's harder manually.
+      printf("<map object>");
       break;
     }
     case OBJ_NATIVE:
