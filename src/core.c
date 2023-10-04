@@ -150,7 +150,9 @@ DEF_NATIVE(list_removeValue) {
 
 DEF_NATIVE(list_indexOf) {
   ObjList* list = AS_LIST(args[0]);
-  RETURN_NUMBER(listIndexOf(list, args[1]));
+  int index = listIndexOf(list, args[1]);
+  if (index == -1) RETURN_NONE;
+  RETURN_NUMBER(index);
 }
 
 DEF_NATIVE(list_swap) {
@@ -814,6 +816,19 @@ DEF_NATIVE(string_iteratorValue) {
   RETURN_OBJ(stringCodePointAt(string, index));
 }
 
+DEF_NATIVE(string_lowercase) {
+  char* string = AS_CSTRING(args[0]);
+  int length = AS_STRING(args[0])->length;
+
+  char* copy = ALLOCATE(char, length);
+  strcpy(copy, string);
+  for (int i = 0; i < length; i++) {
+    copy[i] = tolower(copy[i]);
+  }
+
+  RETURN_OBJ(takeString(copy, length));
+}
+
 DEF_NATIVE(string_startsWith) {
   if (!validateString(args[1], "Argument")) return false;
 
@@ -1063,6 +1078,7 @@ void initializeCore(VM* vm) {
   NATIVE(vm->stringClass, "iterate(1)", string_iterate);
   NATIVE(vm->stringClass, "iterateByte(1)", string_iterateByte);
   NATIVE(vm->stringClass, "iteratorValue(1)", string_iteratorValue);
+  NATIVE(vm->stringClass, "lowercase()", string_lowercase);
   NATIVE(vm->stringClass, "startsWith(1)", string_startsWith);
   NATIVE(vm->stringClass, "toString()", string_toString);
 
