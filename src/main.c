@@ -162,6 +162,7 @@ static void repl() {
 
     if (!fgets(line, sizeof(line), stdin)) {
       printf("\n");
+      printf("\033[A     \033[A\n");
       break;
     }
 

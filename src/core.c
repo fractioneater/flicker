@@ -820,6 +820,8 @@ DEF_NATIVE(string_lowercase) {
   char* string = AS_CSTRING(args[0]);
   int length = AS_STRING(args[0])->length;
 
+  if (length == 0) RETURN_VAL(args[0]);
+
   char* copy = ALLOCATE(char, length);
   strcpy(copy, string);
   for (int i = 0; i < length; i++) {
@@ -921,7 +923,7 @@ DEF_NATIVE(sys_input) {
   size_t bufferSize;
   int read = getline(&buffer, &bufferSize, stdin);
   if (read == -1) {
-    RETURN_OBJ(copyStringLength("", 0));
+    RETURN_ERROR("Cannot read past input EOF");
   }
 
   buffer[strcspn(buffer, "\r\n")] = '\0';
