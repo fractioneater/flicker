@@ -421,8 +421,13 @@ Token indentation() {
 
   if (c == '\n' || (c == '#' && peekNext() != ':')) {
     // This line doesn't count, it's just indentation or a full-line comment.
-    lexer.checkIndent = false;
-    return nullToken();
+    if (c != '\n') {
+      while (peek() != '\n' && !atEnd()) advance();
+    }
+
+    // Move on to the next line and try again.
+    advance();
+    return indentation();
   }
 
   if (indent > lexer.indents.data[lexer.indents.count - 1]) {

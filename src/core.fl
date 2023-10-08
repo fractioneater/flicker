@@ -17,52 +17,52 @@ class Sequence
       result = function(element)
       if not result do return False
     return True
-  
+
   any(function)
     var result = False
     each element in this
       result = function(element)
       if result do return True
     return False
-  
+
   contains(item)
     each element in this
       if element == item do return True
     return False
-  
+
   count(function)
     var result = 0
     each element in this
       if function(element) do result = result + 1
     return result
-  
+
   forEach(function)
     each element in this
       function(element)
-  
+
   attribute isEmpty = if (this.iterate(None)) False else True
-  
+
   map(transformation) = MapSequence(this, transformation)
-  
+
   skip(count)
     if (count is not Number) or (not count.isInteger) or count < 0
       error "Count must be a positive integer"
-    
+
     return SkipSequence(this, count)
-  
+
   take(count)
     if (count is not Number) or (not count.isInteger) or count < 0
       error "Count must be a positive integer"
-    
+
     return TakeSequence(this, count)
-  
+
   where(predicate) = WhereSequence(this, predicate)
-  
+
   reduce(acc, function)
     each element in this
       acc = function(acc, element)
     return acc
-  
+
   reduce(function)
     var iter = this.iterate(None)
     if not iter do return
@@ -70,20 +70,20 @@ class Sequence
     var result = this.iteratorValue(iter)
     while iter = this.iterate(iter)
       result = function(result, this.iteratorValue(iter))
-    
+
     return result
-  
+
   joinToString() = this.joinToString(", ")
-  
+
   joinToString(sep)
     var result = ""
 
     each item[index] in this
       if index != 0 do result = result + sep
       result = result + item.toString()
-    
+
     return result
-  
+
   toList()
     var result = List()
     each element in this
@@ -95,14 +95,14 @@ class MapSequence < Sequence
     pass
 
   iterate(iterator) = this.sequence.iterate(iterator)
-  
+
   iteratorValue(iterator)
     return this.function(this.sequence.iteratorValue(iterator))
 
 class SkipSequence < Sequence
   init(+sequence, +count)
     pass
-  
+
   iterate(iterator)
     if iterator
       return this.sequence.iterate(iterator)
@@ -117,63 +117,63 @@ class SkipSequence < Sequence
 class TakeSequence < Sequence
   init(+sequence, +count)
     pass
-  
+
   iterate(iterator)
     if not iterator do this.taken = 1 else do this.taken = this.taken + 1
     return if (this.taken > this.count) None else this.sequence.iterate(iterator)
-  
+
   iteratorValue(iterator) = this.sequence.iteratorValue(iterator)
 
 class WhereSequence < Sequence
   init(+sequence, +function)
     pass
-  
+
   iterate(iterator)
     while iterator = this.sequence.iterate(iterator)
       if this.function(this.sequence.iteratorValue(iterator)) do break
     return iterator
-  
+
   iteratorValue(iterator)
     return this.sequence.iteratorValue(iterator)
 
 class String < Sequence
   attribute bytes = StringByteSequence(this)
   attribute codePoints = StringCodePointSequence(this)
-  
+
   +(other) = this.concatenate(other.toString())
-  
+
   *(count)
     if (count is not Number) or (not count.isInteger) or count < 0
       error "Count must be a positive integer"
-    
+
     var result = ""
     each i in 0:count
       result = result + this
     return result
-  
+
   split(delimiter)
     if (delimiter is not String) or delimiter.isEmpty
       error "Delimiter must be a string"
-    
+
     var result = []
 
     var last = 0
     var index = 0
-    
+
     var delimiterSize = delimiter.byteCount
     var size = this.byteCount
 
     while last < size and (index = this.indexOf(delimiter, last)) != -1
       result.add(this[last:index])
       last = index + delimiterSize
-    
+
     if last < size
       result.add(this[last..-1])
     else
       result.add("")
-    
+
     return result
-  
+
   replace(from, to)
     if (from is not String) or from.isEmpty
       error "From value must be a non-empty string"
@@ -191,32 +191,32 @@ class String < Sequence
     while last < size and (index = indexOf(from, last)) != -1
       result = result + this[last:index] + to
       last = index + fromSize
-    
+
     if last < size do result = result + this[last..-1]
 
     return result
-  
+
   trim() = this.trim_("\t\r\n ", True, True)
   trim(chars) = this.trim_(chars, True, True)
   trimEnd() = this.trim_("\t\r\n ", False, True)
   trimEnd(chars) = this.trim_(chars, False, True)
   trimStart() = this.trim_("\t\r\n ", True, False)
   trimStart(chars) = this.trim_(chars, True, False)
-  
+
   trim_(chars, trimStart, trimEnd)
     if chars is not String
       error "Character being trimmed must be a string"
-    
+
     var codePoints = chars.codePoints.toList()
 
     var start
     if trimStart
-      while start = iterate(start)
+      while start = this.iterate(start)
         if not codePoints.contains(this.codePointAt(start)) do break
-      
+
       if start == False do return ""
     else do start = 0
-    
+
     var end
     if trimEnd
       end = this.byteCount - 1
@@ -224,8 +224,8 @@ class String < Sequence
         var codePoint = this.codePointAt(end)
         if codePoint != -1 and not codePoints.contains(codePoint) do break
         end = end - 1
-      
-      if end < start do return ""
+
+      if end <= start do return ""
     else do end = -1
 
     return this[start..end]
@@ -233,7 +233,7 @@ class String < Sequence
 class StringByteSequence < Sequence
   init(+string)
     pass
-  
+
   attribute count = this.string.byteCount
 
   get(index) = this.string.byteAt(index)
@@ -245,7 +245,7 @@ class StringCodePointSequence < Sequence
     pass
 
   attribute count = this.string.count
-  
+
   get(index) = this.string.codePointAt(index)
   iterate(iterator) = this.string.iterate(iterator)
   iteratorValue(iterator) = this.string.codePointAt(iterator)
@@ -256,20 +256,20 @@ class List < Sequence
     each element in other
       result.add(element)
     return result
-  
+
   *(count)
     if (count is not Number) or (not count.isInteger) or count < 0
       error "Count must be a positive integer"
-    
+
     var result = []
     each i in 0:count
       result.addAll(this)
     return result
-  
+
   addAll(other)
     each element in other
       this.add(element)
-  
+
   map(transformation)
     return super.map(transformation).toList()
 
@@ -286,7 +286,7 @@ class List < Sequence
       var p = this.partition(low, high, comparer)
       this.quicksort(low, p - 1, comparer)
       this.quicksort(p + 1, high, comparer)
-  
+
   partition(low, high, comparer)
     var pivot = this[high]
     var i = low - 1
@@ -296,7 +296,7 @@ class List < Sequence
         this.swap(i, j)
     this.swap(i + 1, high)
     return i + 1
-  
+
   toString() = "[=(this.joinToString())]"
 
 class Map < Sequence
@@ -311,28 +311,28 @@ class Map < Sequence
       if not first do result = result + ", "
       first = False
       result = result + "=(key) -> =(this[key])"
-    
+
     return result + "]"
-  
+
   iteratorValue(iterator) = MapEntry(this.keyIteratorValue(iterator), this.valueIteratorValue(iterator))
 
 class MapEntry
   init(+key, +value)
     pass
-  
+
   toString() = "=(this.key)->=(this.value)"
 
 class MapKeySequence < Sequence
   init(+map)
     pass
-  
+
   iterate(n) = this.map.iterate(n)
   iteratorValue(iterator) = this.map.keyIteratorValue(iterator)
 
 class MapValueSequence < Sequence
   init(+map)
     pass
-  
+
   iterate(n) = this.map.iterate(n)
   iteratorValue(iterator) = this.map.valueIteratorValue(iterator)
 
@@ -341,16 +341,16 @@ class Range < Sequence {}
 class Sys
   static `print`()
     Sys.writeString("\n")
-  
+
   static `print`(obj)
     Sys.writeObject(obj)
     Sys.writeString("\n")
     return obj
-  
+
   static printAll(sequence)
     each object in sequence do Sys.writeObject(object)
     Sys.writeString("\n")
-  
+
   static write(obj)
     Sys.writeObject(obj)
     return obj
@@ -362,7 +362,7 @@ class Sys
     var string = obj.toString()
     if string is not String
       string = "[invalid toString() method]"
-    
+
     Sys.writeString(string)
 
   static input() = Sys.input("")

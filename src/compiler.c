@@ -1260,35 +1260,46 @@ static void expression() { expressionBp(BP_ASSIGNMENT); }
 //   print "yes"
 // }
 
-static void block(bool indentationBased) {
+static void block() {
   matchLine();
-  if (!indentationBased) ignoreIndentation();
 
-  int blockEnd;
-  char* message;
-  if (indentationBased) {
-    blockEnd = TOKEN_DEDENT;
-    message = "Expecting indentation to decrease after block";
-  } else {
-    blockEnd = TOKEN_RIGHT_BRACE;
-    message = "Expecting '}' after block";
+  while (!check(TOKEN_DEDENT) && !check(TOKEN_EOF)) {
+    declaration();
+
+    if (parser.previous.type != TOKEN_DEDENT) {
+      if (!check(TOKEN_DEDENT) && !check(TOKEN_EOF)) {
+        expectStatementEnd("Expecting a newline after statement");
+      }
+    }
   }
 
-  while (!check(blockEnd) && !check(TOKEN_EOF)) {
-    if (!indentationBased) ignoreIndentation();
+  if (!check(TOKEN_EOF)) expect(TOKEN_DEDENT, "Expecting indentation to decrease after block");
+}
 
-    if (!check(blockEnd)) {
+static void lambdaBlock() {
+  matchLine();
+
+  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+    ignoreIndentation();
+
+    if (!check(TOKEN_RIGHT_BRACE)) {
       declaration();
 
       if (parser.previous.type != TOKEN_DEDENT) {
-        if (!check(blockEnd) && (!indentationBased || !check(TOKEN_EOF))) {
+        if (!check(TOKEN_RIGHT_BRACE)) {
           expectStatementEnd("Expecting a newline after statement");
         }
       }
     }
   }
 
-  if (!indentationBased || !check(TOKEN_EOF)) expect(blockEnd, message);
+  expect(TOKEN_RIGHT_BRACE, "Expecting '}' after lambda");
+}
+
+static void scopedBlock() {
+  pushScope();
+  block();
+  popScope();
 }
 
 static void function(FunctionType type) {
@@ -1314,12 +1325,10 @@ static void function(FunctionType type) {
   if (match(TOKEN_EQ)) {
     expression();
     emitByte(OP_RETURN);
-  } else if (matchLine()) {
-    expect(TOKEN_INDENT, "Expecting an indent before function body");
-    block(true);
   } else {
-    expect(TOKEN_LEFT_BRACE, "Expecting '{' before function body");
-    block(false);
+    expect(TOKEN_LINE, "Expecting a linebreak before function body");
+    expect(TOKEN_INDENT, "Expecting an indent before function body");
+    block();
   }
 
   ObjFunction* function = endCompiler();
@@ -1354,7 +1363,7 @@ static void lambda(bool canAssign) {
     }
   }
 
-  block(false);
+  lambdaBlock();
 
   ObjFunction* function = endCompiler();
   emitConstantArg(OP_CLOSURE, OBJ_VAL(function));
@@ -1445,13 +1454,10 @@ static void method() {
   if (match(TOKEN_EQ)) {
     expression();
     emitByte(OP_RETURN);
-  } else if (matchLine()) {
-    expect(TOKEN_INDENT, "Expecting an indent before method body");
-    block(true);
-  } else if (match(TOKEN_LEFT_BRACE)) {
-    block(false);
   } else {
-    statement();
+    expect(TOKEN_LINE, "Expecting a linebreak before method body");
+    expect(TOKEN_INDENT, "Expecting an indent before method body");
+    block();
   }
 
   ObjFunction* result = endCompiler();
@@ -1679,7 +1685,7 @@ static void whileStatement() {
   } else {
     expect(TOKEN_LINE, "Expecting a linebreak after condition");
     expect(TOKEN_INDENT, "Expecting an indent before body");
-    block(true);
+    scopedBlock();
   }
 
   endLoop();
@@ -1737,7 +1743,7 @@ static void forStatement() {
   } else {
     expect(TOKEN_LINE, "Expecting a linebreak after condition");
     expect(TOKEN_INDENT, "Expecting an indent before body");
-    block(true);
+    scopedBlock();
   }
 
   endLoop();
@@ -1809,7 +1815,7 @@ static void eachStatement() {
   } else {
     expect(TOKEN_LINE, "Expecting a linebreak after condition");
     expect(TOKEN_INDENT, "Expecting an indent before body");
-    block(true);
+    block();
   }
 
   popScope(); // Loop variable
@@ -1830,7 +1836,7 @@ static void ifStatement() {
   } else {
     expect(TOKEN_LINE, "Expecting a linebreak after condition");
     expect(TOKEN_INDENT, "Expecting an indent before body");
-    block(true);
+    scopedBlock();
   }
 
   int elseJump = emitJump(OP_JUMP);
@@ -1845,7 +1851,7 @@ static void ifStatement() {
     } else {
       expect(TOKEN_LINE, "Expecting a linebreak after 'else'");
       expect(TOKEN_INDENT, "Expecting an indent before body");
-      block(true);
+      scopedBlock();
     }
   }
   patchJump(elseJump);
@@ -1937,7 +1943,7 @@ static void whenStatement() {
         } else {
           expect(TOKEN_LINE, "Expecting a linebreak after case");
           expect(TOKEN_INDENT, "Expecting an indent before body");
-          block(true);
+          scopedBlock();
         }
       } else {
         if (state == 0) {
@@ -1951,7 +1957,7 @@ static void whenStatement() {
         } else {
           expect(TOKEN_LINE, "Expecting a linebreak after condition");
           expect(TOKEN_INDENT, "Expecting an indent before body");
-          block(true);
+          scopedBlock();
         }
       }
     } else {
