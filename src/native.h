@@ -7,15 +7,15 @@
 #include "vm.h"
 
 #define NATIVE(cls, name, function) \
-  tableSet(&cls->methods, copyString(name), OBJ_VAL(newNative(prim_##function)))
+  tableSet(&cls->methods, copyString(name), OBJ_VAL(newNative(native_##function)))
 
-#define NATIVE_INIT(cls, function, argCount)                \
-  do {                                                      \
-    cls->initializer = OBJ_VAL(newNative(prim_##function)); \
-    cls->arity = argCount;                                  \
+#define NATIVE_INIT(cls, function, argCount)                  \
+  do {                                                        \
+    cls->initializer = OBJ_VAL(newNative(native_##function)); \
+    cls->arity = argCount;                                    \
   } while (false)
 
-#define DEF_NATIVE(name) static bool prim_##name(Value* args)
+#define DEF_NATIVE(name) static bool native_##name(Value* args)
 
 #define RETURN_VAL(value) \
   do {                    \

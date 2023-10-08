@@ -10,6 +10,8 @@ class Sequence
     var result = 0
     each i in this do result = result + 1
     return result
+  
+  attribute isEmpty = if (this.iterate(None)) False else True
 
   all(function)
     var result = True
@@ -39,8 +41,6 @@ class Sequence
   forEach(function)
     each element in this
       function(element)
-
-  attribute isEmpty = if (this.iterate(None)) False else True
 
   map(transformation) = MapSequence(this, transformation)
 
@@ -153,7 +153,7 @@ class String < Sequence
 
   split(delimiter)
     if (delimiter is not String) or delimiter.isEmpty
-      error "Delimiter must be a string"
+      error "Delimiter must be a string of at least one character"
 
     var result = []
 
@@ -188,7 +188,7 @@ class String < Sequence
     var fromSize = from.byteCount
     var size = this.byteCount
 
-    while last < size and (index = indexOf(from, last)) != -1
+    while last < size and (index = this.indexOf(from, last)) != -1
       result = result + this[last:index] + to
       last = index + fromSize
 
