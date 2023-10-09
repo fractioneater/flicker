@@ -164,7 +164,7 @@ static bool callArity(ObjClosure* closure, int argCount) {
 
 static bool callNative(ObjNative* native, int argCount) {
   bool success = native->function(vm.stackTop - argCount - 1);
-  vm.stackTop -= argCount;
+  if (success) vm.stackTop -= argCount;
   return success;
 }
 

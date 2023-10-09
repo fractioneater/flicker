@@ -1003,40 +1003,55 @@ static void stringInterpolation(bool canAssign) {
   callMethod(1, "joinToString(1)", 15);
 }
 
-static void list(bool canAssign) {
-  emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyStringLength("List", 4)));
+static void collection(bool canAssign) {
+  if (match(TOKEN_RIGHT_BRACKET)) {
+    emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyStringLength("List", 4)));
+    emitByte(OP_CALL_0);
+    return;
+  }
+
+  pushScope();
+
+  expression();
+  addLocal(syntheticToken("`first"));
+  markInitialized();
+  int firstSlot = current->localCount - 1;
+
+  bool isMap = match(TOKEN_RIGHT_ARROW);
+  bool first = true;
+
+  emitConstantArg(OP_GET_GLOBAL, isMap ? OBJ_VAL(copyStringLength("Map", 3))
+                                       : OBJ_VAL(copyStringLength("List", 4)));
   emitByte(OP_CALL_0);
-  
+
   do {
     matchLine();
-
     if (check(TOKEN_RIGHT_BRACKET)) break;
 
-    expression();
-    callMethod(1, "addCore(1)", 10);
+    if (first) {
+      emitBytes(OP_GET_LOCAL, firstSlot);
+    } else {
+      expression();      
+    }
+
+    if (isMap) {
+      if (!first) expect(TOKEN_RIGHT_ARROW, "Expecting '->' after map key");
+      expression();
+      callMethod(2, "addCore(2)", 10);
+    } else {
+      callMethod(1, "addCore(1)", 10);
+    }
+
+    first = false;
   } while (match(TOKEN_COMMA));
 
   matchLine();
-  expect(TOKEN_RIGHT_BRACKET, "Expecting ']' after list literal");
-}
+  if (isMap) expect(TOKEN_RIGHT_BRACKET, "Expecting ']' after map literal");
+  else expect(TOKEN_RIGHT_BRACKET, "Expecting ']' after list literal");
 
-static void map(bool canAssign) {
-  expect(TOKEN_LEFT_BRACKET, "Expecting '[' to begin map literal");
-  emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyStringLength("Map", 3)));
-  emitByte(OP_CALL_0);
+  emitBytes(OP_SET_LOCAL, firstSlot);
 
-  do {
-    matchLine();
-    if (check(TOKEN_RIGHT_BRACKET)) break;
-
-    expression();
-    expect(TOKEN_RIGHT_ARROW, "Expecting '->' after map key");
-    expression();
-    callMethod(2, "addCore(2)", 10);
-  } while (match(TOKEN_COMMA));
-
-  matchLine();
-  expect(TOKEN_RIGHT_BRACKET, "Expecting ']' after map literal");
+  popScope();
 }
 
 static void subscript(bool canAssign) {
@@ -1151,7 +1166,7 @@ static void unary(bool canAssign) {
 ParseRule rules[] = {
   /* TOKEN_LEFT_PAREN    */ BOTH(grouping, call, BP_CALL),
   /* TOKEN_RIGHT_PAREN   */ UNUSED,
-  /* TOKEN_LEFT_BRACKET  */ BOTH(list, subscript, BP_CALL),
+  /* TOKEN_LEFT_BRACKET  */ BOTH(collection, subscript, BP_CALL),
   /* TOKEN_RIGHT_BRACKET */ UNUSED,
   /* TOKEN_LEFT_BRACE    */ BOTH(lambda, callFunction, BP_CALL),
   /* TOKEN_RIGHT_BRACE   */ UNUSED,
@@ -1166,7 +1181,7 @@ ParseRule rules[] = {
   /* TOKEN_TILDE         */ PREFIX_OPERATOR(BP_UNARY, "~"),
   /* TOKEN_DOT           */ INFIX(dot, BP_CALL),
   /* TOKEN_DOT_DOT       */ INFIX_OPERATOR(BP_RANGE, ".."),
-  /* TOKEN_COLON         */ { map, binary, BP_RANGE, ":", binarySignature },
+  /* TOKEN_COLON         */ INFIX_OPERATOR(BP_RANGE, ":"),
   /* TOKEN_COLON_COLON   */ INFIX(callable, BP_CALL),
   /* TOKEN_STAR          */ INFIX_OPERATOR(BP_FACTOR, "*"),
   /* TOKEN_STAR_STAR     */ INFIX_OPERATOR(BP_EXPONENT, "**"),
