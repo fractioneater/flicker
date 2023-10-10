@@ -298,7 +298,7 @@ static void defineMethod(ObjString* name) {
   pop();
 }
 
-//- TODO: Merge defineClassMethod() with defineMethod()
+// TODO MAYBE: Merge defineClassMethod() with defineMethod()
 
 static void defineClassMethod(ObjString* name) {
   Value method = peek();

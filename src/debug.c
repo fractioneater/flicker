@@ -73,202 +73,202 @@ int disassembleInstruction(Chunk* chunk, int offset) {
   uint8_t instruction = chunk->code[offset];
   switch (instruction) {
     case OP_CONSTANT:
-      return constantInstruction("OP_CONSTANT", chunk, offset);
+      return constantInstruction("CONSTANT", chunk, offset);
     case OP_NONE:
-      return simpleInstruction("OP_NONE", offset);
+      return simpleInstruction("NONE", offset);
     case OP_TRUE:
-      return simpleInstruction("OP_TRUE", offset);
+      return simpleInstruction("TRUE", offset);
     case OP_FALSE:
-      return simpleInstruction("OP_FALSE", offset);
+      return simpleInstruction("FALSE", offset);
     case OP_POP:
-      return simpleInstruction("OP_POP", offset);
+      return simpleInstruction("POP", offset);
     case OP_DUP:
-      return simpleInstruction("OP_DUP", offset);
+      return simpleInstruction("DUP", offset);
     case OP_GET_LOCAL:
-      return byteInstruction("OP_GET_LOCAL", chunk, offset);
+      return byteInstruction("GET_LOCAL", chunk, offset);
     case OP_SET_LOCAL:
-      return byteInstruction("OP_SET_LOCAL", chunk, offset);
+      return byteInstruction("SET_LOCAL", chunk, offset);
     case OP_GET_GLOBAL:
-      return constantInstruction("OP_GET_GLOBAL", chunk, offset);
+      return constantInstruction("GET_GLOBAL", chunk, offset);
     case OP_DEFINE_GLOBAL:
-      return constantInstruction("OP_DEFINE_GLOBAL", chunk, offset);
+      return constantInstruction("DEFINE_GLOBAL", chunk, offset);
     case OP_SET_GLOBAL:
-      return constantInstruction("OP_SET_GLOBAL", chunk, offset);
+      return constantInstruction("SET_GLOBAL", chunk, offset);
     case OP_GET_UPVALUE:
-      return byteInstruction("OP_GET_UPVALUE", chunk, offset);
+      return byteInstruction("GET_UPVALUE", chunk, offset);
     case OP_SET_UPVALUE:
-      return byteInstruction("OP_SET_UPVALUE", chunk, offset);
+      return byteInstruction("SET_UPVALUE", chunk, offset);
     case OP_GET_PROPERTY:
-      return constantInstruction("OP_GET_PROPERTY", chunk, offset);
+      return constantInstruction("GET_PROPERTY", chunk, offset);
     case OP_SET_PROPERTY:
-      return constantInstruction("OP_SET_PROPERTY", chunk, offset);
+      return constantInstruction("SET_PROPERTY", chunk, offset);
     case OP_BIND_METHOD:
-      return constantInstruction("OP_GET_METHOD", chunk, offset);
+      return constantInstruction("GET_METHOD", chunk, offset);
     case OP_BIND_SUPER:
-      return constantInstruction("OP_GET_SUPER", chunk, offset);
+      return constantInstruction("GET_SUPER", chunk, offset);
 #if !METHOD_CALL_OPERATORS
     case OP_EQUAL:
-      return simpleInstruction("OP_EQUAL", offset);
+      return simpleInstruction("EQUAL", offset);
     case OP_NOT_EQUAL:
-      return simpleInstruction("OP_NOT_EQUAL", offset);
+      return simpleInstruction("NOT_EQUAL", offset);
     case OP_GREATER:
-      return simpleInstruction("OP_GREATER", offset);
+      return simpleInstruction("GREATER", offset);
     case OP_GREATER_EQUAL:
-      return simpleInstruction("OP_GREATER_EQUAL", offset);
+      return simpleInstruction("GREATER_EQUAL", offset);
     case OP_LESS:
-      return simpleInstruction("OP_LESS", offset);
+      return simpleInstruction("LESS", offset);
     case OP_LESS_EQUAL:
-      return simpleInstruction("OP_LESS_EQUAL", offset);
+      return simpleInstruction("LESS_EQUAL", offset);
     case OP_BIT_OR:
-      return simpleInstruction("OP_BIT_OR", offset);
+      return simpleInstruction("BIT_OR", offset);
     case OP_BIT_XOR:
-      return simpleInstruction("OP_BIT_XOR", offset);
+      return simpleInstruction("BIT_XOR", offset);
     case OP_BIT_AND:
-      return simpleInstruction("OP_BIT_AND", offset);
+      return simpleInstruction("BIT_AND", offset);
     case OP_SHL:
-      return simpleInstruction("OP_SHL", offset);
+      return simpleInstruction("SHL", offset);
     case OP_SHR:
-      return simpleInstruction("OP_SHR", offset);
+      return simpleInstruction("SHR", offset);
     case OP_RANGE_EXCL:
-      return simpleInstruction("OP_RANGE_EXCL", offset);
+      return simpleInstruction("RANGE_EXCL", offset);
     case OP_RANGE_INCL:
-      return simpleInstruction("OP_RANGE_INCL", offset);
+      return simpleInstruction("RANGE_INCL", offset);
     case OP_ADD:
-      return simpleInstruction("OP_ADD", offset);
+      return simpleInstruction("ADD", offset);
     case OP_SUBTRACT:
-      return simpleInstruction("OP_SUBTRACT", offset);
+      return simpleInstruction("SUBTRACT", offset);
     case OP_MULTIPLY:
-      return simpleInstruction("OP_MULTIPLY", offset);
+      return simpleInstruction("MULTIPLY", offset);
     case OP_DIVIDE:
-      return simpleInstruction("OP_DIVIDE", offset);
+      return simpleInstruction("DIVIDE", offset);
     case OP_MODULO:
-      return simpleInstruction("OP_MODULO", offset);
+      return simpleInstruction("MODULO", offset);
     case OP_EXPONENT:
-      return simpleInstruction("OP_EXPONENT", offset);
+      return simpleInstruction("EXPONENT", offset);
     case OP_NOT:
-      return simpleInstruction("OP_NOT", offset);
+      return simpleInstruction("NOT", offset);
     case OP_NEGATE:
-      return simpleInstruction("OP_NEGATE", offset);
+      return simpleInstruction("NEGATE", offset);
 #endif
     case OP_PRINT:
-      return simpleInstruction("OP_PRINT", offset);
+      return simpleInstruction("PRINT", offset);
     case OP_ERROR:
-      return simpleInstruction("OP_ERROR", offset);
+      return simpleInstruction("ERROR", offset);
     case OP_JUMP:
-      return jumpInstruction("OP_JUMP", 1, chunk, offset);
+      return jumpInstruction("JUMP", 1, chunk, offset);
     case OP_JUMP_FALSY:
-      return jumpInstruction("OP_JUMP_FALSY", 1, chunk, offset);
+      return jumpInstruction("JUMP_FALSY", 1, chunk, offset);
     case OP_JUMP_TRUTHY:
-      return jumpInstruction("OP_JUMP_TRUTHY", 1, chunk, offset);
+      return jumpInstruction("JUMP_TRUTHY", 1, chunk, offset);
     case OP_LOOP:
-      return jumpInstruction("OP_LOOP", -1, chunk, offset);
+      return jumpInstruction("LOOP", -1, chunk, offset);
     // Just so you know, I didn't type this next section by hand.
     case OP_CALL_0:
-      return simpleInstruction("OP_CALL_0", offset);
+      return simpleInstruction("CALL_0", offset);
     case OP_CALL_1:
-      return simpleInstruction("OP_CALL_1", offset);
+      return simpleInstruction("CALL_1", offset);
     case OP_CALL_2:
-      return simpleInstruction("OP_CALL_2", offset);
+      return simpleInstruction("CALL_2", offset);
     case OP_CALL_3:
-      return simpleInstruction("OP_CALL_3", offset);
+      return simpleInstruction("CALL_3", offset);
     case OP_CALL_4:
-      return simpleInstruction("OP_CALL_4", offset);
+      return simpleInstruction("CALL_4", offset);
     case OP_CALL_5:
-      return simpleInstruction("OP_CALL_5", offset);
+      return simpleInstruction("CALL_5", offset);
     case OP_CALL_6:
-      return simpleInstruction("OP_CALL_6", offset);
+      return simpleInstruction("CALL_6", offset);
     case OP_CALL_7:
-      return simpleInstruction("OP_CALL_7", offset);
+      return simpleInstruction("CALL_7", offset);
     case OP_CALL_8:
-      return simpleInstruction("OP_CALL_8", offset);
+      return simpleInstruction("CALL_8", offset);
     case OP_CALL_9:
-      return simpleInstruction("OP_CALL_9", offset);
+      return simpleInstruction("CALL_9", offset);
     case OP_CALL_10:
-      return simpleInstruction("OP_CALL_10", offset);
+      return simpleInstruction("CALL_10", offset);
     case OP_CALL_11:
-      return simpleInstruction("OP_CALL_11", offset);
+      return simpleInstruction("CALL_11", offset);
     case OP_CALL_12:
-      return simpleInstruction("OP_CALL_12", offset);
+      return simpleInstruction("CALL_12", offset);
     case OP_CALL_13:
-      return simpleInstruction("OP_CALL_13", offset);
+      return simpleInstruction("CALL_13", offset);
     case OP_CALL_14:
-      return simpleInstruction("OP_CALL_14", offset);
+      return simpleInstruction("CALL_14", offset);
     case OP_CALL_15:
-      return simpleInstruction("OP_CALL_15", offset);
+      return simpleInstruction("CALL_15", offset);
     case OP_CALL_16:
-      return simpleInstruction("OP_CALL_16", offset);
+      return simpleInstruction("CALL_16", offset);
     case OP_INVOKE_0:
-      return invokeInstruction("OP_INVOKE_0", chunk, offset);
+      return invokeInstruction("INVOKE_0", chunk, offset);
     case OP_INVOKE_1:
-      return invokeInstruction("OP_INVOKE_1", chunk, offset);
+      return invokeInstruction("INVOKE_1", chunk, offset);
     case OP_INVOKE_2:
-      return invokeInstruction("OP_INVOKE_2", chunk, offset);
+      return invokeInstruction("INVOKE_2", chunk, offset);
     case OP_INVOKE_3:
-      return invokeInstruction("OP_INVOKE_3", chunk, offset);
+      return invokeInstruction("INVOKE_3", chunk, offset);
     case OP_INVOKE_4:
-      return invokeInstruction("OP_INVOKE_4", chunk, offset);
+      return invokeInstruction("INVOKE_4", chunk, offset);
     case OP_INVOKE_5:
-      return invokeInstruction("OP_INVOKE_5", chunk, offset);
+      return invokeInstruction("INVOKE_5", chunk, offset);
     case OP_INVOKE_6:
-      return invokeInstruction("OP_INVOKE_6", chunk, offset);
+      return invokeInstruction("INVOKE_6", chunk, offset);
     case OP_INVOKE_7:
-      return invokeInstruction("OP_INVOKE_7", chunk, offset);
+      return invokeInstruction("INVOKE_7", chunk, offset);
     case OP_INVOKE_8:
-      return invokeInstruction("OP_INVOKE_8", chunk, offset);
+      return invokeInstruction("INVOKE_8", chunk, offset);
     case OP_INVOKE_9:
-      return invokeInstruction("OP_INVOKE_9", chunk, offset);
+      return invokeInstruction("INVOKE_9", chunk, offset);
     case OP_INVOKE_10:
-      return invokeInstruction("OP_INVOKE_10", chunk, offset);
+      return invokeInstruction("INVOKE_10", chunk, offset);
     case OP_INVOKE_11:
-      return invokeInstruction("OP_INVOKE_11", chunk, offset);
+      return invokeInstruction("INVOKE_11", chunk, offset);
     case OP_INVOKE_12:
-      return invokeInstruction("OP_INVOKE_12", chunk, offset);
+      return invokeInstruction("INVOKE_12", chunk, offset);
     case OP_INVOKE_13:
-      return invokeInstruction("OP_INVOKE_13", chunk, offset);
+      return invokeInstruction("INVOKE_13", chunk, offset);
     case OP_INVOKE_14:
-      return invokeInstruction("OP_INVOKE_14", chunk, offset);
+      return invokeInstruction("INVOKE_14", chunk, offset);
     case OP_INVOKE_15:
-      return invokeInstruction("OP_INVOKE_15", chunk, offset);
+      return invokeInstruction("INVOKE_15", chunk, offset);
     case OP_INVOKE_16:
-      return invokeInstruction("OP_INVOKE_16", chunk, offset);
+      return invokeInstruction("INVOKE_16", chunk, offset);
     case OP_SUPER_0:
-      return invokeInstruction("OP_SUPER_0", chunk, offset);
+      return invokeInstruction("SUPER_0", chunk, offset);
     case OP_SUPER_1:
-      return invokeInstruction("OP_SUPER_1", chunk, offset);
+      return invokeInstruction("SUPER_1", chunk, offset);
     case OP_SUPER_2:
-      return invokeInstruction("OP_SUPER_2", chunk, offset);
+      return invokeInstruction("SUPER_2", chunk, offset);
     case OP_SUPER_3:
-      return invokeInstruction("OP_SUPER_3", chunk, offset);
+      return invokeInstruction("SUPER_3", chunk, offset);
     case OP_SUPER_4:
-      return invokeInstruction("OP_SUPER_4", chunk, offset);
+      return invokeInstruction("SUPER_4", chunk, offset);
     case OP_SUPER_5:
-      return invokeInstruction("OP_SUPER_5", chunk, offset);
+      return invokeInstruction("SUPER_5", chunk, offset);
     case OP_SUPER_6:
-      return invokeInstruction("OP_SUPER_6", chunk, offset);
+      return invokeInstruction("SUPER_6", chunk, offset);
     case OP_SUPER_7:
-      return invokeInstruction("OP_SUPER_7", chunk, offset);
+      return invokeInstruction("SUPER_7", chunk, offset);
     case OP_SUPER_8:
-      return invokeInstruction("OP_SUPER_8", chunk, offset);
+      return invokeInstruction("SUPER_8", chunk, offset);
     case OP_SUPER_9:
-      return invokeInstruction("OP_SUPER_9", chunk, offset);
+      return invokeInstruction("SUPER_9", chunk, offset);
     case OP_SUPER_10:
-      return invokeInstruction("OP_SUPER_10", chunk, offset);
+      return invokeInstruction("SUPER_10", chunk, offset);
     case OP_SUPER_11:
-      return invokeInstruction("OP_SUPER_11", chunk, offset);
+      return invokeInstruction("SUPER_11", chunk, offset);
     case OP_SUPER_12:
-      return invokeInstruction("OP_SUPER_12", chunk, offset);
+      return invokeInstruction("SUPER_12", chunk, offset);
     case OP_SUPER_13:
-      return invokeInstruction("OP_SUPER_13", chunk, offset);
+      return invokeInstruction("SUPER_13", chunk, offset);
     case OP_SUPER_14:
-      return invokeInstruction("OP_SUPER_14", chunk, offset);
+      return invokeInstruction("SUPER_14", chunk, offset);
     case OP_SUPER_15:
-      return invokeInstruction("OP_SUPER_15", chunk, offset);
+      return invokeInstruction("SUPER_15", chunk, offset);
     case OP_SUPER_16:
-      return invokeInstruction("OP_SUPER_16", chunk, offset);
+      return invokeInstruction("SUPER_16", chunk, offset);
     case OP_CLOSURE: {
       int constant = variableConstant(chunk, offset);
       offset += constant >= 0x80 ? 3 : 2;
-      printf("%-16s %4d ", "OP_CLOSURE", constant);
+      printf("%-16s %4d ", "CLOSURE", constant);
       printValue(chunk->constants.values[constant]);
       printf("\n");
 
@@ -283,17 +283,17 @@ int disassembleInstruction(Chunk* chunk, int offset) {
       return offset;
     }
     case OP_CLOSE_UPVALUE:
-      return simpleInstruction("OP_CLOSE_UPVALUE", offset);
+      return simpleInstruction("CLOSE_UPVALUE", offset);
     case OP_RETURN:
-      return simpleInstruction("OP_RETURN", offset);
+      return simpleInstruction("RETURN", offset);
     case OP_CLASS:
-      return constantInstruction("OP_CLASS", chunk, offset);
+      return constantInstruction("CLASS", chunk, offset);
     case OP_INITIALIZER:
-      return simpleInstruction("OP_INITIALIZER", offset);
+      return simpleInstruction("INITIALIZER", offset);
     case OP_METHOD_INSTANCE:
-      return constantInstruction("OP_METHOD_INSTANCE", chunk, offset);
+      return constantInstruction("METHOD_INSTANCE", chunk, offset);
     case OP_METHOD_STATIC:
-      return constantInstruction("OP_METHOD_STATIC", chunk, offset);
+      return constantInstruction("METHOD_STATIC", chunk, offset);
     default:
       printf("Unknown opcode %d\n", instruction);
       return offset + 1;

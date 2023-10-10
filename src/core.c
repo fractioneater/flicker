@@ -39,7 +39,7 @@ DEF_NATIVE(bool_toString) {
 
 DEF_NATIVE(class_name) { RETURN_OBJ(AS_CLASS(args[0])->name); }
 
-DEF_NATIVE(class_superclass) {
+DEF_NATIVE(class_supertype) {
   ObjClass* cls = AS_CLASS(args[0]);
 
   if (cls->superclass == NULL) RETURN_NONE;
@@ -212,7 +212,7 @@ DEF_NATIVE(list_set) {
 DEF_NATIVE(map_init) { RETURN_OBJ(newMap()); }
 
 DEF_NATIVE(map_get) {
-  //- TODO: Support more than just strings as keys.
+  // TODO: Support more than just strings as keys.
   if (!validateString(args[1], "Key")) return false;
 
   ObjMap* map = AS_MAP(args[0]);
@@ -248,6 +248,7 @@ DEF_NATIVE(map_containsKey) {
 }
 
 DEF_NATIVE(map_size) {
+  // TODO: Tombstones are counted, although they probably shouldn't be.
   RETURN_NUMBER(AS_MAP(args[0])->table.count);
 }
 
@@ -344,6 +345,7 @@ DEF_NATIVE(number_fromString) {
 #define DEF_NUM_CONSTANT(name, value) DEF_NATIVE(number_##name) { RETURN_NUMBER(value); }
 
 DEF_NUM_CONSTANT(infinity,   INFINITY)
+// TODO: For some reason the "==(1)" method causes a segfault for Number.nan.
 DEF_NUM_CONSTANT(nan,        DOUBLE_NAN)
 DEF_NUM_CONSTANT(pi,         3.141592653589793238462643383279502884197L)
 DEF_NUM_CONSTANT(tau,        6.283185307179586476925286766559005768394L)
@@ -463,7 +465,7 @@ DEF_NATIVE(number_max) {
 
 DEF_NATIVE(number_clamp) {
   if (!validateNumber(args[1], "Min value")) return false;
-  if (!validateNumber(args[1], "Max value")) return false;
+  if (!validateNumber(args[2], "Max value")) return false;
 
   double value = AS_NUMBER(args[0]);
   double min = AS_NUMBER(args[1]);
@@ -597,6 +599,8 @@ DEF_NATIVE(random_randBytes) {
   if (!validateInt(args[1], "Byte count")) return false;
 
   int count = (int)AS_NUMBER(args[1]);
+  if (count < 0) RETURN_ERROR("Byte count must be a non-negative integer");
+
   ObjList* output = newList(count);
   uint8_t buffer[count];
 
@@ -877,6 +881,8 @@ DEF_NATIVE(string_toString) { RETURN_VAL(args[0]); }
 // Sys          //
 //////////////////
 
+// TODO: Test past this point.
+
 DEF_NATIVE(sys_clock) {
   RETURN_NUMBER((double)clock() / CLOCKS_PER_SEC);
 }
@@ -923,6 +929,7 @@ DEF_NATIVE(sys_input) {
   size_t bufferSize;
   int read = getline(&buffer, &bufferSize, stdin);
   if (read == -1) {
+    printf("\n");
     RETURN_ERROR("Cannot read past input EOF");
   }
 
@@ -976,7 +983,7 @@ void initializeCore(VM* vm) {
   vm->classClass = defineClass(vm, "Class");
   bindSuperclass(vm->classClass, vm->objectClass);
   NATIVE(vm->classClass, "name", class_name);
-  NATIVE(vm->classClass, "superclass", class_superclass);
+  NATIVE(vm->classClass, "supertype", class_supertype);
   NATIVE(vm->classClass, "toString()", class_toString);
 
   ObjClass* objectMetaclass = defineClass(vm, "Object metaclass");
@@ -985,7 +992,7 @@ void initializeCore(VM* vm) {
   objectMetaclass->obj.cls = vm->classClass;
   vm->classClass->obj.cls = vm->classClass;
 
-  NATIVE(vm->objectClass, "same(2)", object_same);
+  NATIVE(vm->objectClass->obj.cls, "same(2)", object_same);
 
   interpret(coreSource, "core", false);
 
@@ -1118,8 +1125,8 @@ void initializeCore(VM* vm) {
   GET_CORE_CLASS(vm->rangeClass, "Range");
   NATIVE(vm->rangeClass, "from", range_from);
   NATIVE(vm->rangeClass, "to", range_to);
-  NATIVE(vm->rangeClass, "min()", range_min);
-  NATIVE(vm->rangeClass, "max()", range_max);
+  NATIVE(vm->rangeClass, "min", range_min);
+  NATIVE(vm->rangeClass, "max", range_max);
   NATIVE(vm->rangeClass, "isInclusive", range_isInclusive);
   NATIVE(vm->rangeClass, "iterate(1)", range_iterate);
   NATIVE(vm->rangeClass, "iteratorValue(1)", range_iteratorValue);

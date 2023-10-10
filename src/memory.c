@@ -83,6 +83,11 @@ static void blackenObject(Obj* object) {
     }
     case OBJ_CLASS: {
       ObjClass* cls = (ObjClass*)object;
+      // Mark the metaclass
+      markObject((Obj*)cls->obj.cls);
+      // And the superclass
+      markObject((Obj*)cls->superclass);
+
       markObject((Obj*)cls->name);
       markValue(cls->initializer);
       markTable(&cls->methods);

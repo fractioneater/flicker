@@ -1,9 +1,9 @@
 // Automatically generated file. Do not edit.
 static const char* coreSource __attribute__((unused)) =
-"class Bool {}\n"
-"class Function {}\n"
-"class `None` {}\n"
-"class Number {}\n"
+"class Bool []\n"
+"class Function []\n"
+"class `None` []\n"
+"class Number []\n"
 "class Random\n"
 "  randByte() = this.randBytes(1)[0]\n"
 "\n"
@@ -338,7 +338,7 @@ static const char* coreSource __attribute__((unused)) =
 "  iterate(n) = this.map.iterate(n)\n"
 "  iteratorValue(iterator) = this.map.valueIteratorValue(iterator)\n"
 "\n"
-"class Range < Sequence {}\n"
+"class Range < Sequence []\n"
 "\n"
 "class Sys\n"
 "  static `print`()\n"

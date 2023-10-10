@@ -56,13 +56,11 @@ ObjClass* newClass(ObjString* name) {
   metaclass->obj.cls = vm.classClass;
 
   popRoot();
-
   pushRoot((Obj*)metaclass);
 
   bindSuperclass(metaclass, vm.classClass);
 
   ObjClass* cls = newSingleClass(name);
-
   pushRoot((Obj*)cls);
 
   cls->obj.cls = metaclass;
@@ -480,9 +478,9 @@ void printObject(Value value) {
     }
     case OBJ_MAP: {
       ObjMap* map __attribute__((unused)) = AS_MAP(value);
-      //- TODO: Printing maps.
-      //  The VM can do it just fine while running bytecode, but it's harder manually.
-      printf("<map object>");
+      // TODO: Printing maps.
+      // The VM can do it just fine while running bytecode, but it's harder manually.
+      printf("Map instance");
       break;
     }
     case OBJ_NATIVE:

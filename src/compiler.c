@@ -407,21 +407,10 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 
 static ObjFunction* endCompiler() {
   if (current->scopeDepth == 0 && parser.onExpression && parser.printResult) {
-    emitByte(OP_DUP); //- TODO NEXT: This doesn't always work.
-    emitByte(OP_NONE);
-    callMethod(1, "==(1)", 5);
-    
-    int isNone = emitJump(OP_JUMP_TRUTHY);
-    emitByte(OP_POP);
-
-    callMethod(0, "toString()", 10);
     emitByte(OP_RETURN);
-
-    patchJump(isNone);
-    emitByte(OP_POP);
-    // None is already on the stack, so I don't need to add another.
-    emitByte(OP_RETURN);
-  } else emitReturn();
+  } else {
+    emitReturn();
+  }
 
   ObjFunction* function = current->function;
 
@@ -1232,7 +1221,7 @@ ParseRule rules[] = {
   /* TOKEN_THIS          */ PREFIX(this_, BP_NONE),
   /* TOKEN_TRUE          */ PREFIX(literal, BP_NONE),
   /* TOKEN_VAR           */ UNUSED,
-  /* TOKEN_WHEN          */ UNUSED, //- TODO: When expressions
+  /* TOKEN_WHEN          */ UNUSED, // TODO: When expressions
   /* TOKEN_WHILE         */ UNUSED,
   /* TOKEN_INDENT        */ UNUSED,
   /* TOKEN_DEDENT        */ UNUSED,
@@ -1521,33 +1510,21 @@ static void classDeclaration() {
 
   namedVariable(className, false);
 
-  bool indentationBased;
-  int blockEnd;
-  char* message;
-  if (matchLine()) {
-    indentationBased = true;
-    blockEnd = TOKEN_DEDENT;
-    message = "Expecting indentation to decrease after class body";
-
+  bool empty = match(TOKEN_LEFT_BRACKET) && match(TOKEN_RIGHT_BRACKET);
+  empty = empty || match(TOKEN_SEMICOLON);
+  if (!empty) {
+    expect(TOKEN_LINE, "Expecting a linebreak before class body");
     expect(TOKEN_INDENT, "Expecting an indent before class body");
-  } else {
-    indentationBased = false;
-    blockEnd = TOKEN_RIGHT_BRACE;
-    message = "Expecting '}' after class body";
 
-    expect(TOKEN_LEFT_BRACE, "Expecting '{' before class body");
-  }
-
-  matchLine();
-  if (!indentationBased) ignoreIndentation();
-
-  while (!check(blockEnd) && !check(TOKEN_EOF)) {
-    method();
     matchLine();
-    if (!indentationBased) ignoreIndentation();
-  }
 
-  if (!indentationBased || !check(TOKEN_EOF)) expect(blockEnd, message);
+    while (!check(TOKEN_DEDENT) && !check(TOKEN_EOF)) {
+      method();
+      matchLine();
+    }
+
+    if (!check(TOKEN_EOF)) expect(TOKEN_DEDENT, "Expecting indentation to decrease after class body");
+  }
 
   emitByte(OP_POP); // Class
   popScope();
@@ -1878,12 +1855,12 @@ static void whenStatement() {
   expression();
   match(TOKEN_DO);
 
-  //- TODO: Possibly make custom operators, like this:
+  // TODO: Possibly make custom operators, like this:
   //
-  //  when variable
-  //    >= 3 do something()
-  //    == 3 do somethingElse()
-  //    3 do somethingElse() # same as ==
+  // when var
+  //   >= 3 do something()
+  //   == 3 do somethingElse()
+  //   3 do somethingElse() # same as ==
 
   bool indentationBased;
   int blockEnd;
@@ -1938,10 +1915,10 @@ static void whenStatement() {
         emitByte(OP_DUP);
         expression();
 
-        //- TODO: Add multiple expressions to compare to, like this:
+        // TODO: Add multiple expressions to compare to, like this:
         //
-        //  when var
-        //    is 3 | 4 do print "3 or 4"
+        // when var
+        //   is 3 | 4 do print "3 or 4"
 
 #if METHOD_CALL_OPERATORS
         callMethod(1, "==(1)", 5);
@@ -1999,7 +1976,7 @@ static void whenStatement() {
   emitByte(OP_POP); // The switch value
 }
 
-//- TODO: Try to reduce the amount of "expecting a newline after statement" errors.
+// TODO: Try to reduce the amount of "expecting a newline after statement" errors.
 static void synchronize() {
   parser.panicMode = false;
 

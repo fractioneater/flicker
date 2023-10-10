@@ -3,7 +3,7 @@ import sys
 TYPES = {"CALL": "simple", "INVOKE": "invoke", "SUPER": "invoke"}
 
 OUTPUT ="""case OP_{0}_{2}:
-  return {1}Instruction("OP_{0}_{2}", {3}offset);
+  return {1}Instruction("{0}_{2}", {3}offset);
 """
 
 def to_c_string(name, instruction):

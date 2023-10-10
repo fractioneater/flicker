@@ -7,7 +7,7 @@
 
 // FEATURE TOGGLES
 
-//- TODO: Explain
+// TODO: Explain
 #ifndef NAN_TAGGING
   #define NAN_TAGGING 1
 #endif
