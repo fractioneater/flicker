@@ -15,8 +15,7 @@
 // CURRENT MAINTENANCE FLAGS
 // These will be removed after I know the new change works.
 
-// Operators call methods instead of having their own opcodes.
-#define METHOD_CALL_OPERATORS 1
+// There aren't any at the moment.
 
 // DEBUG FLAGS
 

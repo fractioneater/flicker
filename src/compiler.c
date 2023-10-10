@@ -78,10 +78,8 @@ typedef struct {
   ParseFn prefix;
   ParseFn infix;
   BindingPower bp;
-#if METHOD_CALL_OPERATORS
   const char* name;
   SignatureFn signatureFn;
-#endif
 } ParseRule;
 
 typedef struct {
@@ -1069,7 +1067,6 @@ static void binary(bool canAssign) {
     expressionBp((BindingPower)(rule->bp + 1));
   }
 
-#if METHOD_CALL_OPERATORS
   Signature signature = { rule->name, (int)strlen(rule->name), SIG_METHOD, 1 };
 
   char fullSignature[MAX_METHOD_SIGNATURE];
@@ -1080,44 +1077,17 @@ static void binary(bool canAssign) {
   if (negate) {
     callMethod(0, "not()", 5);
   }
-#else
-  switch (operatorType) {
-    case TOKEN_STAR_STAR: emitByte(OP_EXPONENT); break;
-    case TOKEN_BANG_EQ:   emitByte(OP_NOT_EQUAL); break;
-    case TOKEN_EQ_EQ:     emitByte(OP_EQUAL); break;
-    case TOKEN_GT:        emitByte(OP_GREATER); break;
-    case TOKEN_GT_EQ:     emitByte(OP_GREATER_EQUAL); break;
-    case TOKEN_LT:        emitByte(OP_LESS); break;
-    case TOKEN_LT_EQ:     emitByte(OP_LESS_EQUAL); break;
-    case TOKEN_PLUS:      emitByte(OP_ADD); break;
-    case TOKEN_MINUS:     emitByte(OP_SUBTRACT); break;
-    case TOKEN_STAR:      emitByte(OP_MULTIPLY); break;
-    case TOKEN_SLASH:     emitByte(OP_DIVIDE); break;
-    case TOKEN_PERCENT:   emitByte(OP_MODULO); break;
-    case TOKEN_PIPE:      emitByte(OP_BIT_OR); break;
-    case TOKEN_CARET:     emitByte(OP_BIT_XOR); break;
-    case TOKEN_AMPERSAND: emitByte(OP_BIT_AND); break;
-    case TOKEN_SHL:       emitByte(OP_SHL); break;
-    case TOKEN_SHR:       emitByte(OP_SHR); break;
-    case TOKEN_COLON:     emitByte(OP_RANGE_EXCL); break;
-    case TOKEN_DOT_DOT:   emitByte(OP_RANGE_INCL); break;
-    default: return; // Unreachable.
-  }
-#endif
 }
 
 static void unary(bool canAssign) {
   TokenType operatorType = parser.previous.type;
-#if METHOD_CALL_OPERATORS
   ParseRule* rule = getRule(operatorType);
-#endif
 
   matchLine();
 
   // Compile the operand.
   expressionBp(operatorType == TOKEN_NOT ? BP_NOT : BP_UNARY);
 
-#if METHOD_CALL_OPERATORS
   Signature signature = { rule->name, (int)strlen(rule->name), SIG_METHOD, 0 };
 
   char fullSignature[MAX_METHOD_SIGNATURE];
@@ -1125,16 +1095,8 @@ static void unary(bool canAssign) {
   signatureToString(&signature, fullSignature, &length);
 
   callMethod(0, fullSignature, length);
-#else
-  switch (operatorType) {
-    case TOKEN_NOT: emitByte(OP_NOT); break;
-    case TOKEN_MINUS: emitByte(OP_NEGATE); break;
-    default: return; // Unreachable
-  }
-#endif
 }
 
-#if METHOD_CALL_OPERATORS
 #define UNUSED                    { NULL,   NULL,   BP_NONE, NULL, NULL }
 #define INFIX(fn, bp)             { NULL,   fn,     bp,      NULL, NULL }
 #define INFIX_OPERATOR(bp, name)  { NULL,   binary, bp,      name, binarySignature }
@@ -1142,15 +1104,6 @@ static void unary(bool canAssign) {
 #define PREFIX_OPERATOR(bp, name) { unary,  NULL,   bp,      name, unarySignature }
 #define BOTH(prefix, infix, bp)   { prefix, infix,  bp,      NULL, NULL }
 #define OPERATOR(bp, name)        { unary,  binary, bp,      name, mixedSignature }
-#else
-#define UNUSED                    { NULL, NULL, BP_NONE }
-#define INFIX(fn, bp)             { NULL, fn, bp }
-#define INFIX_OPERATOR(bp, name)  { NULL, binary, bp }
-#define PREFIX(fn, bp)            { fn, NULL, bp }
-#define PREFIX_OPERATOR(bp, name) { unary, NULL, bp }
-#define BOTH(prefix, infix, bp)   { prefix, infix, bp }
-#define OPERATOR(bp, name)        { unary, binary, bp }
-#endif
 
 ParseRule rules[] = {
   /* TOKEN_LEFT_PAREN    */ BOTH(grouping, call, BP_CALL),
@@ -1184,11 +1137,7 @@ ParseRule rules[] = {
   /* TOKEN_GT_EQ         */ INFIX_OPERATOR(BP_COMPARISON, ">="),
   /* TOKEN_LT            */ INFIX_OPERATOR(BP_COMPARISON, "<"),
   /* TOKEN_LT_EQ         */ INFIX_OPERATOR(BP_COMPARISON, "<="),
-#if METHOD_CALL_OPERATORS
   /* TOKEN_IDENTIFIER    */ { variable, NULL, BP_NONE, NULL, namedSignature },
-#else
-  /* TOKEN_IDENTIFIER    */ PREFIX(variable, BP_NONE),
-#endif
   /* TOKEN_STRING        */ PREFIX(literal, BP_NONE),
   /* TOKEN_INTERPOLATION */ PREFIX(stringInterpolation, BP_NONE),
   /* TOKEN_NUMBER        */ PREFIX(literal, BP_NONE),
@@ -1386,8 +1335,6 @@ static void method() {
     error("Attributes cannot be static");
   }
 
-#if METHOD_CALL_OPERATORS
-
   SignatureFn signatureFn = isAttribute ?
               attributeSignature : getRule(parser.current.type)->signatureFn;
   advance();
@@ -1418,25 +1365,6 @@ static void method() {
   char fullSignature[MAX_METHOD_SIGNATURE];
   int length;
   signatureToString(&signature, fullSignature, &length);
-
-#else
-
-  expect(TOKEN_IDENTIFIER, "Expecting a method name");
-  int constant = identifierConstant(&parser.previous);
-
-  FunctionType type = isStatic ? TYPE_STATIC_METHOD : TYPE_METHOD;
-  if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
-    if (isStatic) {
-      error("Initializers cannot be static");
-    }
-    type = TYPE_INITIALIZER;
-  }
-
-  Compiler compiler;
-  initCompiler(&compiler, type);
-  pushScope();
-
-#endif
 
   if (signature.asProperty != NULL) {
     for (int i = 0; i < current->function->arity; i++) {
@@ -1920,11 +1848,7 @@ static void whenStatement() {
         // when var
         //   is 3 | 4 do print "3 or 4"
 
-#if METHOD_CALL_OPERATORS
         callMethod(1, "==(1)", 5);
-#else
-        emitByte(OP_EQUAL);
-#endif
         previousCaseSkip = emitJump(OP_JUMP_FALSY);
 
         // Pop the comparison result

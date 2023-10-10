@@ -106,50 +106,6 @@ int disassembleInstruction(Chunk* chunk, int offset) {
       return constantInstruction("GET_METHOD", chunk, offset);
     case OP_BIND_SUPER:
       return constantInstruction("GET_SUPER", chunk, offset);
-#if !METHOD_CALL_OPERATORS
-    case OP_EQUAL:
-      return simpleInstruction("EQUAL", offset);
-    case OP_NOT_EQUAL:
-      return simpleInstruction("NOT_EQUAL", offset);
-    case OP_GREATER:
-      return simpleInstruction("GREATER", offset);
-    case OP_GREATER_EQUAL:
-      return simpleInstruction("GREATER_EQUAL", offset);
-    case OP_LESS:
-      return simpleInstruction("LESS", offset);
-    case OP_LESS_EQUAL:
-      return simpleInstruction("LESS_EQUAL", offset);
-    case OP_BIT_OR:
-      return simpleInstruction("BIT_OR", offset);
-    case OP_BIT_XOR:
-      return simpleInstruction("BIT_XOR", offset);
-    case OP_BIT_AND:
-      return simpleInstruction("BIT_AND", offset);
-    case OP_SHL:
-      return simpleInstruction("SHL", offset);
-    case OP_SHR:
-      return simpleInstruction("SHR", offset);
-    case OP_RANGE_EXCL:
-      return simpleInstruction("RANGE_EXCL", offset);
-    case OP_RANGE_INCL:
-      return simpleInstruction("RANGE_INCL", offset);
-    case OP_ADD:
-      return simpleInstruction("ADD", offset);
-    case OP_SUBTRACT:
-      return simpleInstruction("SUBTRACT", offset);
-    case OP_MULTIPLY:
-      return simpleInstruction("MULTIPLY", offset);
-    case OP_DIVIDE:
-      return simpleInstruction("DIVIDE", offset);
-    case OP_MODULO:
-      return simpleInstruction("MODULO", offset);
-    case OP_EXPONENT:
-      return simpleInstruction("EXPONENT", offset);
-    case OP_NOT:
-      return simpleInstruction("NOT", offset);
-    case OP_NEGATE:
-      return simpleInstruction("NEGATE", offset);
-#endif
     case OP_PRINT:
       return simpleInstruction("PRINT", offset);
     case OP_ERROR:
