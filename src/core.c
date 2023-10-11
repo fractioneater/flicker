@@ -345,7 +345,6 @@ DEF_NATIVE(number_fromString) {
 #define DEF_NUM_CONSTANT(name, value) DEF_NATIVE(number_##name) { RETURN_NUMBER(value); }
 
 DEF_NUM_CONSTANT(infinity,   INFINITY)
-// TODO: For some reason the "==(1)" method causes a segfault for Number.nan.
 DEF_NUM_CONSTANT(nan,        DOUBLE_NAN)
 DEF_NUM_CONSTANT(pi,         3.141592653589793238462643383279502884197L)
 DEF_NUM_CONSTANT(tau,        6.283185307179586476925286766559005768394L)
@@ -880,8 +879,6 @@ DEF_NATIVE(string_toString) { RETURN_VAL(args[0]); }
 //////////////////
 // Sys          //
 //////////////////
-
-// TODO: Test past this point.
 
 DEF_NATIVE(sys_clock) {
   RETURN_NUMBER((double)clock() / CLOCKS_PER_SEC);

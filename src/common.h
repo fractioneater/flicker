@@ -7,7 +7,55 @@
 
 // FEATURE TOGGLES
 
-// TODO: Explain
+// Explanation of NaN Tagging
+//
+// Double precision floating point numbers are stored with 1 sign bit,
+// 11 exponent bits, and 52 fraction bits. They are meant to store numbers,
+// but they can also have a few other values like NaN ("not a number"),
+// and negative and positive Infinity. To signify NaN, all exponent bits are
+// set, like this:
+//
+// -11111111111----------------------------------------------------
+//
+// If NaN values only use those bits marked as 1, and all of the others don't
+// matter, wouldn't there be a lot of possible values that are counted as NaN?
+// Yes, there are. Flicker uses NaN tagging to take advantage of those
+// possible values to represent things like True, False, None, and objects.
+//
+// There's one other thing, though. There are two types of NaN values, "quiet"
+// and "signalling". Signalling NaNs are supposed to cause an error or stop
+// execution, while quiet NaN values mostly don't interfere. We want to use
+// the quiet version, because we don't want to mess up anything. To indicate
+// a quiet NaN, the highest fraction bit it set.
+//
+// -[NaN      ]1---------------------------------------------------
+//             ^ Quiet NaN bit
+//
+// So if all of those NaN bits are set, it's not a number, and we can use
+// all of those other bits for a few things. We'll store special singleton values
+// like "True", "False", and "None", as well as pointers to object on the heap.
+// Flicker uses the sign bit to distinguish singleton values from pointers. If
+// the sign bit it set, it's a pointer.
+//
+// S[NaN      ]1---------------------------------------------------
+// ^ Singleton or pointer?
+//
+// There are only a few singleton values, so we'll just use the lowest 3 fraction
+// bits to enumerate the possible values.
+//
+// 0[NaN      ]1------------------------------------------------[T]
+//                                                  3 Type bits ^
+//
+// The last thing to include is pointers. We have 51 bits to use (remember, the
+// lowest 3 bits don't matter unless the sign bit is 0), which is more than enough
+// for a 32-bit address. It's also more than enough for 64-bit machines, because
+// they only actually use 48 bits for addresses. To store them, we just put the
+// pointer directly into the fraction bits.
+//
+// NaN tagging seems interesting, but it's more than just that. We have numbers (of
+// course), singleton values, pointers to objects stored in one 64-bit sequence, and
+// we don't even have to do any work to get numbers from these values, they're not
+// masked or modified in any way.
 #ifndef NAN_TAGGING
   #define NAN_TAGGING 1
 #endif

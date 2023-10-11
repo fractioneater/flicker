@@ -20,8 +20,8 @@ static inline uint64_t numToBits(double num) {
   return value;
 }
 
-#define QNAN_MAX_BITS ((uint64_t)0x7fffffffffffffff)
-#define DOUBLE_NAN    (numFromBits(QNAN_MAX_BITS))
+#define QNAN_MIN_BITS ((uint64_t)0x7ff8000000000000)
+#define DOUBLE_NAN    (numFromBits(QNAN_MIN_BITS))
 
 #if NAN_TAGGING
 
