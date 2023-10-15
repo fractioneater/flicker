@@ -135,7 +135,6 @@ static Value peekInt(int distance) {
 }
 
 static bool isFalsy(Value value) {
-  // if (IS_NUMBER(value) && AS_NUMBER(value) == 0) return true;
   return IS_NONE(value) || (IS_BOOL(value) && !AS_BOOL(value));
 }
 

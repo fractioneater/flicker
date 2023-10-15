@@ -615,6 +615,16 @@ DEF_NATIVE(random_randBytes) {
 // Range          //
 ////////////////////
 
+DEF_NATIVE(range_init) {
+  if (!validateNumber(args[1], "From value")) return false;
+  if (!validateNumber(args[2], "To value")) return false;
+
+  double from = AS_NUMBER(args[1]);
+  double to = AS_NUMBER(args[2]);
+  bool isInclusive = !(IS_NONE(args[3]) || (IS_BOOL(args[3]) && !AS_BOOL(args[3])));
+  RETURN_OBJ(newRange(from, to, isInclusive));
+}
+
 DEF_NATIVE(range_from) { RETURN_NUMBER(AS_RANGE(args[0])->from); }
 
 DEF_NATIVE(range_to) { RETURN_NUMBER(AS_RANGE(args[0])->to); }
@@ -1120,6 +1130,7 @@ void initializeCore(VM* vm) {
   NATIVE(vm->mapClass, "valueIteratorValue(1)", map_valueIteratorValue);
 
   GET_CORE_CLASS(vm->rangeClass, "Range");
+  NATIVE_INIT(vm->rangeClass, range_init, 3);
   NATIVE(vm->rangeClass, "from", range_from);
   NATIVE(vm->rangeClass, "to", range_to);
   NATIVE(vm->rangeClass, "min", range_min);

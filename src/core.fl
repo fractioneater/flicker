@@ -1,11 +1,22 @@
-class Bool []
-class Function []
-class `None` []
-class Number []
+class Bool
+  init()
+    error "Bool class is not directly callable"
+class Function
+  init()
+    error "Function class is not directly callable"
+class `None`
+  init()
+    error "None class is not directly callable"
+class Number
+  init()
+    error "Number class is not directly callable"
 class Random
   randByte() = this.randBytes(1)[0]
 
 class Sequence
+  init()
+    error "Sequence class is not directly callable"
+
   attribute count
     var result = 0
     each i in this do result = result + 1
@@ -339,6 +350,9 @@ class MapValueSequence < Sequence
 class Range < Sequence []
 
 class Sys
+  init()
+    error "Sys class is not instantiable"
+
   static `print`()
     Sys.writeString("\n")
 

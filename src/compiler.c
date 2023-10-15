@@ -1331,15 +1331,11 @@ static void method() {
   bool isStatic = match(TOKEN_STATIC);
   bool isAttribute = match(TOKEN_ATTRIBUTE);
 
-  if (isAttribute && (isStatic || match(TOKEN_STATIC))) {
-    error("Attributes cannot be static");
-  }
-
-  SignatureFn signatureFn = isAttribute ?
+  SignatureFn parseSignature = isAttribute ?
               attributeSignature : getRule(parser.current.type)->signatureFn;
   advance();
 
-  if (signatureFn == NULL) {
+  if (parseSignature == NULL) {
     error("Expecting a method definition");
     return;
   }
@@ -1347,10 +1343,11 @@ static void method() {
   Signature signature = signatureFromToken(SIG_METHOD);
 
   FunctionType type = isStatic ? TYPE_STATIC_METHOD : TYPE_METHOD;
-  if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
+  if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {    
     if (isStatic) error("Initializers cannot be static");
-    type = TYPE_INITIALIZER;
     if (currentClass->hasInitializer) error("Classes can only have one initializer");
+    
+    type = TYPE_INITIALIZER;
     currentClass->hasInitializer = true;
   }
 
@@ -1358,7 +1355,7 @@ static void method() {
   initCompiler(&compiler, type);
   pushScope();
 
-  signatureFn(&signature);
+  parseSignature(&signature);
 
   current->function->arity = signature.arity;
 

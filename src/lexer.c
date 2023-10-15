@@ -148,7 +148,7 @@ static TokenType identifierType() {
   switch (lexer.start[0]) {
     case 'a':
       if (lexer.current - lexer.start > 2) {
-        switch(lexer.start[1]) {
+        switch (lexer.start[1]) {
           case 'n': return checkKeyword(2, 1, "d", TOKEN_AND);
           case 't': return checkKeyword(2, 7, "tribute", TOKEN_ATTRIBUTE);
         }
@@ -157,7 +157,7 @@ static TokenType identifierType() {
     case 'b': return checkKeyword(1, 4, "reak", TOKEN_BREAK);
     case 'c':
       if (lexer.current - lexer.start > 4) {
-        switch(lexer.start[1]) {
+        switch (lexer.start[1]) {
           case 'l': return checkKeyword(2, 3, "ass", TOKEN_CLASS);
           case 'o': return checkKeyword(2, 6, "ntinue", TOKEN_CONTINUE);
         }
@@ -189,7 +189,7 @@ static TokenType identifierType() {
       break;
     case 'i':
       if (lexer.current - lexer.start > 0) {
-        switch(lexer.start[1]) {
+        switch (lexer.start[1]) {
           case 'f': return checkKeyword(2, 0, "", TOKEN_IF);
           case 'n': return checkKeyword(2, 0, "", TOKEN_IN);
           case 's': return checkKeyword(2, 0, "", TOKEN_IS);

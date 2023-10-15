@@ -71,7 +71,7 @@ static inline ObjClass* getClass(Value value) {
     case TAG_NAN:   return vm.numberClass; break;
   }
 #else
-  switch(value.type) {
+  switch (value.type) {
     case VAL_BOOL:   return vm.boolClass;
     case VAL_NONE:   return vm.noneClass;
     case VAL_NUMBER: return vm.numberClass;

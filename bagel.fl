@@ -1,17 +1,12 @@
-# Testing superclass method calls.
+# Testing non-instantiable classes.
 # Sadly there are no bagels to be found in this file.
 
 class A
-  method()
-    print "A method"
+  init()
+    error "Class A is not instantiable"
 
-class B < A
-  method()
-    print "B method"
-  
-  test()
-    super.method()
+  static method(arg)
+    return arg + 2
 
-class C < B {}
-
-C().test()
+print A.method(4)
+# print A()
