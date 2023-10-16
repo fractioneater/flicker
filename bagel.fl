@@ -2,11 +2,18 @@
 # Sadly there are no bagels to be found in this file.
 
 class A
-  init()
-    error "Class A is not instantiable"
+  inherited(number)
+    # The contents of this function don't matter.
+    if (number > 14.2778)
+      print "Foo"
+    else
+      print "Your number is unnacceptable"
 
-  static method(arg)
-    return arg + 2
+class B < A
+  attribute f = super::inherited(1)
 
-print A.method(4)
-# print A()
+var instance = B()
+var callable = instance.f
+callable(2)
+print callable.receiver == instance
+print callable.arity

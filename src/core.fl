@@ -1,6 +1,9 @@
 class Bool
   init()
     error "Bool class is not directly callable"
+class BoundMethod
+  init()
+    error "BoundMethod class is not directly callable"
 class Function
   init()
     error "Function class is not directly callable"

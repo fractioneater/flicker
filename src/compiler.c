@@ -1,6 +1,7 @@
 #include "compiler.h"
 
 #include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -171,7 +172,7 @@ static inline Chunk* currentChunk() {
   return &current->function->chunk;
 }
 
-static void errorAt(Token* token, const char* message) {
+static void errorAt(Token* token, const char* format, va_list args) {
   if (parser.panicMode) return;
   parser.panicMode = true;
   fprintf(stderr, "\033[1m%s:%d:\033[0m ", parser.module, token->line);
@@ -188,16 +189,24 @@ static void errorAt(Token* token, const char* message) {
     fprintf(stderr, "error at '%.*s'", token->length, token->start);
   }
 
-  fprintf(stderr, ": %s\n", message);
+  fprintf(stderr, ": ");
+  vfprintf(stderr, format, args);
+  fprintf(stderr, "\n");
   parser.hadError = true;
 }
 
-static void error(const char* message) {
-  errorAt(&parser.previous, message);
+static void error(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  errorAt(&parser.previous, format, args);
+  va_end(args);
 }
 
-static void errorAtCurrent(const char* message) {
-  errorAt(&parser.current, message);
+static void errorAtCurrent(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  errorAt(&parser.current, format, args);
+  va_end(args);
 }
 
 static void advance() {
@@ -306,7 +315,7 @@ static void emitReturn() {
 static int makeConstant(Value value) {
   int constant = addConstant(currentChunk(), value);
   if (constant > MAX_CONSTANTS) {
-    error("Too many constants in one chunk");
+    error("A function can only contain %d constants", MAX_CONSTANTS);
     return 0;
   }
 
@@ -530,7 +539,7 @@ static int resolveUpvalue(Compiler* compiler, Token* name) {
 
 static void addLocal(Token name) {
   if (current->localCount == UINT8_COUNT) {
-    error("Too many local variables in function");
+    error("Too many local variables in one function");
     return;
   }
 
@@ -622,22 +631,24 @@ static Signature signatureFromToken(SignatureType type) {
   signature.asProperty = NULL;
 
   if (signature.length > MAX_METHOD_NAME) {
-    error("Method name too long");
+    error("Method names cannot be longer than %d characters", MAX_METHOD_NAME);
     signature.length = MAX_METHOD_NAME;
   }
 
   return signature;
 }
 
+static void validateParameterCount(const char* type, int num) {
+  if (num == MAX_PARAMETERS + 1) {
+    error("%ss cannot have more than %d parameters", type, MAX_PARAMETERS);
+  }
+}
+
 static void finishParameterList(Signature* signature) {
   signature->asProperty = ALLOCATE(bool, MAX_PARAMETERS);
   do {
     matchLine();
-    signature->arity++;
-
-    if (signature->arity == MAX_PARAMETERS + 1) {
-      error("Too many parameters");
-    }
+    validateParameterCount("Method", ++signature->arity);
 
     signature->asProperty[signature->arity - 1] = match(TOKEN_PLUS);
 
@@ -646,7 +657,19 @@ static void finishParameterList(Signature* signature) {
   } while (match(TOKEN_COMMA));
 }
 
-static uint8_t argumentList() {
+static void finishArgumentList(Signature* signature, TokenType end) {
+  if (!check(end)) {
+    do {
+      matchLine();
+      validateParameterCount("Method", ++signature->arity);
+      expression();
+    } while (match(TOKEN_COMMA));
+
+    matchLine();
+  }
+}
+
+static uint8_t functionArgumentList() {
   uint8_t argCount = 0;
 
   matchLine();
@@ -654,16 +677,25 @@ static uint8_t argumentList() {
     do {
       matchLine();
       expression();
-      if (argCount == MAX_PARAMETERS) {
-        error("Too many arguments");
-      }
-      argCount++;
+      validateParameterCount("Function", ++argCount);
     } while (match(TOKEN_COMMA));
 
     matchLine();
   }
   expect(TOKEN_RIGHT_PAREN, "Expecting ')' after arguments");
   return argCount;
+}
+
+static inline void emitSignatureArg(uint8_t instruction, Signature* signature) {
+  char method[MAX_METHOD_SIGNATURE];
+  int length;
+  signatureToString(signature, method, &length);
+
+  emitConstantArg(instruction, OBJ_VAL(copyStringLength(method, length)));
+}
+
+static inline void callSignature(int argCount, Signature* signature) {
+  emitSignatureArg(OP_INVOKE_0 + argCount, signature);
 }
 
 void binarySignature(Signature* signature) {
@@ -757,7 +789,7 @@ static void variable(bool canAssign) {
 }
 
 static void call(bool canAssign) {
-  uint8_t argCount = argumentList();
+  uint8_t argCount = functionArgumentList();
   emitByte(OP_CALL_0 + argCount);
 }
 
@@ -790,11 +822,7 @@ static void callable(bool canAssign) {
     signature.type = SIG_ATTRIBUTE;
   }
 
-  char fullSignature[MAX_METHOD_SIGNATURE];
-  int length;
-  signatureToString(&signature, fullSignature, &length);
-
-  emitConstantArg(OP_BIND_METHOD, OBJ_VAL(copyStringLength(fullSignature, length)));
+  emitSignatureArg(OP_BIND_METHOD, &signature);
 }
 
 static void dot(bool canAssign) {
@@ -807,22 +835,15 @@ static void dot(bool canAssign) {
     expression();
     emitVariableArg(OP_SET_PROPERTY, name);
   } else if (match(TOKEN_LEFT_PAREN) || match(TOKEN_LEFT_BRACE)) {
-    uint8_t argCount;
     if (parser.previous.type == TOKEN_LEFT_BRACE) {
       lambda(false);
-      argCount = 1;
       signature.arity = 1;
     } else {
-      matchLine();
-      argCount = argumentList();
-      signature.arity = argCount;
+      finishArgumentList(&signature, TOKEN_RIGHT_PAREN);
+      expect(TOKEN_RIGHT_PAREN, "Expecting ')' after arguments");
     }
 
-    char fullSignature[MAX_METHOD_SIGNATURE];
-    int length;
-    signatureToString(&signature, fullSignature, &length);
-
-    callMethod(argCount, fullSignature, length);
+    callSignature(signature.arity, &signature);
   } else {
     emitVariableArg(OP_GET_PROPERTY, name);
   }
@@ -866,32 +887,24 @@ static void super_(bool canAssign) {
     expect(TOKEN_IDENTIFIER, "Expecting a superclass method name");
     signature = signatureFromToken(SIG_METHOD);
 
-    uint8_t argCount = 0;
-
     namedVariable(syntheticToken("this"), false);
     if (match(TOKEN_LEFT_PAREN) || match(TOKEN_LEFT_BRACE)) {
       if (parser.previous.type == TOKEN_LEFT_BRACE) {
         lambda(false);
-        argCount = 1;
         signature.arity = 1;
       } else {
-        matchLine();
-        argCount = argumentList();
-        signature.arity = argCount;
+        finishArgumentList(&signature, TOKEN_RIGHT_PAREN);
+        expect(TOKEN_RIGHT_PAREN, "Expecting ')' after arguments");
       }
     } else {
       signature.type = SIG_ATTRIBUTE;
     }
 
     namedVariable(syntheticToken("super"), false);
-    instruction = OP_SUPER_0 + argCount;
+    instruction = OP_SUPER_0 + signature.arity;
   }
 
-  char fullSignature[MAX_METHOD_SIGNATURE];
-  int length;
-  signatureToString(&signature, fullSignature, &length);
-
-  emitConstantArg(instruction, OBJ_VAL(copyStringLength(fullSignature, length)));
+  emitSignatureArg(instruction, &signature);
 }
 
 static void this_(bool canAssign) {
@@ -1033,8 +1046,7 @@ static void collection(bool canAssign) {
   } while (match(TOKEN_COMMA));
 
   matchLine();
-  if (isMap) expect(TOKEN_RIGHT_BRACKET, "Expecting ']' after map literal");
-  else expect(TOKEN_RIGHT_BRACKET, "Expecting ']' after list literal");
+  expect(TOKEN_RIGHT_BRACKET, isMap ? "Expecting ']' after map literal" : "Expecting ']' after list literal");
 
   emitBytes(OP_SET_LOCAL, firstSlot);
 
@@ -1042,15 +1054,17 @@ static void collection(bool canAssign) {
 }
 
 static void subscript(bool canAssign) {
-  expressionBp(BP_NOT);
-  expect(TOKEN_RIGHT_BRACKET, "Expecting ']' after index");
+  Signature signature = { "get", 3, SIG_METHOD, 0, NULL };
+  finishArgumentList(&signature, TOKEN_RIGHT_BRACKET);
+  expect(TOKEN_RIGHT_BRACKET, (signature.arity == 1 ? "Expecting ']' after subscript value" : "Expecting ']' after subscript values"));
 
   if (canAssign && match(TOKEN_EQ)) {
     expression();
-    callMethod(2, "set(2)", 6);
-  } else {
-    callMethod(1, "get(1)", 6);
+    validateParameterCount("Method", ++signature.arity);
+    signature.name = "set";
   }
+
+  callSignature(signature.arity, &signature);
 }
 
 static void binary(bool canAssign) {
@@ -1069,11 +1083,7 @@ static void binary(bool canAssign) {
 
   Signature signature = { rule->name, (int)strlen(rule->name), SIG_METHOD, 1 };
 
-  char fullSignature[MAX_METHOD_SIGNATURE];
-  int length;
-  signatureToString(&signature, fullSignature, &length);
-
-  callMethod(1, fullSignature, length);
+  callSignature(1, &signature);
   if (negate) {
     callMethod(0, "not()", 5);
   }
@@ -1090,11 +1100,7 @@ static void unary(bool canAssign) {
 
   Signature signature = { rule->name, (int)strlen(rule->name), SIG_METHOD, 0 };
 
-  char fullSignature[MAX_METHOD_SIGNATURE];
-  int length;
-  signatureToString(&signature, fullSignature, &length);
-
-  callMethod(0, fullSignature, length);
+  callSignature(0, &signature);
 }
 
 #define UNUSED                    { NULL,   NULL,   BP_NONE, NULL, NULL }
@@ -1264,10 +1270,7 @@ static void function(FunctionType type) {
   if (!check(TOKEN_RIGHT_PAREN)) {
     do {
       matchLine();
-      current->function->arity++;
-      if (current->function->arity == MAX_PARAMETERS + 1) {
-        errorAtCurrent("Too many parameters");
-      }
+      validateParameterCount("Function", ++current->function->arity);
 
       int constant = parseVariable("Expecting a parameter name");
       defineVariable(constant);
@@ -1304,10 +1307,8 @@ static void lambda(bool canAssign) {
     if (!match(TOKEN_PIPE)) {
       do {
         matchLine();
-        current->function->arity++;
-        if (current->function->arity > MAX_PARAMETERS) {
-          errorAtCurrent("Too many parameters");
-        }
+        validateParameterCount("Lambda", ++current->function->arity);
+
         int constant = parseVariable("Expecting a parameter name");
         defineVariable(constant);
       } while (match(TOKEN_COMMA));
@@ -1330,6 +1331,8 @@ static void lambda(bool canAssign) {
 static void method() {
   bool isStatic = match(TOKEN_STATIC);
   bool isAttribute = match(TOKEN_ATTRIBUTE);
+
+  if (isAttribute && match(TOKEN_STATIC)) error("Keyword 'static' must come before 'attribute'");
 
   SignatureFn parseSignature = isAttribute ?
               attributeSignature : getRule(parser.current.type)->signatureFn;
@@ -1358,10 +1361,6 @@ static void method() {
   parseSignature(&signature);
 
   current->function->arity = signature.arity;
-
-  char fullSignature[MAX_METHOD_SIGNATURE];
-  int length;
-  signatureToString(&signature, fullSignature, &length);
 
   if (signature.asProperty != NULL) {
     for (int i = 0; i < current->function->arity; i++) {
@@ -1400,7 +1399,7 @@ static void method() {
   if (type == TYPE_INITIALIZER) {
     emitByte(OP_INITIALIZER);
   } else {
-    emitConstantArg(OP_METHOD_INSTANCE + isStatic, OBJ_VAL(copyStringLength(fullSignature, length)));
+    emitSignatureArg(OP_METHOD_INSTANCE + isStatic, &signature);
   }
 }
 
@@ -1776,6 +1775,7 @@ static void ifStatement() {
 
 #define MAX_WHEN_CASES 256
 
+// TODO: Review when statements, the code is old and unpolished.
 static void whenStatement() {
   expression();
   match(TOKEN_DO);
@@ -1787,23 +1787,8 @@ static void whenStatement() {
   //   == 3 do somethingElse()
   //   3 do somethingElse() # same as ==
 
-  bool indentationBased;
-  int blockEnd;
-  char* message;
-  if (matchLine()) {
-    indentationBased = true;
-    blockEnd = TOKEN_DEDENT;
-    message = "Expecting indentation to decrease after cases";
-
-    expect(TOKEN_INDENT, "Expecting an indent before when statement cases");
-  } else {
-    indentationBased = false;
-    blockEnd = TOKEN_RIGHT_BRACE;
-    message = "Expecting '}' after when statement body";
-
-    expect(TOKEN_LEFT_BRACE, "Expecting '{' before when statement cases");
-  }
-
+  expect(TOKEN_LINE, "Expecting a newline before cases");
+  expect(TOKEN_INDENT, "Expecting an indent before cases");
   matchLine();
 
   int state = 0; // 0 at very start, 1 before default, 2 after default
@@ -1811,11 +1796,9 @@ static void whenStatement() {
   int caseCount = 0;
   int previousCaseSkip = -1;
 
-  if (check(blockEnd)) errorAtCurrent("When statement must have at least one case");
+  if (check(TOKEN_DEDENT)) errorAtCurrent("When statement must have at least one case");
 
-  while (!check(blockEnd) && !check(TOKEN_EOF)) {
-    if (!indentationBased) ignoreIndentation();
-
+  while (!check(TOKEN_DEDENT) && !check(TOKEN_EOF)) {
     if (match(TOKEN_IS) || match(TOKEN_ELSE)) {
       TokenType caseType = parser.previous.type;
 
@@ -1825,7 +1808,7 @@ static void whenStatement() {
 
       if (state == 1) {
         if (caseCount == MAX_WHEN_CASES) {
-          error("Too many cases");
+          error("When statements cannot have more than %d cases", MAX_WHEN_CASES);
         }
 
         caseEnds[caseCount++] = emitJump(OP_JUMP);
@@ -1853,6 +1836,7 @@ static void whenStatement() {
 
         if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
           statement();
+          expect(TOKEN_LINE, "Expecting a newline after statement");
         } else {
           expect(TOKEN_LINE, "Expecting a linebreak after case");
           expect(TOKEN_INDENT, "Expecting an indent before body");
@@ -1867,6 +1851,7 @@ static void whenStatement() {
 
         if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
           statement();
+          expect(TOKEN_LINE, "Expecting a newline after statement");
         } else {
           expect(TOKEN_LINE, "Expecting a linebreak after condition");
           expect(TOKEN_INDENT, "Expecting an indent before body");
@@ -1878,11 +1863,11 @@ static void whenStatement() {
         error("Can't have statements before any case");
       }
       statement();
-      if (!indentationBased || !check(TOKEN_EOF)) expectStatementEnd("Expecting a newline after statement");
+      if (!check(TOKEN_EOF)) expectStatementEnd("Expecting a newline after statement");
     }
   }
 
-  if (!indentationBased || !check(TOKEN_EOF)) expect(blockEnd, message);
+  if (!check(TOKEN_EOF)) expect(TOKEN_DEDENT, "Expecting indentation to decrease after cases");
 
   // If there is no default case, patch the jump.
   if (state == 1) {

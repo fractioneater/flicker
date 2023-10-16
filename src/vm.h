@@ -20,6 +20,7 @@ typedef struct {
   ObjClass* objectClass;
   ObjClass* classClass;
   ObjClass* boolClass;
+  ObjClass* boundMethodClass;
   ObjClass* functionClass;
   ObjClass* listClass;
   ObjClass* mapClass;

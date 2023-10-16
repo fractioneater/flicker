@@ -1,13 +1,25 @@
-# Testing merged lines for call traces.
+# Testing get and set methods with multiple indices.
 # This file also does not contain any bagels.
 
-fun bad()
-  print 50 / "yes"
+class Grid
+  init(+width, +height, default)
+    this.list = List.filled(width * height, default)
+  
+  get(i) = this.list[i]
 
-fun a(calls)
-  if calls == 7
-    bad()
-  else
-    a(calls + 1)
+  set(i, value)
+    this.list[i] = value
 
-a(0)
+  get(x, y) = this.list[y * this.width + x]
+  
+  set(x, y, value)
+    this.list[y * this.width + x] = value
+
+var test = Grid(20, 5, 0)
+# print test.list
+test[16, 1] = 1
+test[2, 4] = 2
+test[19, 0] = 3
+test[0, 3] = 4
+test[9, 2] = 5
+print test.list

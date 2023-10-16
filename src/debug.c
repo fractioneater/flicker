@@ -103,9 +103,9 @@ int disassembleInstruction(Chunk* chunk, int offset) {
     case OP_SET_PROPERTY:
       return constantInstruction("SET_PROPERTY", chunk, offset);
     case OP_BIND_METHOD:
-      return constantInstruction("GET_METHOD", chunk, offset);
+      return constantInstruction("BIND_METHOD", chunk, offset);
     case OP_BIND_SUPER:
-      return constantInstruction("GET_SUPER", chunk, offset);
+      return constantInstruction("BIND_SUPER", chunk, offset);
     case OP_PRINT:
       return simpleInstruction("PRINT", offset);
     case OP_ERROR:

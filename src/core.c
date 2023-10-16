@@ -33,6 +33,19 @@ DEF_NATIVE(bool_toString) {
   }
 }
 
+//////////////////////////
+// BoundMethod          //
+//////////////////////////
+
+DEF_NATIVE(boundMethod_arity) { RETURN_NUMBER(AS_BOUND_METHOD(args[0])->method->function->arity); }
+
+DEF_NATIVE(boundMethod_receiver) { RETURN_VAL(AS_BOUND_METHOD(args[0])->receiver); }
+
+DEF_NATIVE(boundMethod_toString) {
+  ObjClosure* method = AS_BOUND_METHOD(args[0])->method;
+  RETURN_OBJ(stringFormat("<method #>", method->function->name));
+}
+
 ////////////////////
 // Class          //
 ////////////////////
@@ -1006,6 +1019,11 @@ void initializeCore(VM* vm) {
   GET_CORE_CLASS(vm->boolClass, "Bool");
   NATIVE(vm->boolClass, "not()", bool_not);
   NATIVE(vm->boolClass, "toString()", bool_toString);
+
+  GET_CORE_CLASS(vm->boundMethodClass, "BoundMethod");
+  NATIVE(vm->boundMethodClass, "arity", boundMethod_arity);
+  NATIVE(vm->boundMethodClass, "receiver", boundMethod_receiver);
+  NATIVE(vm->boundMethodClass, "toString()", boundMethod_toString);
 
   GET_CORE_CLASS(vm->noneClass, "None");
   NATIVE(vm->noneClass, "not()", none_not);
