@@ -78,6 +78,10 @@
 // 0 to disable, 1 to print only user code, 2 to print everything.
 #define DEBUG_TRACE_EXECUTION 0
 
+// Assertions are conditionals that should always return true, unless
+// somethign is broken. Enabling slows down code, but will run those checks.
+#define DEBUG_ENABLE_ASSERTIONS 1
+
 // Always run GC whenever the vm or compiler messes with memory.
 #define DEBUG_STRESS_GC 0
 
@@ -101,4 +105,20 @@
 
 #define UINT8_COUNT (UINT8_MAX + 1)
 
-#endif
+#if DEBUG_ENABLE_ASSERTIONS
+
+  #define ASSERT(condition, message)                                       \
+    do {                                                                   \
+      if (!(condition)) {                                                  \
+        fprintf(stderr, "\033[1m%s:%d\033[0m assert failed in %s(): %s\n", \
+                __FILE__, __LINE__, __func__, message);                    \
+        abort();                                                           \
+      }                                                                    \
+    } while (false)
+
+#else
+
+  #define ASSERT(condition, message) do {} while (false)
+
+#endif // DEBUG_ENABLE_ASSERTIONS
+#endif // flicker_common_h

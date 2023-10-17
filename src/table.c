@@ -10,12 +10,16 @@
 #define TABLE_MAX_LOAD 0.75
 
 void initTable(Table* table) {
+  ASSERT(table != NULL, "Table cannot be NULL");
+
   table->count = 0;
   table->capacity = 0;
   table->entries = NULL;
 }
 
 void freeTable(Table* table) {
+  ASSERT(table != NULL, "Table cannot be NULL");
+
   FREE_ARRAY(Entry, table->entries, table->capacity);
   initTable(table);
 }
@@ -44,6 +48,8 @@ static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
 }
 
 bool tableGet(Table* table, ObjString* key, Value* value) {
+  ASSERT(table != NULL, "Table cannot be NULL");
+
   if (table->count == 0) return false;
 
   Entry* entry = findEntry(table->entries, table->capacity, key);
@@ -54,6 +60,8 @@ bool tableGet(Table* table, ObjString* key, Value* value) {
 }
 
 static void adjustCapacity(Table* table, int capacity) {
+  ASSERT(table != NULL, "Table cannot be NULL");
+
   Entry* entries = ALLOCATE(Entry, capacity);
   for (int i = 0; i < capacity; i++) {
     entries[i].key = NULL;
@@ -77,6 +85,8 @@ static void adjustCapacity(Table* table, int capacity) {
 }
 
 bool tableSet(Table* table, ObjString* key, Value value) {
+  ASSERT(table != NULL, "Table cannot be NULL");
+
   if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
     int capacity = GROW_CAPACITY(table->capacity);
     adjustCapacity(table, capacity);
@@ -92,6 +102,8 @@ bool tableSet(Table* table, ObjString* key, Value value) {
 }
 
 bool tableDelete(Table* table, ObjString* key) {
+  ASSERT(table != NULL, "Table cannot be NULL");
+
   if (table->count == 0) return false;
 
   // Find the entry.
@@ -105,6 +117,9 @@ bool tableDelete(Table* table, ObjString* key) {
 }
 
 void tableAddAll(Table* from, Table* to) {
+  ASSERT(from != NULL, "Source table cannot be NULL");
+  ASSERT(to != NULL, "Destination table cannot be NULL");
+
   for (int i = 0; i < from->capacity; i++) {
     Entry* entry = &from->entries[i];
     if (entry->key != NULL) {
@@ -114,6 +129,8 @@ void tableAddAll(Table* from, Table* to) {
 }
 
 ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t hash) {
+  ASSERT(table != NULL, "Table cannot be NULL");
+  
   if (table->count == 0) return NULL;
 
   uint32_t index = hash & (table->capacity - 1);
@@ -132,6 +149,8 @@ ObjString* tableFindString(Table* table, const char* chars, int length, uint32_t
 }
 
 void tableRemoveWhite(Table* table) {
+  ASSERT(table != NULL, "Table cannot be NULL");
+
   for (int i = 0; i < table->capacity; i++) {
     Entry* entry = &table->entries[i];
     if (entry->key != NULL && !entry->key->obj.isMarked) {
@@ -141,6 +160,8 @@ void tableRemoveWhite(Table* table) {
 }
 
 void markTable(Table* table) {
+  ASSERT(table != NULL, "Table cannot be NULL");
+
   for (int i = 0; i < table->capacity; i++) {
     Entry* entry = &table->entries[i];
     markObject((Obj*)entry->key);

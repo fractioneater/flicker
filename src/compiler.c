@@ -246,6 +246,12 @@ static bool matchLine() {
   return true;
 }
 
+static void expectLine(const char* message) {
+  if (!matchLine()) {
+    errorAtCurrent(message);
+  }
+}
+
 static bool ignoreIndentation() {
   if (!match(TOKEN_INDENT)) {
     if (!match(TOKEN_DEDENT)) return false;
@@ -443,6 +449,8 @@ static ObjFunction* endCompiler() {
 static void pushScope() { current->scopeDepth++; }
 
 static int discardLocals(int depth) {
+  ASSERT(current->scopeDepth >= 0, "Cannot exit top level scope");
+
   int local = current->localCount - 1;
   while (local >= 0 && current->locals[local].depth >= depth) {
     // To print out discarded locals:
@@ -1282,7 +1290,7 @@ static void function(FunctionType type) {
     expression();
     emitByte(OP_RETURN);
   } else {
-    expect(TOKEN_LINE, "Expecting a linebreak before function body");
+    expectLine("Expecting a linebreak before function body");
     expect(TOKEN_INDENT, "Expecting an indent before function body");
     block();
   }
@@ -1383,7 +1391,7 @@ static void method() {
     expression();
     emitByte(OP_RETURN);
   } else {
-    expect(TOKEN_LINE, "Expecting a linebreak before method body");
+    expectLine("Expecting a linebreak before method body");
     expect(TOKEN_INDENT, "Expecting an indent before method body");
     block();
   }
@@ -1437,7 +1445,7 @@ static void classDeclaration() {
   bool empty = match(TOKEN_LEFT_BRACKET) && match(TOKEN_RIGHT_BRACKET);
   empty = empty || match(TOKEN_SEMICOLON);
   if (!empty) {
-    expect(TOKEN_LINE, "Expecting a linebreak before class body");
+    expectLine("Expecting a linebreak before class body");
     expect(TOKEN_INDENT, "Expecting an indent before class body");
 
     matchLine();
@@ -1599,7 +1607,7 @@ static void whileStatement() {
   if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
     statement();
   } else {
-    expect(TOKEN_LINE, "Expecting a linebreak after condition");
+    expectLine("Expecting a linebreak after condition");
     expect(TOKEN_INDENT, "Expecting an indent before body");
     scopedBlock();
   }
@@ -1657,7 +1665,7 @@ static void forStatement() {
   if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
     statement();
   } else {
-    expect(TOKEN_LINE, "Expecting a linebreak after condition");
+    expectLine("Expecting a linebreak after condition");
     expect(TOKEN_INDENT, "Expecting an indent before body");
     scopedBlock();
   }
@@ -1729,7 +1737,7 @@ static void eachStatement() {
   if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
     statement();
   } else {
-    expect(TOKEN_LINE, "Expecting a linebreak after condition");
+    expectLine("Expecting a linebreak after condition");
     expect(TOKEN_INDENT, "Expecting an indent before body");
     block();
   }
@@ -1750,7 +1758,7 @@ static void ifStatement() {
   if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
     statement();
   } else {
-    expect(TOKEN_LINE, "Expecting a linebreak after condition");
+    expectLine("Expecting a linebreak after condition");
     expect(TOKEN_INDENT, "Expecting an indent before body");
     scopedBlock();
   }
@@ -1765,7 +1773,7 @@ static void ifStatement() {
     if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
       statement();
     } else {
-      expect(TOKEN_LINE, "Expecting a linebreak after 'else'");
+      expectLine("Expecting a linebreak after 'else'");
       expect(TOKEN_INDENT, "Expecting an indent before body");
       scopedBlock();
     }
@@ -1787,7 +1795,7 @@ static void whenStatement() {
   //   == 3 do somethingElse()
   //   3 do somethingElse() # same as ==
 
-  expect(TOKEN_LINE, "Expecting a newline before cases");
+  expectLine("Expecting a newline before cases");
   expect(TOKEN_INDENT, "Expecting an indent before cases");
   matchLine();
 
@@ -1836,9 +1844,9 @@ static void whenStatement() {
 
         if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
           statement();
-          expect(TOKEN_LINE, "Expecting a newline after statement");
+          expectLine("Expecting a newline after statement");
         } else {
-          expect(TOKEN_LINE, "Expecting a linebreak after case");
+          expectLine("Expecting a linebreak after case");
           expect(TOKEN_INDENT, "Expecting an indent before body");
           scopedBlock();
         }
@@ -1851,9 +1859,9 @@ static void whenStatement() {
 
         if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
           statement();
-          expect(TOKEN_LINE, "Expecting a newline after statement");
+          expectLine("Expecting a newline after statement");
         } else {
-          expect(TOKEN_LINE, "Expecting a linebreak after condition");
+          expectLine("Expecting a linebreak after condition");
           expect(TOKEN_INDENT, "Expecting an indent before body");
           scopedBlock();
         }

@@ -72,6 +72,7 @@ ObjClass* newClass(ObjString* name) {
 }
 
 void bindSuperclass(ObjClass* subclass, ObjClass* superclass) {
+  ASSERT(superclass != NULL, "Must have superclass");
   subclass->superclass = superclass;
   tableAddAll(&superclass->methods, &subclass->methods);
 }
@@ -251,6 +252,8 @@ ObjString* takeString(char* chars, int length) {
 }
 
 ObjString* copyStringLength(const char* chars, int length) {
+  ASSERT(length == 0 || chars != NULL, "String should not be NULL");
+
   uint32_t hash = hashString(chars, length);
   ObjString* interned = tableFindString(&vm.strings, chars, length, hash);
   if (interned != NULL) return interned;
@@ -298,6 +301,7 @@ ObjString* numberToString(double value) {
 
 ObjString* stringFromCodePoint(int value) {
   int length = utf8EncodeNumBytes(value);
+  ASSERT(length != 0, "Value out of range");
 
   char* heapChars = ALLOCATE(char, length + 1);
   heapChars[length] = '\0';
@@ -390,6 +394,8 @@ ObjString* stringFormat(const char* format, ...) {
 }
 
 ObjString* stringCodePointAt(ObjString* string, uint32_t index) {
+  ASSERT(index < string->length, "Index out of bounds");
+  
   int codePoint = utf8Decode((uint8_t*)string->chars + index, string->length - index);
 
   if (codePoint == -1) {

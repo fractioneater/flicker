@@ -16,9 +16,12 @@
 // Designed to balance performance and code size.
 #include <assert.h>
 #include <malloc.h>
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
+
+#include "common.h"
 
 #define PRNG_BUFFER_SIZE (1 << 17)
 
@@ -58,7 +61,7 @@ static inline void prngWriteLE64(void* dst, uint64_t val) {
 // buf's size must be a multiple of 128 bytes.
 static inline void prngGen(PrngState* SHISHUA_RESTRICT state, uint8_t* SHISHUA_RESTRICT buf, size_t size) {
   uint8_t* b = buf;
-  assert((size % 128 == 0) && "buf's size must be a multiple of 128 bytes.");
+  ASSERT(size % 128 == 0, "Buffer size must be a multiple of 128 bytes");
 
   for (size_t i = 0; i < size; i += 128) {
     // Write the current output block to state if it is not NULL

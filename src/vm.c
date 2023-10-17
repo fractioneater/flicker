@@ -197,6 +197,7 @@ static bool callValue(Value callee, int argCount) {
           return callNative(AS_NATIVE(initializer), argCount);
         }
 
+        ASSERT(IS_CLOSURE(initializer), "Initializer must be a native function or a closure");
         return callArity(AS_CLOSURE(initializer), argCount);
       }
       case OBJ_CLOSURE:
@@ -229,6 +230,7 @@ static bool invoke(ObjString* name, int argCount) {
   Value receiver = peekInt(argCount);
 
   ObjClass* cls = getClass(receiver);
+  ASSERT(cls != NULL, "Class cannot be NULL");
 
   if (IS_INSTANCE(receiver)) {
     ObjInstance* instance = AS_INSTANCE(receiver);
@@ -393,6 +395,8 @@ static InterpretResult run() {
       case OP_GET_PROPERTY: {
         Value receiver = peek();
         ObjClass* cls = getClass(receiver);
+        ASSERT(cls != NULL, "Class cannot be NULL");
+
         ObjString* property = READ_STRING();
 
         if (IS_INSTANCE(receiver)) {
@@ -444,6 +448,8 @@ static InterpretResult run() {
         break;
       }
       case OP_BIND_METHOD: {
+        // TODO: Why did I limit this to instances?
+        // Was it because of native methods?
         if (!IS_INSTANCE(peek())) {
           runtimeError("Can only get methods from instances");
           return INTERPRET_RUNTIME_ERROR;
@@ -461,6 +467,8 @@ static InterpretResult run() {
       }
       case OP_BIND_SUPER: {
         ObjClass* superclass = getClass(peek());
+        ASSERT(superclass != NULL, "Superclass cannot be NULL");
+
         ObjString* method = READ_STRING();
 
         frame->ip = ip;

@@ -91,10 +91,13 @@ void push(Value value);
 Value pop();
 
 static inline void pushRoot(Obj* obj) {
+  ASSERT(obj != NULL, "Root cannot be NULL");
+  ASSERT(vm.rootCount < MAX_TEMP_ROOTS, "Exceeded limit of temporary roots");
   vm.tempRoots[vm.rootCount++] = obj;
 }
 
 static inline void popRoot() {
+  ASSERT(vm.rootCount > 0, "No roots to release");
   vm.rootCount--;
 }
 
