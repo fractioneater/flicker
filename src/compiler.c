@@ -15,7 +15,7 @@
 #endif
 
 typedef struct {
-  // The newest token, fresh from the lexer.
+  // The most recently lexed token
   Token current;
 
   // The most recently consumed token.
@@ -182,7 +182,7 @@ static void errorAt(Token* token, const char* format, va_list args) {
   } else if (token->type == TOKEN_LINE) {
     fprintf(stderr, "error at newline");
   } else if (token->type == TOKEN_INDENT || token->type == TOKEN_DEDENT) {
-    fprintf(stderr, "indentation error");
+    fprintf(stderr, "error at indentation");
   } else if (token->type == TOKEN_ERROR) {
     fprintf(stderr, "error");
   } else {
@@ -213,7 +213,7 @@ static void advance() {
   parser.previous = parser.current;
 
   for (;;) {
-    parser.current = scanToken();
+    parser.current = nextToken();
     if (parser.current.type != TOKEN_ERROR) break;
 
     errorAtCurrent(parser.current.start);
@@ -261,11 +261,16 @@ static bool ignoreIndentation() {
 }
 
 static void expectStatementEnd(const char* message) {
-  if (matchLine()) return;
-  if (!match(TOKEN_SEMICOLON)) {
-    errorAtCurrent(message);
+  // If the parser has just synchronized after an error, it might have
+  // already consumed a newline token. That's why we check for it here.
+  if (parser.previous.type == TOKEN_LINE ||
+      parser.previous.type == TOKEN_DEDENT)
+    return;
+  if (match(TOKEN_SEMICOLON)) {
+    matchLine();
+    return;
   }
-  matchLine();
+  if (!matchLine()) errorAtCurrent(message);
 }
 
 static void emitByte(uint8_t byte) {
@@ -720,7 +725,7 @@ void binarySignature(Signature* signature) {
 void unarySignature(Signature* signature) {
   signature->type = SIG_METHOD;
   expect(TOKEN_LEFT_PAREN, "Expecting '(' after method name");
-  expect(TOKEN_RIGHT_PAREN, "Expect ')' after opening parenthesis");
+  expect(TOKEN_RIGHT_PAREN, "Expecting ')' after opening parenthesis");
 }
 
 void mixedSignature(Signature* signature) {
@@ -1164,7 +1169,6 @@ ParseRule rules[] = {
   /* TOKEN_EACH          */ UNUSED,
   /* TOKEN_ELIF          */ UNUSED,
   /* TOKEN_ELSE          */ UNUSED,
-  /* TOKEN_PRINT_ERROR   */ UNUSED,
   /* TOKEN_FALSE         */ PREFIX(literal, BP_NONE),
   /* TOKEN_FOR           */ UNUSED,
   /* TOKEN_FUN           */ UNUSED,
@@ -1176,6 +1180,7 @@ ParseRule rules[] = {
   /* TOKEN_OR            */ INFIX(or_, BP_OR),
   /* TOKEN_PASS          */ UNUSED,
   /* TOKEN_PRINT         */ UNUSED,
+  /* TOKEN_PRINT_ERROR   */ UNUSED,
   /* TOKEN_RETURN        */ UNUSED,
   /* TOKEN_SHL           */ INFIX_OPERATOR(BP_BIT_SHIFT, "shl"),
   /* TOKEN_SHR           */ INFIX_OPERATOR(BP_BIT_SHIFT, "shr"),
@@ -1233,30 +1238,25 @@ static void block() {
   while (!check(TOKEN_DEDENT) && !check(TOKEN_EOF)) {
     declaration();
 
-    if (parser.previous.type != TOKEN_DEDENT) {
-      if (!check(TOKEN_DEDENT) && !check(TOKEN_EOF)) {
-        expectStatementEnd("Expecting a newline after statement");
-      }
+    if (!check(TOKEN_EOF)) {
+      expectStatementEnd("Expecting a newline after statement");
     }
+
+    matchLine();
   }
 
   if (!check(TOKEN_EOF)) expect(TOKEN_DEDENT, "Expecting indentation to decrease after block");
 }
 
 static void lambdaBlock() {
-  matchLine();
+  if (matchLine()) ignoreIndentation();
 
   while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
-    ignoreIndentation();
+    declaration();
 
-    if (!check(TOKEN_RIGHT_BRACE)) {
-      declaration();
-
-      if (parser.previous.type != TOKEN_DEDENT) {
-        if (!check(TOKEN_RIGHT_BRACE)) {
-          expectStatementEnd("Expecting a newline after statement");
-        }
-      }
+    if (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+      expectStatementEnd("Expecting a newline after statement");
+      ignoreIndentation();
     }
   }
 
@@ -1890,7 +1890,6 @@ static void whenStatement() {
   emitByte(OP_POP); // The switch value
 }
 
-// TODO: Try to reduce the amount of "expecting a newline after statement" errors.
 static void synchronize() {
   parser.panicMode = false;
 
@@ -1909,6 +1908,7 @@ static void synchronize() {
       case TOKEN_BREAK:
       case TOKEN_CONTINUE:
       case TOKEN_PRINT:
+      case TOKEN_PRINT_ERROR:
       case TOKEN_RETURN:
         return;
 
@@ -1961,7 +1961,7 @@ ObjFunction* compile(const char* source, const char* module, bool inRepl) {
 
   advance();
 
-#if DEBUG_PRINT_TOKENS
+#if DEBUG_PRINT_TOKENS == 1
   if (strlen(module) != 4 || memcmp("core", module, 4) != 0) {
     do {
       printf("%d\n", parser.current.type);
@@ -1970,6 +1970,13 @@ ObjFunction* compile(const char* source, const char* module, bool inRepl) {
 
     return NULL;
   }
+#elif DEBUG_PRINT_TOKENS == 2
+  do {
+    printf("%d\n", parser.current.type);
+    advance();
+  } while (!match(TOKEN_EOF));
+
+  return NULL;
 #endif
 
   matchLine();

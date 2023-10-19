@@ -68,6 +68,7 @@
 // DEBUG FLAGS
 
 // Don't do any compiling, just print the tokens.
+// 0 to disable, 1 to print only user code, 2 to print everything.
 #define DEBUG_PRINT_TOKENS 0
 
 // Print the bytecode instructions immediately after compiling.

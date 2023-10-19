@@ -988,6 +988,8 @@ static ObjClass* defineClass(VM* vm, const char* name) {
     Value value;                                            \
     if (tableGet(&vm->globals, copyString(name), &value)) { \
       cls = AS_CLASS(value);                                \
+    } else {                                                \
+      ASSERT(false, "Class should already be defined");     \
     }                                                       \
   } while (false)
 

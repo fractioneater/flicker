@@ -120,7 +120,7 @@ static Token blockComment() {
         advance();
         advance();
         if (nestDepth++ == MAX_COMMENT_NEST) {
-          return errorToken("Too many nested comments.");
+          return errorToken("Too many nested comments");
         }
         continue;
       } else {
@@ -253,15 +253,15 @@ static Token forceIdentifier() {
     if (token.type == TOKEN_NULL) {
       // There hasn't been an error yet.
       if (peek() == '\n') {
-        token = errorToken("Can't have linebreaks in identifiers.");
+        token = errorToken("Can't have linebreaks in identifiers");
       } else if (peek() == '(' || peek() == ')') {
-        token = errorToken("Can't have parentheses in identifiers.");
+        token = errorToken("Can't have parentheses in identifiers");
       }
     }
     advance();
   }
 
-  if (atEnd()) return errorToken("Unterminated identifier.");
+  if (atEnd()) return errorToken("Unterminated identifier");
 
   // The closing backtick.
   advance();
@@ -294,7 +294,7 @@ static Token makeNumber(bool isHex) {
   }
 
   if (errno == ERANGE) {
-    return errorToken("Number literal is too large.");
+    return errorToken("Number literal is too large");
   }
 
   return token;
@@ -326,13 +326,13 @@ static int hexEscape(int digits) {
   int value = 0;
   for (int i = 0; i < digits; i++) {
     if (peek() == '"' || atEnd()) {
-      errorToken("Incomplete escape sequence."); // This doesn't work.
+      errorToken("Incomplete escape sequence"); // This doesn't work.
       break;
     }
 
     int digit = hexDigit();
     if (digit == -1) {
-      errorToken("Invalid escape sequence.");
+      errorToken("Invalid escape sequence");
       break;
     }
 
@@ -362,7 +362,7 @@ static Token string() {
     if (c == '"') break;
     if (c == '\r') continue;
 
-    if (atEnd()) return errorToken("Unterminated string.");
+    if (atEnd()) return errorToken("Unterminated string");
 
     if (c == '=' && peek() == '(') {
       if (lexer.parenCount < MAX_INTERPOLATION_NESTING) {
@@ -393,7 +393,7 @@ static Token string() {
         case 'v':  byteArrayWrite(&string, '\v'); break;
         case 'x':  byteArrayWrite(&string, (uint8_t)hexEscape(2));
         default:
-          return errorToken("Invalid escape character.");
+          return errorToken("Invalid escape character");
       }
     } else {
       byteArrayWrite(&string, c);
@@ -469,7 +469,7 @@ Token indentation() {
   return nullToken();
 }
 
-Token scanToken() {
+Token nextToken() {
   if (lexer.dedentCount) {
     lexer.dedentCount--;
     return makeToken(TOKEN_DEDENT);
@@ -549,7 +549,7 @@ Token scanToken() {
       default:
         if (isAlpha(c)) return identifier();
         if (isDigit(c)) return number();
-        return errorToken("Unexpected character.");
+        return errorToken("Unexpected character");
     }
   }
 
