@@ -55,7 +55,7 @@ DEF_NATIVE(class_name) { RETURN_OBJ(AS_CLASS(args[0])->name); }
 DEF_NATIVE(class_supertype) {
   ObjClass* cls = AS_CLASS(args[0]);
 
-  if (cls->superclass == NULL) RETURN_NONE;
+  if (cls->superclass == NULL) RETURN_NONE();
 
   RETURN_OBJ(cls->superclass);
 }
@@ -97,7 +97,7 @@ DEF_NATIVE(list_filled) {
 
 DEF_NATIVE(list_add) {
   listAppend(AS_LIST(args[0]), args[1]);
-  RETURN_NONE;
+  RETURN_NONE();
 }
 
 DEF_NATIVE(list_addCore) {
@@ -107,7 +107,7 @@ DEF_NATIVE(list_addCore) {
 
 DEF_NATIVE(list_clear) {
   listClear(AS_LIST(args[0]));
-  RETURN_NONE;
+  RETURN_NONE();
 }
 
 DEF_NATIVE(list_size) { RETURN_NUMBER(AS_LIST(args[0])->count); }
@@ -126,14 +126,14 @@ DEF_NATIVE(list_iterate) {
   ObjList* list = AS_LIST(args[0]);
 
   if (IS_NONE(args[1])) {
-    if (list->count == 0) RETURN_FALSE;
+    if (list->count == 0) RETURN_FALSE();
     RETURN_NUMBER(0);
   }
 
   if (!validateInt(args[1], "Iterator")) return false;
 
   double index = AS_NUMBER(args[1]);
-  if (index < 0 || index >= list->count - 1) RETURN_FALSE;
+  if (index < 0 || index >= list->count - 1) RETURN_FALSE();
 
   RETURN_NUMBER(index + 1);
 }
@@ -157,14 +157,14 @@ DEF_NATIVE(list_removeAt) {
 DEF_NATIVE(list_removeValue) {
   ObjList* list = AS_LIST(args[0]);
   int index = listIndexOf(list, args[1]);
-  if (index == -1) RETURN_NONE;
+  if (index == -1) RETURN_NONE();
   RETURN_VAL(listDeleteAt(list, index));
 }
 
 DEF_NATIVE(list_indexOf) {
   ObjList* list = AS_LIST(args[0]);
   int index = listIndexOf(list, args[1]);
-  if (index == -1) RETURN_NONE;
+  if (index == -1) RETURN_NONE();
   RETURN_NUMBER(index);
 }
 
@@ -179,7 +179,7 @@ DEF_NATIVE(list_swap) {
   list->items[indexA] = list->items[indexB];
   list->items[indexB] = a;
 
-  RETURN_NONE;
+  RETURN_NONE();
 }
 
 DEF_NATIVE(list_get) {
@@ -230,7 +230,7 @@ DEF_NATIVE(map_get) {
 
   ObjMap* map = AS_MAP(args[0]);
   Value value = mapGet(map, args[1]);
-  if (IS_UNDEFINED(value)) RETURN_NONE;
+  if (IS_UNDEFINED(value)) RETURN_NONE();
 
   RETURN_VAL(value);
 }
@@ -251,7 +251,7 @@ DEF_NATIVE(map_addCore) {
 
 DEF_NATIVE(map_clear) {
   mapClear(AS_MAP(args[0]));
-  RETURN_NONE;
+  RETURN_NONE();
 }
 
 DEF_NATIVE(map_containsKey) {
@@ -269,23 +269,23 @@ DEF_NATIVE(map_remove) {
   if (!validateString(args[1], "Key")) return false;
 
   mapRemoveKey(AS_MAP(args[0]), args[1]);
-  RETURN_NONE;
+  RETURN_NONE();
 }
 
 DEF_NATIVE(map_iterate) {
   ObjMap* map = AS_MAP(args[0]);
 
-  if (map->table.count == 0) RETURN_FALSE;
+  if (map->table.count == 0) RETURN_FALSE();
 
   uint32_t index = 0;
 
   if (!IS_NONE(args[1])) {
     if (!validateInt(args[1], "Iterator")) return false;
 
-    if (AS_NUMBER(args[1]) < 0) RETURN_FALSE;
+    if (AS_NUMBER(args[1]) < 0) RETURN_FALSE();
     index = (uint32_t)AS_NUMBER(args[1]);
 
-    if (index >= map->table.capacity) RETURN_FALSE;
+    if (index >= map->table.capacity) RETURN_FALSE();
 
     index++;
   }
@@ -294,7 +294,7 @@ DEF_NATIVE(map_iterate) {
     if (map->table.entries[index].key != NULL) RETURN_NUMBER(index);
   }
 
-  RETURN_FALSE;
+  RETURN_FALSE();
 }
 
 DEF_NATIVE(map_keyIteratorValue) {
@@ -327,7 +327,7 @@ DEF_NATIVE(map_valueIteratorValue) {
 // None          //
 ///////////////////
 
-DEF_NATIVE(none_not) { RETURN_TRUE; }
+DEF_NATIVE(none_not) { RETURN_TRUE(); }
 
 DEF_NATIVE(none_toString) { RETURN_OBJ(copyStringLength("None", 4)); }
 
@@ -340,7 +340,7 @@ DEF_NATIVE(number_fromString) {
 
   ObjString* string = AS_STRING(args[1]);
 
-  if (string->length == 0) RETURN_NONE;
+  if (string->length == 0) RETURN_NONE();
 
   errno = 0;
   char* end;
@@ -350,7 +350,7 @@ DEF_NATIVE(number_fromString) {
 
   if (errno == ERANGE) RETURN_ERROR("Number literal is too large");
 
-  if (end < string->chars + string->length) RETURN_NONE;
+  if (end < string->chars + string->length) RETURN_NONE();
 
   RETURN_NUMBER(number);
 }
@@ -425,12 +425,12 @@ DEF_NATIVE(number_mod) {
 }
 
 DEF_NATIVE(number_equals) {
-  if (!IS_NUMBER(args[1])) RETURN_FALSE;
+  if (!IS_NUMBER(args[1])) RETURN_FALSE();
   RETURN_BOOL(AS_NUMBER(args[0]) == AS_NUMBER(args[1]));
 }
 
 DEF_NATIVE(number_notEquals) {
-  if (!IS_NUMBER(args[1])) RETURN_TRUE;
+  if (!IS_NUMBER(args[1])) RETURN_TRUE();
   RETURN_BOOL(AS_NUMBER(args[0]) != AS_NUMBER(args[1]));
 }
 
@@ -438,20 +438,20 @@ DEF_NATIVE(number_bitwiseNot) {
   RETURN_NUMBER(~(uint32_t)AS_NUMBER(args[0]));
 }
 
-DEF_NATIVE(number_dotDot) {
-  if (!validateNumber(args[1], "Right hand side of range")) return false;
-
-  double from = AS_NUMBER(args[0]);
-  double to = AS_NUMBER(args[1]);
-  RETURN_OBJ(newRange(from, to, true));
-}
-
-DEF_NATIVE(number_colon) {
+DEF_NATIVE(number_rangeColon) {
   if (!validateNumber(args[1], "Right hand side of range")) return false;
 
   double from = AS_NUMBER(args[0]);
   double to = AS_NUMBER(args[1]);
   RETURN_OBJ(newRange(from, to, false));
+}
+
+DEF_NATIVE(number_rangeDotDot) {
+  if (!validateNumber(args[1], "Right hand side of range")) return false;
+
+  double from = AS_NUMBER(args[0]);
+  double to = AS_NUMBER(args[1]);
+  RETURN_OBJ(newRange(from, to, true));
 }
 
 DEF_NATIVE(number_atan2) {
@@ -501,7 +501,7 @@ DEF_NATIVE(number_isInfinity) {
 
 DEF_NATIVE(number_isInteger) {
   double value = AS_NUMBER(args[0]);
-  if (isnan(value) || isinf(value)) RETURN_FALSE;
+  if (isnan(value) || isinf(value)) RETURN_FALSE();
   RETURN_BOOL(trunc(value) == value);
 }
 
@@ -537,7 +537,7 @@ DEF_NATIVE(object_same) {
   RETURN_BOOL(valuesEqual(args[1], args[2]));
 }
 
-DEF_NATIVE(object_not) { RETURN_FALSE; }
+DEF_NATIVE(object_not) { RETURN_FALSE(); }
 
 DEF_NATIVE(object_equals) {
   RETURN_BOOL(valuesEqual(args[0], args[1]));
@@ -659,7 +659,7 @@ DEF_NATIVE(range_isInclusive) {
 DEF_NATIVE(range_iterate) {
   ObjRange* range = AS_RANGE(args[0]);
 
-  if (range->from == range->to && !range->isInclusive) RETURN_FALSE;
+  if (range->from == range->to && !range->isInclusive) RETURN_FALSE();
 
   if (IS_NONE(args[1])) RETURN_NUMBER(range->from);
 
@@ -668,13 +668,13 @@ DEF_NATIVE(range_iterate) {
 
   if (range->from < range->to) {
     iterator++;
-    if (iterator > range->to) RETURN_FALSE;
+    if (iterator > range->to) RETURN_FALSE();
   } else {
     iterator--;
-    if (iterator < range->to) RETURN_FALSE;
+    if (iterator < range->to) RETURN_FALSE();
   }
 
-  if (!range->isInclusive && iterator == range->to) RETURN_FALSE;
+  if (!range->isInclusive && iterator == range->to) RETURN_FALSE();
 
   RETURN_NUMBER(iterator);
 }
@@ -751,6 +751,13 @@ DEF_NATIVE(string_codePointAt) {
   RETURN_NUMBER(utf8Decode((uint8_t*)string->chars + index, string->length - index));
 }
 
+DEF_NATIVE(string_concatenate) {
+  if (!validateString(args[1], "Right operand")) return false;
+  ObjString* a = AS_STRING(args[0]);
+  ObjString* b = AS_STRING(args[1]);
+  RETURN_OBJ(stringFormat("##", a, b));
+}
+
 DEF_NATIVE(string_contains) {
   if (!validateString(args[1], "Argument")) return false;
 
@@ -766,11 +773,34 @@ DEF_NATIVE(string_endsWith) {
   ObjString* string = AS_STRING(args[0]);
   ObjString* search = AS_STRING(args[1]);
 
-  if (search->length > string->length) RETURN_FALSE;
+  if (search->length > string->length) RETURN_FALSE();
 
   RETURN_BOOL(memcmp(string->chars + string->length - search->length,
                      search->chars, search->length) == 0);
 }
+
+DEF_NATIVE(string_get) {
+  ObjString* string = AS_STRING(args[0]);
+
+  if (IS_NUMBER(args[1])) {
+    uint32_t index = validateIndex(args[1], string->length, "Subscript");
+    if (index == UINT32_MAX) return false;
+
+    RETURN_OBJ(stringCodePointAt(string, index));
+  }
+
+  if (!IS_RANGE(args[1])) {
+    RETURN_ERROR("Subscript must be a number or a range");
+  }
+
+  int step;
+  uint32_t count = string->length;
+  uint32_t start = calculateRange(AS_RANGE(args[1]), &count, &step);
+  if (start == UINT32_MAX) return false;
+
+  RETURN_OBJ(stringFromRange(string, start, count, step));
+}
+
 
 DEF_NATIVE(string_indexOf1) {
   if (!validateString(args[1], "Argument")) return false;
@@ -798,18 +828,18 @@ DEF_NATIVE(string_iterate) {
   ObjString* string = AS_STRING(args[0]);
 
   if (IS_NONE(args[1])) {
-    if (string->length == 0) RETURN_FALSE;
+    if (string->length == 0) RETURN_FALSE();
     RETURN_NUMBER(0);
   }
 
   if (!validateInt(args[1], "Iterator")) return false;
 
-  if (AS_NUMBER(args[1]) < 0) RETURN_FALSE;
+  if (AS_NUMBER(args[1]) < 0) RETURN_FALSE();
   uint32_t index = (uint32_t)AS_NUMBER(args[1]);
 
   do {
     index++;
-    if (index >= string->length) RETURN_FALSE;
+    if (index >= string->length) RETURN_FALSE();
   } while ((string->chars[index] & 0xc0) == 0x80);
 
   RETURN_NUMBER(index);
@@ -819,17 +849,17 @@ DEF_NATIVE(string_iterateByte) {
   ObjString* string = AS_STRING(args[0]);
 
   if (IS_NONE(args[1])) {
-    if (string->length == 0) RETURN_FALSE;
+    if (string->length == 0) RETURN_FALSE();
     RETURN_NUMBER(0);
   }
 
   if (!validateInt(args[1], "Iterator")) return false;
 
-  if (AS_NUMBER(args[1]) < 0) RETURN_FALSE;
+  if (AS_NUMBER(args[1]) < 0) RETURN_FALSE();
   uint32_t index = (uint32_t)AS_NUMBER(args[1]);
 
   index++;
-  if (index >= string->length) RETURN_FALSE;
+  if (index >= string->length) RETURN_FALSE();
 
   RETURN_NUMBER(index);
 }
@@ -857,44 +887,45 @@ DEF_NATIVE(string_lowercase) {
   RETURN_OBJ(takeString(copy, length));
 }
 
+DEF_NATIVE(string_rangeColon) {
+  if (!validateString(args[1], "Right hand side of range")) return false;
+  
+  ObjString* from = AS_STRING(args[0]);
+  ObjString* to = AS_STRING(args[1]);
+
+  int fromBytes = utf8DecodeNumBytes(from->chars[0]);
+  int toBytes = utf8DecodeNumBytes(to->chars[0]);
+
+  if (from->length == 0 || from->length > fromBytes) RETURN_ERROR("Left hand side of range must be a single character");
+  if (to->length == 0 || to->length > toBytes) RETURN_ERROR("Right hand side of range must be a single character");
+
+  RETURN_OBJ(newRange(utf8Decode((uint8_t*)from->chars, fromBytes), utf8Decode((uint8_t*)to->chars, toBytes), false));
+}
+
+DEF_NATIVE(string_rangeDotDot) {
+  if (!validateString(args[1], "Right hand side of range")) return false;
+  
+  ObjString* from = AS_STRING(args[0]);
+  ObjString* to = AS_STRING(args[1]);
+
+  int fromBytes = utf8DecodeNumBytes(from->chars[0]);
+  int toBytes = utf8DecodeNumBytes(to->chars[0]);
+
+  if (from->length == 0 || from->length > fromBytes) RETURN_ERROR("Left hand side of range must be a single character");
+  if (to->length == 0 || to->length > toBytes) RETURN_ERROR("Right hand side of range must be a single character");
+
+  RETURN_OBJ(newRange(utf8Decode((uint8_t*)from->chars, fromBytes), utf8Decode((uint8_t*)to->chars, toBytes), true));
+}
+
 DEF_NATIVE(string_startsWith) {
   if (!validateString(args[1], "Argument")) return false;
 
   ObjString* string = AS_STRING(args[0]);
   ObjString* search = AS_STRING(args[1]);
 
-  if (search->length > string->length) RETURN_FALSE;
+  if (search->length > string->length) RETURN_FALSE();
 
   RETURN_BOOL(memcmp(string->chars, search->chars, search->length) == 0);
-}
-
-DEF_NATIVE(string_concatenate) {
-  if (!validateString(args[1], "Right operand")) return false;
-  ObjString* a = AS_STRING(args[0]);
-  ObjString* b = AS_STRING(args[1]);
-  RETURN_OBJ(stringFormat("##", a, b));
-}
-
-DEF_NATIVE(string_get) {
-  ObjString* string = AS_STRING(args[0]);
-
-  if (IS_NUMBER(args[1])) {
-    uint32_t index = validateIndex(args[1], string->length, "Subscript");
-    if (index == UINT32_MAX) return false;
-
-    RETURN_OBJ(stringCodePointAt(string, index));
-  }
-
-  if (!IS_RANGE(args[1])) {
-    RETURN_ERROR("Subscript must be a number or a range");
-  }
-
-  int step;
-  uint32_t count = string->length;
-  uint32_t start = calculateRange(AS_RANGE(args[1]), &count, &step);
-  if (start == UINT32_MAX) return false;
-
-  RETURN_OBJ(stringFromRange(string, start, count, step));
 }
 
 DEF_NATIVE(string_toString) { RETURN_VAL(args[0]); }
@@ -938,7 +969,7 @@ DEF_NATIVE(sys_fileRead) {
 
 DEF_NATIVE(sys_gc) {
   collectGarbage();
-  RETURN_NONE;
+  RETURN_NONE();
 }
 
 DEF_NATIVE(sys_input) {
@@ -1082,8 +1113,8 @@ void initializeCore(VM* vm) {
   NATIVE(vm->numberClass, "exp()", number_exp);
   NATIVE(vm->numberClass, "%(1)", number_mod);
   NATIVE(vm->numberClass, "~()", number_bitwiseNot);
-  NATIVE(vm->numberClass, "..(1)", number_dotDot);
-  NATIVE(vm->numberClass, ":(1)", number_colon);
+  NATIVE(vm->numberClass, ":(1)", number_rangeColon);
+  NATIVE(vm->numberClass, "..(1)", number_rangeDotDot);
   NATIVE(vm->numberClass, "atan(1)", number_atan2);
   NATIVE(vm->numberClass, "fraction()", number_fraction);
   NATIVE(vm->numberClass, "isInfinity", number_isInfinity);
@@ -1101,20 +1132,22 @@ void initializeCore(VM* vm) {
   GET_CORE_CLASS(vm->stringClass, "String");
   NATIVE(vm->stringClass->obj.cls, "fromCodePoint(1)", string_fromCodePoint);
   NATIVE(vm->stringClass->obj.cls, "fromByte(1)", string_fromByte);
-  NATIVE(vm->stringClass, "concatenate(1)", string_concatenate);
-  NATIVE(vm->stringClass, "get(1)", string_get);
   NATIVE(vm->stringClass, "byteAt(1)", string_byteAt);
-  NATIVE(vm->stringClass, "length", string_byteCount);
   NATIVE(vm->stringClass, "byteCount", string_byteCount);
   NATIVE(vm->stringClass, "codePointAt(1)", string_codePointAt);
+  NATIVE(vm->stringClass, "concatenate(1)", string_concatenate);
   NATIVE(vm->stringClass, "contains(1)", string_contains);
   NATIVE(vm->stringClass, "endsWith(1)", string_endsWith);
+  NATIVE(vm->stringClass, "get(1)", string_get);
   NATIVE(vm->stringClass, "indexOf(1)", string_indexOf1);
   NATIVE(vm->stringClass, "indexOf(2)", string_indexOf2);
   NATIVE(vm->stringClass, "iterate(1)", string_iterate);
   NATIVE(vm->stringClass, "iterateByte(1)", string_iterateByte);
   NATIVE(vm->stringClass, "iteratorValue(1)", string_iteratorValue);
+  NATIVE(vm->stringClass, "length", string_byteCount);
   NATIVE(vm->stringClass, "lowercase()", string_lowercase);
+  NATIVE(vm->stringClass, ":(1)", string_rangeColon);
+  NATIVE(vm->stringClass, "..(1)", string_rangeDotDot);
   NATIVE(vm->stringClass, "startsWith(1)", string_startsWith);
   NATIVE(vm->stringClass, "toString()", string_toString);
 
