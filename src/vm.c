@@ -292,19 +292,9 @@ static void closeUpvalues(Value* last) {
   }
 }
 
-static void defineMethod(ObjString* name) {
+static void defineMethod(ObjClass* cls, ObjString* name) {
   Value method = peek();
-  ObjClass* cls = AS_CLASS(peek2());
   tableSet(&cls->methods, name, method);
-  pop();
-}
-
-// TODO MAYBE: Merge defineClassMethod() with defineMethod()
-
-static void defineClassMethod(ObjString* name) {
-  Value method = peek();
-  ObjClass* cls = AS_CLASS(peek2());
-  tableSet(&cls->obj.cls->methods, name, method);
   pop();
 }
 
@@ -620,10 +610,10 @@ static InterpretResult run() {
         break;
       }
       case OP_METHOD_INSTANCE:
-        defineMethod(READ_STRING());
+        defineMethod(AS_CLASS(peek2()), READ_STRING());
         break;
       case OP_METHOD_STATIC:
-        defineClassMethod(READ_STRING());
+        defineMethod(AS_CLASS(peek2())->obj.cls, READ_STRING());
         break;
     }
   }

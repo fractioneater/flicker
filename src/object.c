@@ -483,10 +483,21 @@ void printObject(Value value) {
       break;
     }
     case OBJ_MAP: {
-      ObjMap* map __attribute__((unused)) = AS_MAP(value);
-      // TODO: Printing maps.
-      // The VM can do it just fine while running bytecode, but it's harder manually.
-      printf("Map instance");
+      ObjMap* map = AS_MAP(value);
+      Table table = map->table;
+      printf("[");
+      bool first = true;
+      for (int i = 0; i < table.capacity; i++) {
+        if (table.entries[i].key != NULL) {
+          if (!first) {
+            printf(", ");
+          }
+          first = false;
+          printf("%s -> ", table.entries[i].key->chars);
+          printValue(table.entries[i].value);
+        }
+      }
+      printf("]");
       break;
     }
     case OBJ_NATIVE:

@@ -225,7 +225,7 @@ DEF_NATIVE(list_set) {
 DEF_NATIVE(map_init) { RETURN_OBJ(newMap()); }
 
 DEF_NATIVE(map_get) {
-  // TODO: Support more than just strings as keys.
+  // TODO MAYBE: Support more than just strings as keys.
   if (!validateString(args[1], "Key")) return false;
 
   ObjMap* map = AS_MAP(args[0]);

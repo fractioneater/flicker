@@ -1,4 +1,4 @@
-# Testing non-instantiable classes.
+# Testing callable references to inherited methods.
 # Sadly there are no bagels to be found in this file.
 
 class A
