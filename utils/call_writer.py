@@ -2,7 +2,7 @@ import sys
 
 TYPES = {"CALL": "simple", "INVOKE": "invoke", "SUPER": "invoke"}
 
-OUTPUT ="""case OP_{0}_{2}:
+OUTPUT = """case OP_{0}_{2}:
   return {1}Instruction("{0}_{2}", {3}offset);
 """
 
