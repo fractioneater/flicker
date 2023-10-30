@@ -1047,7 +1047,11 @@ void initializeCore(VM* vm) {
 
   NATIVE(vm->objectClass->obj.cls, "same(2)", object_same);
 
-  interpret(coreSource, "core", false);
+  InterpretResult coreResult = interpret(coreSource, "core", false);
+  if (coreResult != INTERPRET_OK) {
+    fprintf(stderr, "Errors found in core file, aborting\n");
+    abort();
+  }
 
   GET_CORE_CLASS(vm->boolClass, "Bool");
   NATIVE(vm->boolClass, "not()", bool_not);

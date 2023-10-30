@@ -38,6 +38,7 @@ typedef struct {
 typedef enum {
   BP_NONE,
   BP_ASSIGNMENT,  // =
+  BP_IF,          // if ... else
   BP_NOT,         // not
   BP_OR,          // or
   BP_AND,         // and
@@ -970,26 +971,14 @@ static void and_(bool canAssign) {
 }
 
 static void if_(bool canAssign) {
-  expect(TOKEN_LEFT_PAREN, "Expecting '(' after 'if'");
-  expression();
-  expect(TOKEN_RIGHT_PAREN, "Expecting ')' after condition");
-
-  int thenJump = emitJump(OP_JUMP_FALSY);
-  emitByte(OP_POP);
   expression();
 
-  int elseJump = emitJump(OP_JUMP);
+  int endJump = emitJump(OP_JUMP_TRUTHY_POP);
 
-  patchJump(thenJump);
-  emitByte(OP_POP);
+  expect(TOKEN_ELSE, "Expecting an else clause after condition");
+  expression();
 
-  if (match(TOKEN_ELIF)) {
-    if_(false);
-  } else {
-    expect(TOKEN_ELSE, "If expression must have an else clause");
-    expression();
-  }
-  patchJump(elseJump);
+  patchJump(endJump);
 }
 
 static void stringInterpolation(bool canAssign) {
@@ -1172,7 +1161,7 @@ ParseRule rules[] = {
   /* TOKEN_FALSE         */ PREFIX(literal, BP_NONE),
   /* TOKEN_FOR           */ UNUSED,
   /* TOKEN_FUN           */ UNUSED,
-  /* TOKEN_IF            */ PREFIX(if_, BP_NONE),
+  /* TOKEN_IF            */ INFIX(if_, BP_IF),
   /* TOKEN_IN            */ UNUSED,
   /* TOKEN_IS            */ INFIX_OPERATOR(BP_IS, "is"),
   /* TOKEN_NONE          */ PREFIX(literal, BP_NONE),

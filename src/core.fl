@@ -25,7 +25,7 @@ class Sequence
     each i in this do result = result + 1
     return result
   
-  attribute isEmpty = if (this.iterate(None)) False else True
+  attribute isEmpty = not this.iterate(None)
 
   all(function)
     var result = True
@@ -134,7 +134,7 @@ class TakeSequence < Sequence
 
   iterate(iterator)
     if not iterator do this.taken = 1 else do this.taken = this.taken + 1
-    return if (this.taken > this.count) None else this.sequence.iterate(iterator)
+    return None if this.taken > this.count else this.sequence.iterate(iterator)
 
   iteratorValue(iterator) = this.sequence.iteratorValue(iterator)
 

@@ -116,6 +116,8 @@ int disassembleInstruction(Chunk* chunk, int offset) {
       return jumpInstruction("JUMP_FALSY", 1, chunk, offset);
     case OP_JUMP_TRUTHY:
       return jumpInstruction("JUMP_TRUTHY", 1, chunk, offset);
+    case OP_JUMP_TRUTHY_POP:
+      return jumpInstruction("JUMP_TRUTHY_POP", 1, chunk, offset);
     case OP_LOOP:
       return jumpInstruction("LOOP", -1, chunk, offset);
     // Just so you know, I didn't type this next section by hand.

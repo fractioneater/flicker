@@ -504,6 +504,12 @@ static InterpretResult run() {
         if (!isFalsy(peek())) ip += offset;
         break;
       }
+      case OP_JUMP_TRUTHY_POP: {
+        uint16_t offset = READ_SHORT();
+        if (!isFalsy(peek())) ip += offset;
+        pop();
+        break;
+      }
       case OP_LOOP: {
         uint16_t offset = READ_SHORT();
         ip -= offset;
