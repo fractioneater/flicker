@@ -513,7 +513,7 @@ Token nextToken() {
       case '^': return makeToken(TOKEN_CARET);
       case '&': return makeToken(TOKEN_AMPERSAND);
       case '~': return makeToken(TOKEN_TILDE);
-      case '.': return makeToken(match('.') ? TOKEN_DOT_DOT : TOKEN_DOT);
+      case '.': return makeToken(match('.') ? (match('<') ? TOKEN_DOT_DOT_LT : TOKEN_DOT_DOT) : TOKEN_DOT);
       case ':': return makeToken(match(':') ? TOKEN_COLON_COLON : TOKEN_COLON);
       case '*': return makeToken(match('*') ? TOKEN_STAR_STAR : TOKEN_STAR);
       case '-': return makeToken(match('>') ? TOKEN_RIGHT_ARROW : TOKEN_MINUS);

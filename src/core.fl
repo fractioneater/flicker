@@ -161,7 +161,7 @@ class String < Sequence
       error "Count must be a positive integer"
 
     var result = ""
-    each i in 0:count
+    each i in 0..<count
       result = result + this
     return result
 
@@ -178,7 +178,7 @@ class String < Sequence
     var size = this.byteCount
 
     while last < size and (index = this.indexOf(delimiter, last)) != -1
-      result.add(this[last:index])
+      result.add(this[last..<index])
       last = index + delimiterSize
 
     if last < size
@@ -203,7 +203,7 @@ class String < Sequence
     var size = this.byteCount
 
     while last < size and (index = this.indexOf(from, last)) != -1
-      result = result + this[last:index] + to
+      result = result + this[last..<index] + to
       last = index + fromSize
 
     if last < size do result = result + this[last..-1]
@@ -276,7 +276,7 @@ class List < Sequence
       error "Count must be a positive integer"
 
     var result = []
-    each i in 0:count
+    each i in 0..<count
       result.addAll(this)
     return result
 
@@ -304,7 +304,7 @@ class List < Sequence
   partition(low, high, comparer)
     var pivot = this[high]
     var i = low - 1
-    each j in low:high
+    each j in low..<high
       if comparer(this[j], pivot)
         i = i + 1
         this.swap(i, j)

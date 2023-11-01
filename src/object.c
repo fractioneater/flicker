@@ -509,7 +509,7 @@ void printObject(Value value) {
     case OBJ_RANGE: {
       ObjRange* range = AS_RANGE(value);
       printValue(NUMBER_VAL(range->from));
-      printf("%s", range->isInclusive ? ".." : ":");
+      printf("%s", range->isInclusive ? ".." : "..<");
       printValue(NUMBER_VAL(range->to));
       break;
     }

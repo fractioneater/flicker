@@ -438,20 +438,20 @@ DEF_NATIVE(number_bitwiseNot) {
   RETURN_NUMBER(~(uint32_t)AS_NUMBER(args[0]));
 }
 
-DEF_NATIVE(number_rangeColon) {
-  if (!validateNumber(args[1], "Right hand side of range")) return false;
-
-  double from = AS_NUMBER(args[0]);
-  double to = AS_NUMBER(args[1]);
-  RETURN_OBJ(newRange(from, to, false));
-}
-
 DEF_NATIVE(number_rangeDotDot) {
   if (!validateNumber(args[1], "Right hand side of range")) return false;
 
   double from = AS_NUMBER(args[0]);
   double to = AS_NUMBER(args[1]);
   RETURN_OBJ(newRange(from, to, true));
+}
+
+DEF_NATIVE(number_rangeDotDotLess) {
+  if (!validateNumber(args[1], "Right hand side of range")) return false;
+
+  double from = AS_NUMBER(args[0]);
+  double to = AS_NUMBER(args[1]);
+  RETURN_OBJ(newRange(from, to, false));
 }
 
 DEF_NATIVE(number_atan2) {
@@ -689,7 +689,7 @@ DEF_NATIVE(range_toString) {
   ObjString* to = numberToString(range->to);
   pushRoot((Obj*)to);
 
-  ObjString* result = stringFormat("#$#", from, range->isInclusive ? ".." : ":", to);
+  ObjString* result = stringFormat("#$#", from, range->isInclusive ? ".." : "..<", to);
 
   popRoot();
   popRoot();
@@ -1117,8 +1117,8 @@ void initializeCore(VM* vm) {
   NATIVE(vm->numberClass, "exp()", number_exp);
   NATIVE(vm->numberClass, "%(1)", number_mod);
   NATIVE(vm->numberClass, "~()", number_bitwiseNot);
-  NATIVE(vm->numberClass, ":(1)", number_rangeColon);
   NATIVE(vm->numberClass, "..(1)", number_rangeDotDot);
+  NATIVE(vm->numberClass, "..<(1)", number_rangeDotDotLess);
   NATIVE(vm->numberClass, "atan(1)", number_atan2);
   NATIVE(vm->numberClass, "fraction()", number_fraction);
   NATIVE(vm->numberClass, "isInfinity", number_isInfinity);
