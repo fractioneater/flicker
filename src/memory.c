@@ -125,6 +125,16 @@ static void blackenObject(Obj* object) {
       markTable(&map->table);
       break;
     }
+    case OBJ_MODULE: {
+      ObjModule* module = (ObjModule*)object;
+      for (int i = 0; i < module->variables.count; i++) {
+        markValue(module->variables.values[i]);
+      }
+
+      markTable(&module->variableNames);
+      markObject((Obj*)module->name);
+      break;
+    }
     case OBJ_UPVALUE:
       markValue(((ObjUpvalue*)object)->closed);
       break;
@@ -180,6 +190,11 @@ static void freeObject(Obj* object) {
       ObjMap* map = (ObjMap*)object;
       freeTable(&map->table);
       FREE(ObjMap, object);
+      break;
+    }
+    case OBJ_MODULE: {
+      freeTable(&((ObjModule*)object)->variableNames);
+      freeValueArray(&((ObjModule*)object)->variables);
       break;
     }
     case OBJ_NATIVE:

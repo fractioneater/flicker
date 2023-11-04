@@ -1178,6 +1178,7 @@ ParseRule rules[] = {
   /* TOKEN_SUPER         */ PREFIX(super_, BP_NONE),
   /* TOKEN_THIS          */ PREFIX(this_, BP_NONE),
   /* TOKEN_TRUE          */ PREFIX(literal, BP_NONE),
+  /* TOKEN_USE           */ UNUSED,
   /* TOKEN_VAR           */ UNUSED,
   /* TOKEN_WHEN          */ UNUSED, // TODO: When expressions
   /* TOKEN_WHILE         */ UNUSED,
@@ -1472,6 +1473,38 @@ static void varDeclaration() {
   }
 
   defineVariable(global);
+}
+
+static void useStatement() {
+  if (!check(TOKEN_STRING)) {
+    do {
+      matchLine();
+
+      expect(TOKEN_IDENTIFIER, "Expecting a variable name");
+
+      int sourceConstant = identifierConstant(&parser.previous);
+      int nameConstant = -1;
+      if (match(TOKEN_RIGHT_ARROW)) {
+        nameConstant = parseVariable("Expecting a variable name alias");
+      } else {
+        declareVariable();
+      }
+
+      emitConstantArg(OP_IMPORT_VARIABLE, sourceConstant);
+      defineVariable(nameConstant);
+    } while (match(TOKEN_COMMA));
+
+    expect(TOKEN_IDENTIFIER, "Expecting 'from' after import variables");
+    if (parser.previous.length != 4 || memcmp(parser.previous.start, "from", 4) != 0) {
+      error("Expecting 'from' after import variables");
+    }
+  }
+
+  expect(TOKEN_STRING, "Expecting a module to import");
+  int moduleConstant = makeConstant(parser.previous.value);
+
+  emitConstantArg(OP_IMPORT_MODULE, moduleConstant);
+  emitByte(OP_POP);
 }
 
 static void expressionStatement() {
@@ -1913,6 +1946,7 @@ static void declaration() {
   if (match(TOKEN_CLASS)) classDeclaration();
   else if (match(TOKEN_FUN)) funDeclaration();
   else if (match(TOKEN_VAR)) varDeclaration();
+  else if (match(TOKEN_USE)) useStatement();
   else statement();
 
   if (parser.panicMode) synchronize();

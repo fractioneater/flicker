@@ -11,7 +11,6 @@
 #include <time.h>
 
 #include "memory.h"
-#include "object.h"
 #include "native.h"
 #include "shishua.h"
 #include "utils.h"
@@ -261,8 +260,7 @@ DEF_NATIVE(map_containsKey) {
 }
 
 DEF_NATIVE(map_size) {
-  // TODO: Tombstones are counted, although they probably shouldn't be.
-  RETURN_NUMBER(AS_MAP(args[0])->table.count);
+  RETURN_NUMBER(AS_MAP(args[0])->count);
 }
 
 DEF_NATIVE(map_remove) {

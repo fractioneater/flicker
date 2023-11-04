@@ -2,7 +2,7 @@
 #define flicker_memory_h
 
 #include "common.h"
-#include "object.h"
+#include "value.h"
 
 #define ALLOCATE(type, count) (type*)reallocate(NULL, 0, sizeof(type) * (count))
 

@@ -1,7 +1,6 @@
 #include "shishua.h"
 
-// These are the hex digits of Φ,
-// the least approximable irrational number.
+// These are the hex digits of Φ, the least approximable irrational number.
 static uint64_t phi[16] = {
   0x9E3779B97F4A7C15, 0xF39CC0605CEDC834, 0x1082276BF3A27251, 0xF86C6A11D0C18E95,
   0x2767F0B153D27B7F, 0x0347045B5BF1827F, 0x01886F0928403002, 0xC1D64BA40F335E36,

@@ -3,8 +3,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include "object.h"
-
 static uint32_t validateIndexValue(uint32_t count, double value, const char* argName) {
   if (!validateIntValue(value, argName)) return UINT32_MAX;
 

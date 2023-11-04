@@ -16,6 +16,7 @@
 #define IS_INSTANCE(value)     isObjType(value, OBJ_INSTANCE)
 #define IS_LIST(value)         isObjType(value, OBJ_LIST)
 #define IS_MAP(value)          isObjType(value, OBJ_MAP)
+#define IS_MODULE(value)       isObjType(value, OBJ_MODULE)
 #define IS_NATIVE(value)       isObjType(value, OBJ_NATIVE)
 #define IS_PRNG(value)         isObjType(value, OBJ_PRNG)
 #define IS_RANGE(value)        isObjType(value, OBJ_RANGE)
@@ -28,6 +29,7 @@
 #define AS_INSTANCE(value)     ((ObjInstance*)AS_OBJ(value))
 #define AS_LIST(value)         ((ObjList*)AS_OBJ(value))
 #define AS_MAP(value)          ((ObjMap*)AS_OBJ(value))
+#define AS_MODULE(value)       ((ObjModule*)AS_OBJ(value))
 #define AS_NATIVE(value)       ((ObjNative*)AS_OBJ(value))
 #define AS_PRNG(value)         ((ObjPrng*)AS_OBJ(value))
 #define AS_RANGE(value)        ((ObjRange*)AS_OBJ(value))
@@ -42,6 +44,7 @@ typedef enum {
   OBJ_INSTANCE,
   OBJ_LIST,
   OBJ_MAP,
+  OBJ_MODULE,
   OBJ_NATIVE,
   OBJ_PRNG,
   OBJ_RANGE,
@@ -60,6 +63,13 @@ struct Obj {
 
 typedef struct {
   Obj obj;
+  ValueArray variables;
+  Table variableNames;
+  ObjString* name;
+} ObjModule;
+
+typedef struct {
+  Obj obj;
   uint8_t arity;
   int upvalueCount;
   Chunk chunk;
@@ -75,15 +85,16 @@ typedef struct {
 
 typedef struct {
   Obj obj;
-  Table table;
-} ObjMap;
-
-typedef struct {
-  Obj obj;
   uint32_t count;
   uint32_t capacity;
   Value* items;
 } ObjList;
+
+typedef struct {
+  Obj obj;
+  int count;
+  Table table;
+} ObjMap;
 
 struct ObjString {
   Obj obj;
@@ -164,6 +175,8 @@ Value mapGet(ObjMap* map, Value key);
 void mapSet(ObjMap* map, Value key, Value value);
 void mapClear(ObjMap* map);
 void mapRemoveKey(ObjMap* map, Value key);
+
+ObjModule* newModule(ObjString* name);
 
 ObjNative* newNative(NativeFn function);
 

@@ -169,6 +169,7 @@ ObjMap* newMap() {
   Table table;
   initTable(&table);
   map->table = table;
+  map->count = 0;
   return map;
 }
 
@@ -182,13 +183,32 @@ Value mapGet(ObjMap* map, Value key) {
 }
 
 void mapSet(ObjMap* map, Value key, Value value) {
-  tableSet(&map->table, AS_STRING(key), value);
+  if (tableSet(&map->table, AS_STRING(key), value)) {
+    map->count++;
+  }
 }
 
-void mapClear(ObjMap* map) { freeTable(&map->table); }
+void mapClear(ObjMap* map) {
+  freeTable(&map->table);
+  map->count = 0;
+}
 
 void mapRemoveKey(ObjMap* map, Value key) {
-  tableDelete(&map->table, AS_STRING(key));
+  if (tableDelete(&map->table, AS_STRING(key))) {
+    map->count--;
+  }
+}
+
+ObjModule* newModule(ObjString* name) {
+  ObjModule* module = ALLOCATE_OBJ(ObjModule, OBJ_MODULE, NULL);
+  pushRoot((Obj*)module);
+  
+  initTable(&module->variableNames);
+  initValueArray(&module->variables);
+  
+  module->name = name;
+  popRoot();
+  return module;
 }
 
 ObjNative* newNative(NativeFn function) {
@@ -500,6 +520,9 @@ void printObject(Value value) {
       printf("]");
       break;
     }
+    case OBJ_MODULE:
+      printf("module");
+      break;
     case OBJ_NATIVE:
       printf("<native fn>");
       break;

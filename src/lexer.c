@@ -226,6 +226,7 @@ static TokenType identifierType() {
       break;
     case 'T': return checkKeyword(1, 3, "rue", TOKEN_TRUE);
     case 't': return checkKeyword(1, 3, "his", TOKEN_THIS);
+    case 'u': return checkKeyword(1, 2, "se", TOKEN_USE);
     case 'v': return checkKeyword(1, 2, "ar", TOKEN_VAR);
     case 'w':
       if (lexer.start[1] == 'h') {

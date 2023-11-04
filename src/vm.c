@@ -557,6 +557,9 @@ static InterpretResult run() {
         ip = frame->ip;
         break;
       }
+      case OP_IMPORT_MODULE: /* TODO */ break;
+      case OP_IMPORT_VARIABLE: /* TODO */ break;
+      case OP_END_MODULE: /* TODO */ break;
       case OP_CLOSURE: {
         ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
         ObjClosure* closure = newClosure(function);
