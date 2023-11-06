@@ -22,15 +22,17 @@ static char* removeExtension(const char* path) {
   size_t length = strlen(path);
   for (size_t i = length - 1; i >= 0; i--) {
     if (isSeparator(path[i])) {
-      char new[length];
-      return strcpy(new, path);
+      char* new = ALLOCATE(char, length + 1);
+      return strncpy(new, path, length);
     }
 
     if (path[i] == '.') {
-      char new[i];
+      char* new = ALLOCATE(char, i + 1);
       return strncpy(new, path, i);
     }
   }
+  char* new = ALLOCATE(char, length + 1);
+  return strncpy(new, path, length);
 }
 
 static void repl() {
@@ -78,9 +80,11 @@ static char* readFile(const char* path) {
 
 static void runFile(const char* path) {
   char* source = readFile(path);
+  char* newPath = removeExtension(path);
 
-  InterpretResult result = interpret(source, removeExtension(path), false);
+  InterpretResult result = interpret(source, newPath, false);
 
+  free(newPath);
   free(source);
 
   if (result == INTERPRET_COMPILE_ERROR) exit(65);

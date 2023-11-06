@@ -1546,7 +1546,7 @@ static void breakStatement() {
       loop = loop->enclosing;
       if (loop == NULL) {
         error("Can't find loop with this label");
-        break;
+        return;
       }
     }
   }
@@ -1584,7 +1584,7 @@ static void continueStatement() {
       loop = loop->enclosing;
       if (loop == NULL) {
         error("Can't find loop with this label");
-        break;
+        return;
       }
     }
   }
