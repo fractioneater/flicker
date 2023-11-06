@@ -635,8 +635,8 @@ static InterpretResult run() {
 #undef BINARY_OP_INTS
 }
 
-InterpretResult interpret(const char* source, const char* module, bool inRepl) {
-  ObjFunction* function = compile(source, module, inRepl);
+InterpretResult interpret(const char* source, const char* module, bool printResult) {
+  ObjFunction* function = compile(source, module, printResult);
   if (function == NULL) return INTERPRET_COMPILE_ERROR;
 
 #if DEBUG_PRINT_CODE == 2

@@ -265,7 +265,8 @@ static void expectStatementEnd(const char* message) {
   // If the parser has just synchronized after an error, it might have
   // already consumed a newline token. That's why we check for it here.
   if (parser.previous.type == TOKEN_LINE ||
-      parser.previous.type == TOKEN_DEDENT)
+      parser.previous.type == TOKEN_DEDENT ||
+      parser.previous.type == TOKEN_INDENT)
     return;
   if (match(TOKEN_SEMICOLON)) {
     matchLine();
@@ -1972,13 +1973,13 @@ static void statement() {
   }
 }
 
-ObjFunction* compile(const char* source, const char* module, bool inRepl) {
+ObjFunction* compile(const char* source, const char* module, bool printResult) {
   initLexer(source);
   Compiler compiler;
   initCompiler(&compiler, TYPE_SCRIPT);
 
   parser.module = module;
-  parser.printResult = inRepl;
+  parser.printResult = printResult;
   parser.hadError = false;
   parser.panicMode = false;
   parser.onExpression = false;
