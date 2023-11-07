@@ -31,6 +31,8 @@ typedef struct {
   ObjClass* stringClass;
   bool coreInitialized;
 
+  Table modules;
+
   CallFrame frames[FRAMES_MAX];
   int frameCount;
 
@@ -38,8 +40,9 @@ typedef struct {
   Value* stackTop;
   Table globals;
   Table strings;
-  ObjString* initString;
   ObjUpvalue* openUpvalues;
+  ObjString* initString;
+  ObjString* coreString;
 
   size_t bytesAllocated;
   size_t nextGC;

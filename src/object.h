@@ -63,8 +63,7 @@ struct Obj {
 
 typedef struct {
   Obj obj;
-  ValueArray variables;
-  Table variableNames;
+  Table variables;
   ObjString* name;
 } ObjModule;
 

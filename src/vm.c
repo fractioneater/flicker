@@ -71,6 +71,40 @@ void runtimeError(const char* format, ...) {
   resetStack();
 }
 
+static ObjModule* getModule(ObjString* name) {
+  Value module;
+  if (tableGet(&vm.modules, name, &module)) {
+    return AS_MODULE(module);
+  }
+  return NULL;
+}
+
+static ObjClosure* compileInModule(const char* source, ObjString* name, bool printResult) {
+  // Make sure it hasn't already been loaded.
+  ObjModule* module = getModule(name);
+  if (module == NULL) {
+    module = newModule(name);
+    pushRoot((Obj*)module);
+
+    tableSet(&vm.modules, name, OBJ_VAL(module));
+    popRoot();
+
+    ObjModule* coreModule = getModule(vm.coreString);
+    tableAddAll(&coreModule->variables, &vm.globals);
+  }
+
+  ObjFunction* function = compile(source, module, printResult);
+  if (function == NULL) {
+    return NULL;
+  }
+
+  pushRoot((Obj*)function);
+  ObjClosure* closure = newClosure(function);
+  popRoot();
+
+  return closure;
+}
+
 void initVM() {
   resetStack();
   vm.objects = NULL;
@@ -86,6 +120,8 @@ void initVM() {
 
   vm.initString = NULL;
   vm.initString = copyStringLength("init", 4);
+  vm.coreString = NULL;
+  vm.coreString = copyStringLength("core", 4);
 
 #if DEBUG_REMOVE_CORE
   vm.coreInitialized = true;
@@ -636,17 +672,22 @@ static InterpretResult run() {
 }
 
 InterpretResult interpret(const char* source, const char* module, bool printResult) {
-  ObjFunction* function = compile(source, module, printResult);
-  if (function == NULL) return INTERPRET_COMPILE_ERROR;
+  ASSERT(module != NULL, "Module name should not be NULL");
+  ObjString* moduleName = copyString(module);
+  pushRoot((Obj*)moduleName);
+
+  ObjClosure* closure = compileInModule(source, moduleName, printResult);
+
+  popRoot(); // moduleName
+
+  if (closure == NULL) return INTERPRET_COMPILE_ERROR;
 
 #if DEBUG_PRINT_CODE == 2
   printf("\n");
 #endif
 
-  pushRoot((Obj*)function);
-  ObjClosure* closure = newClosure(function);
-  popRoot();
   push(OBJ_VAL(closure));
+  // Initialize the main call frame
   call(closure, 0);
 
   return run();

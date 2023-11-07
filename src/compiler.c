@@ -9,6 +9,7 @@
 #include "common.h"
 #include "lexer.h"
 #include "memory.h"
+#include "utils.h"
 
 #if DEBUG_PRINT_CODE
 #include "debug.h"
@@ -21,8 +22,8 @@ typedef struct {
   // The most recently consumed token.
   Token previous;
 
-  // The name of the module being parsed.
-  const char* module;
+  // The module being parsed.
+  ObjModule* module;
 
   // Print the value returned by the code.
   bool printResult;
@@ -176,7 +177,7 @@ static inline Chunk* currentChunk() {
 static void errorAt(Token* token, const char* format, va_list args) {
   if (parser.panicMode) return;
   parser.panicMode = true;
-  fprintf(stderr, "\033[1m%s:%d:\033[0m ", parser.module, token->line);
+  fprintf(stderr, "\033[1m%s:%d:\033[0m ", parser.module->name->chars, token->line);
 
   if (token->type == TOKEN_EOF) {
     fprintf(stderr, "error at end");
@@ -439,7 +440,7 @@ static ObjFunction* endCompiler() {
     disassembleChunk(currentChunk(), function->name != NULL ? function->name->chars : "main");
   }
 #elif DEBUG_PRINT_CODE == 1
-  if (!parser.hadError && !(strlen(parser.module) == 4 && memcmp(parser.module, "core", 4) == 0)) {
+  if (!parser.hadError && parser.module->name != NULL) {
     disassembleChunk(currentChunk(), function->name != NULL ? function->name->chars : "main");
   }
 #endif
@@ -1477,12 +1478,19 @@ static void varDeclaration() {
 }
 
 static void useStatement() {
+  int variableCount = 0;
+  IntArray* sourceConstants = NULL;
+  IntArray* nameConstants = NULL;
+
   if (!check(TOKEN_STRING)) {
+    intArrayInit(sourceConstants);
+    intArrayInit(nameConstants);
     do {
       matchLine();
 
       expect(TOKEN_IDENTIFIER, "Expecting a variable name");
 
+      variableCount++;
       int sourceConstant = identifierConstant(&parser.previous);
       int nameConstant = -1;
       if (match(TOKEN_RIGHT_ARROW)) {
@@ -1491,8 +1499,8 @@ static void useStatement() {
         declareVariable();
       }
 
-      emitConstantArg(OP_IMPORT_VARIABLE, sourceConstant);
-      defineVariable(nameConstant);
+      intArrayWrite(sourceConstants, sourceConstant);
+      intArrayWrite(nameConstants, nameConstant);
     } while (match(TOKEN_COMMA));
 
     expect(TOKEN_IDENTIFIER, "Expecting 'from' after import variables");
@@ -1506,6 +1514,13 @@ static void useStatement() {
 
   emitConstantArg(OP_IMPORT_MODULE, moduleConstant);
   emitByte(OP_POP);
+
+  if (variableCount > 0) {
+    for (int i = 0; i < variableCount; i++) {
+      emitConstantArg(OP_IMPORT_VARIABLE, sourceConstants->data[i]);
+      defineVariable(nameConstants->data[i]);
+    }
+  }
 }
 
 static void expressionStatement() {
@@ -1973,7 +1988,7 @@ static void statement() {
   }
 }
 
-ObjFunction* compile(const char* source, const char* module, bool printResult) {
+ObjFunction* compile(const char* source, ObjModule* module, bool printResult) {
   initLexer(source);
   Compiler compiler;
   initCompiler(&compiler, TYPE_SCRIPT);
@@ -1987,7 +2002,7 @@ ObjFunction* compile(const char* source, const char* module, bool printResult) {
   advance();
 
 #if DEBUG_PRINT_TOKENS == 1
-  if (strlen(module) != 4 || memcmp("core", module, 4) != 0) {
+  if (module->name != NULL) {
     do {
       printf("%d\n", parser.current.type);
       advance();

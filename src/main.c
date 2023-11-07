@@ -18,22 +18,29 @@ static inline bool isSeparator(char c) {
   return false;
 }
 
+#define RETURN_COPY(length)                 \
+  do {                                      \
+    char* new = ALLOCATE(char, length + 1); \
+    strncpy(new, path, length);             \
+    new[length] = '\0';                     \
+    return new;                             \
+  } while (false)
+
 static char* removeExtension(const char* path) {
   size_t length = strlen(path);
   for (size_t i = length - 1; i >= 0; i--) {
     if (isSeparator(path[i])) {
-      char* new = ALLOCATE(char, length + 1);
-      return strncpy(new, path, length);
+      RETURN_COPY(length);
     }
 
     if (path[i] == '.') {
-      char* new = ALLOCATE(char, i + 1);
-      return strncpy(new, path, i);
+      RETURN_COPY(i);
     }
   }
-  char* new = ALLOCATE(char, length + 1);
-  return strncpy(new, path, length);
+  RETURN_COPY(length);
 }
+
+#undef RETURN_COPY
 
 static void repl() {
   char line[1024];

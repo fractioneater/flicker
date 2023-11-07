@@ -203,9 +203,7 @@ ObjModule* newModule(ObjString* name) {
   ObjModule* module = ALLOCATE_OBJ(ObjModule, OBJ_MODULE, NULL);
   pushRoot((Obj*)module);
   
-  initTable(&module->variableNames);
-  initValueArray(&module->variables);
-  
+  initTable(&module->variables);
   module->name = name;
   popRoot();
   return module;

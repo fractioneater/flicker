@@ -1023,6 +1023,11 @@ static ObjClass* defineClass(VM* vm, const char* name) {
   } while (false)
 
 void initializeCore(VM* vm) {
+  ObjModule* coreModule = newModule(NULL);
+  pushRoot((Obj*)coreModule);
+  tableSet(&vm->modules, vm->coreString, OBJ_VAL(coreModule));
+  popRoot();
+
   vm->objectClass = defineClass(vm, "Object");
   NATIVE(vm->objectClass, "not()", object_not);
   NATIVE(vm->objectClass, "==(1)", object_equals);
