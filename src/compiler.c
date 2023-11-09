@@ -12,7 +12,7 @@
 #include "utils.h"
 
 #if DEBUG_PRINT_CODE
-#include "debug.h"
+#  include "debug.h"
 #endif
 
 typedef struct {
@@ -435,15 +435,15 @@ static ObjFunction* endCompiler() {
 
   ObjFunction* function = current->function;
 
-#if DEBUG_PRINT_CODE == 2
+# if DEBUG_PRINT_CODE == 2
   if (!parser.hadError) {
     disassembleChunk(currentChunk(), function->name != NULL ? function->name->chars : "main");
   }
-#elif DEBUG_PRINT_CODE == 1
-  if (!parser.hadError && parser.module->name != NULL) {
+# elif DEBUG_PRINT_CODE == 1
+  if (!parser.hadError && !parser.module->isCore) {
     disassembleChunk(currentChunk(), function->name != NULL ? function->name->chars : "main");
   }
-#endif
+# endif
 
   while (current->loop != NULL) {
     if (current->loop->breaks != NULL) free(current->loop->breaks);
@@ -1479,12 +1479,12 @@ static void varDeclaration() {
 
 static void useStatement() {
   int variableCount = 0;
-  IntArray* sourceConstants = NULL;
-  IntArray* nameConstants = NULL;
+  IntArray sourceConstants;
+  IntArray nameConstants;
 
   if (!check(TOKEN_STRING)) {
-    intArrayInit(sourceConstants);
-    intArrayInit(nameConstants);
+    intArrayInit(&sourceConstants);
+    intArrayInit(&nameConstants);
     do {
       matchLine();
 
@@ -1492,15 +1492,15 @@ static void useStatement() {
 
       variableCount++;
       int sourceConstant = identifierConstant(&parser.previous);
-      int nameConstant = -1;
+      int nameConstant = sourceConstant;
       if (match(TOKEN_RIGHT_ARROW)) {
         nameConstant = parseVariable("Expecting a variable name alias");
       } else {
         declareVariable();
       }
 
-      intArrayWrite(sourceConstants, sourceConstant);
-      intArrayWrite(nameConstants, nameConstant);
+      intArrayWrite(&sourceConstants, sourceConstant);
+      intArrayWrite(&nameConstants, nameConstant);
     } while (match(TOKEN_COMMA));
 
     expect(TOKEN_IDENTIFIER, "Expecting 'from' after import variables");
@@ -1510,15 +1510,14 @@ static void useStatement() {
   }
 
   expect(TOKEN_STRING, "Expecting a module to import");
-  int moduleConstant = makeConstant(parser.previous.value);
-
-  emitConstantArg(OP_IMPORT_MODULE, moduleConstant);
+  emitConstantArg(OP_IMPORT_MODULE, parser.previous.value);
+  // Pop the return value from the module
   emitByte(OP_POP);
 
   if (variableCount > 0) {
     for (int i = 0; i < variableCount; i++) {
-      emitConstantArg(OP_IMPORT_VARIABLE, sourceConstants->data[i]);
-      defineVariable(nameConstants->data[i]);
+      emitVariableArg(OP_IMPORT_VARIABLE, sourceConstants.data[i]);
+      defineVariable(nameConstants.data[i]);
     }
   }
 }
@@ -2001,8 +2000,8 @@ ObjFunction* compile(const char* source, ObjModule* module, bool printResult) {
 
   advance();
 
-#if DEBUG_PRINT_TOKENS == 1
-  if (module->name != NULL) {
+# if DEBUG_PRINT_TOKENS == 1
+  if (!module->isCore) {
     do {
       printf("%d\n", parser.current.type);
       advance();
@@ -2010,14 +2009,14 @@ ObjFunction* compile(const char* source, ObjModule* module, bool printResult) {
 
     return NULL;
   }
-#elif DEBUG_PRINT_TOKENS == 2
+# elif DEBUG_PRINT_TOKENS == 2
   do {
     printf("%d\n", parser.current.type);
     advance();
   } while (!match(TOKEN_EOF));
 
   return NULL;
-#endif
+# endif
 
   matchLine();
   if (match(TOKEN_INDENT)) error("Unexpected indentation");
@@ -2045,6 +2044,7 @@ ObjFunction* compile(const char* source, ObjModule* module, bool printResult) {
 }
 
 void markCompilerRoots() {
+  markObject((Obj*)parser.module);
   Compiler* compiler = current;
   while (compiler != NULL) {
     markObject((Obj*)compiler->function);

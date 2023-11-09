@@ -29,7 +29,7 @@ void freeValueArray(ValueArray* array) {
 }
 
 void printValue(Value value) {
-#if NAN_TAGGING
+# if NAN_TAGGING
   if (IS_BOOL(value)) {
     printf(AS_BOOL(value) ? "True" : "False");
   } else if (IS_NONE(value)) {
@@ -41,7 +41,7 @@ void printValue(Value value) {
   } else if (IS_UNDEFINED(value)) {
     printf("Undefined");
   }
-#else
+# else
   switch (value.type) {
     case VAL_BOOL:
       printf(AS_BOOL(value) ? "True" : "False");
@@ -50,16 +50,16 @@ void printValue(Value value) {
     case VAL_NUMBER: printf("%g", AS_NUMBER(value)); break;
     case VAL_OBJ: printObject(value); break;
   }
-#endif
+# endif
 }
 
 bool valuesEqual(Value a, Value b) {
-#if NAN_TAGGING
+# if NAN_TAGGING
   if (IS_NUMBER(a) && IS_NUMBER(b)) {
     return AS_NUMBER(a) == AS_NUMBER(b);
   }
   return a == b;
-#else
+# else
   if (a.type != b.type) return false;
   switch (a.type) {
     case VAL_BOOL:   return AS_BOOL(a) == AS_BOOL(b);
@@ -68,5 +68,5 @@ bool valuesEqual(Value a, Value b) {
     case VAL_OBJ:    return AS_OBJ(a) == AS_OBJ(b);
     default:         return false; // Unreachable.
   }
-#endif
+# endif
 }

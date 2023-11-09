@@ -15,6 +15,43 @@
 
 VM vm;
 
+// Forward declaration
+static void resetStack();
+
+void initVM() {
+  resetStack();
+  vm.objects = NULL;
+  vm.bytesAllocated = 0;
+  vm.nextGC = 1024 * 1024;
+
+  vm.grayCount = 0;
+  vm.grayCapacity = 0;
+  vm.grayStack = NULL;
+
+  initTable(&vm.globals);
+  initTable(&vm.strings);
+
+  vm.initString = NULL;
+  vm.initString = copyStringLength("init", 4);
+  vm.coreString = NULL;
+  vm.coreString = copyStringLength("core", 4);
+
+# if DEBUG_REMOVE_CORE
+  vm.coreInitialized = true;
+# else
+  vm.coreInitialized = false;
+  initializeCore(&vm);
+  vm.coreInitialized = true;
+# endif
+}
+
+void freeVM() {
+  freeTable(&vm.globals);
+  freeTable(&vm.strings);
+  vm.initString = NULL;
+  freeObjects();
+}
+
 static void resetStack() {
   vm.stackTop = vm.stack;
   vm.frameCount = 0;
@@ -80,10 +117,11 @@ static ObjModule* getModule(ObjString* name) {
 }
 
 static ObjClosure* compileInModule(const char* source, ObjString* name, bool printResult) {
+  ASSERT(name != NULL, "Module name cannot be NULL");
   // Make sure it hasn't already been loaded.
   ObjModule* module = getModule(name);
   if (module == NULL) {
-    module = newModule(name);
+    module = newModule(name, false);
     pushRoot((Obj*)module);
 
     tableSet(&vm.modules, name, OBJ_VAL(module));
@@ -105,50 +143,116 @@ static ObjClosure* compileInModule(const char* source, ObjString* name, bool pri
   return closure;
 }
 
-void initVM() {
-  resetStack();
-  vm.objects = NULL;
-  vm.bytesAllocated = 0;
-  vm.nextGC = 1024 * 1024;
+static inline bool isSeparator(char c) {
+  if (c == '/') return true;
 
-  vm.grayCount = 0;
-  vm.grayCapacity = 0;
-  vm.grayStack = NULL;
+# ifdef _WIN32
+  if (c == '\\') return true;
+# endif
 
-  initTable(&vm.globals);
-  initTable(&vm.strings);
-
-  vm.initString = NULL;
-  vm.initString = copyStringLength("init", 4);
-  vm.coreString = NULL;
-  vm.coreString = copyStringLength("core", 4);
-
-#if DEBUG_REMOVE_CORE
-  vm.coreInitialized = true;
-#else
-  vm.coreInitialized = false;
-  initializeCore(&vm);
-  vm.coreInitialized = true;
-#endif
+  return false;
 }
 
-void freeVM() {
-  freeTable(&vm.globals);
-  freeTable(&vm.strings);
-  vm.initString = NULL;
-  freeObjects();
-}
+// TODO NEXT: Simplify the simplify() function
+#define STORE_COPY(length) \
+  do {                             \
+    char* new[length + 1];         \
+    strncpy(new, path, length);    \
+    new[length] = '\0';            \
+    withoutExtension = new;        \
+  } while (false)
 
-#if DEBUG_TRACE_EXECUTION
-static void printStack() {
-  for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
-    printf("[ ");
-    printValue(*slot);
-    printf(" ]");
+static char* simplify(const char* path) {
+  char* withoutExtension;
+
+  // Remove extension
+  size_t length = strlen(path);
+  for (size_t i = length - 1; i >= 0; i--) {
+    if (isSeparator(path[i])) {
+      STORE_COPY(length);
+    }
+
+    if (path[i] == '.') {
+      STORE_COPY(i);
+    }
   }
-  printf("\n");
+  STORE_COPY(length);
+
+  // Remove path
+  length = strlen(withoutExtension);
+  size_t lastSeparator = 0;
+  for (size_t i = 0; i < length; i++) {
+    if (isSeparator(path[i])) {
+      lastSeparator = i;
+    }
+  }
+
+# ifdef _WIN32
+  const char* forward = strrchr(withoutExtension, "/");
+  const char* backward = strrchr(withoutExtension, "\\");
+
+  FREE_ARRAY(char, withoutExtension, strlen(withoutExtension));
+  return strlen(forward) > strlen(backward) ? backward : forward;
+# else
+  const char* basename = strrchr(withoutExtension, "/");
+  FREE_ARRAY(char, withoutExtension, strlen(withoutExtension));
+  return basename;
+# endif
 }
-#endif
+
+#undef STORE_COPY
+
+static Value importModule(ObjString* name) {
+  Value existing;
+  if (tableGet(&vm.modules, name, &existing)) return existing;
+
+  pushRoot((Obj*)name);
+
+  FILE* file = fopen(name->chars, "rb");
+  if (file == NULL) {
+    runtimeError("Could not import file '%s'\n", name->chars);
+    popRoot();
+    return NONE_VAL;
+  }
+
+  fseek(file, 0L, SEEK_END);
+  size_t fileSize = ftell(file);
+  rewind(file);
+
+  char* buffer = (char*)malloc(fileSize + 1);
+  if (buffer == NULL) {
+    runtimeError("Not enough memory to import '%s'\n", name->chars);
+    popRoot();
+    return NONE_VAL;
+  }
+
+  size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
+  if (bytesRead < fileSize) {
+    runtimeError("Could not read file '%s'\n", name->chars);
+    free(buffer);
+    popRoot();
+    return NONE_VAL;
+  }
+
+  buffer[bytesRead] = '\0';
+  fclose(file);
+
+  const char* source = buffer;
+  free(buffer);
+  
+  char* moduleName = simplify(name->chars);
+  ObjClosure* moduleClosure = compileInModule(source, takeString(moduleName, strlen(moduleName)), false);
+
+  if (moduleClosure == NULL) {
+    runtimeError("Failed to compile module '%s'", name->chars);
+    popRoot();
+    return NONE_VAL;
+  }
+
+  popRoot();
+
+  return OBJ_VAL(moduleClosure);
+}
 
 void push(Value value) {
   *vm.stackTop++ = value;
@@ -334,31 +438,43 @@ static void defineMethod(ObjClass* cls, ObjString* name) {
   pop();
 }
 
+#if DEBUG_TRACE_EXECUTION
+static void printStack() {
+  for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
+    printf("[ ");
+    printValue(*slot);
+    printf(" ]");
+  }
+  printf("\n");
+}
+#endif
+
 static InterpretResult run() {
   CallFrame* frame = &vm.frames[vm.frameCount - 1];
   register uint8_t* ip = frame->ip;
 
-#define READ_BYTE() (*ip++)
-#define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
+# define READ_BYTE() (*ip++)
+# define READ_SHORT() (ip += 2, (uint16_t)((ip[-2] << 8) | ip[-1]))
 
-#define READ_CONSTANT()                      \
-  (frame->closure->function->chunk.constants \
-       .values[*ip++ >= 0x80 ? (ip++, ((ip[-2] & 0x7f) << 8) | ip[-1]) : ip[-1]])
+# define READ_CONSTANT()                                               \
+  (frame->closure->function->chunk.constants                           \
+       .values[*ip++ >= 0x80 ? (ip++, ((ip[-2] & 0x7f) << 8) | ip[-1]) \
+                             : ip[-1]])
 
-#define READ_STRING() AS_STRING(READ_CONSTANT())
+# define READ_STRING() AS_STRING(READ_CONSTANT())
 
   for (;;) {
-#if DEBUG_TRACE_EXECUTION == 2
+#   if DEBUG_TRACE_EXECUTION == 2
     printf("        ");
     printStack();
     disassembleInstruction(&frame->closure->function->chunk, (int)(ip - frame->closure->function->chunk.code));
-#elif DEBUG_TRACE_EXECUTION == 1
+#   elif DEBUG_TRACE_EXECUTION == 1
     if (vm.coreInitialized) {
       printf("        ");
       printStack();
       disassembleInstruction(&frame->closure->function->chunk, (int)(ip - frame->closure->function->chunk.code));
     }
-#endif
+#   endif
     uint8_t instruction;
     switch (instruction = READ_BYTE()) {
       case OP_CONSTANT: {
@@ -593,8 +709,31 @@ static InterpretResult run() {
         ip = frame->ip;
         break;
       }
-      case OP_IMPORT_MODULE: /* TODO */ break;
-      case OP_IMPORT_VARIABLE: /* TODO */ break;
+      case OP_IMPORT_MODULE: {
+        frame->ip = ip;
+        Value module = importModule(READ_STRING());
+        if (IS_NONE(module)) return INTERPRET_RUNTIME_ERROR;
+        push(module);
+
+        if (IS_CLOSURE(module)) {
+          frame->ip = ip;
+          ObjClosure* closure = AS_CLOSURE(module);
+          call(closure, 0);
+          frame = &vm.frames[vm.frameCount - 1];
+          ip = frame->ip;
+        } else {
+          vm.lastModule = AS_MODULE(module);
+        }
+
+        break;
+      }
+        printf("Importing module %s\n", READ_STRING()->chars);
+        push(NONE_VAL); // Return value from executing the module
+        break;
+      case OP_IMPORT_VARIABLE: // TODO
+        printf("Importing variable %s\n", READ_STRING()->chars);
+        push(NONE_VAL); // The value of the variable
+        break;
       case OP_END_MODULE: /* TODO */ break;
       case OP_CLOSURE: {
         ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
@@ -663,12 +802,12 @@ static InterpretResult run() {
     }
   }
 
-#undef READ_BYTE
-#undef READ_CONSTANT
-#undef READ_SHORT
-#undef READ_STRING
-#undef BINARY_OP
-#undef BINARY_OP_INTS
+# undef READ_BYTE
+# undef READ_CONSTANT
+# undef READ_SHORT
+# undef READ_STRING
+# undef BINARY_OP
+# undef BINARY_OP_INTS
 }
 
 InterpretResult interpret(const char* source, const char* module, bool printResult) {
@@ -682,9 +821,10 @@ InterpretResult interpret(const char* source, const char* module, bool printResu
 
   if (closure == NULL) return INTERPRET_COMPILE_ERROR;
 
-#if DEBUG_PRINT_CODE == 2
+  // Put a linebreak between the code and the execution just to be nice.
+# if DEBUG_PRINT_CODE == 2 && DEBUG_TRACE_EXECUTION == 2
   printf("\n");
-#endif
+# endif
 
   push(OBJ_VAL(closure));
   // Initialize the main call frame

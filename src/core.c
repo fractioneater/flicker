@@ -1023,7 +1023,7 @@ static ObjClass* defineClass(VM* vm, const char* name) {
   } while (false)
 
 void initializeCore(VM* vm) {
-  ObjModule* coreModule = newModule(NULL);
+  ObjModule* coreModule = newModule(vm->coreString, true);
   pushRoot((Obj*)coreModule);
   tableSet(&vm->modules, vm->coreString, OBJ_VAL(coreModule));
   popRoot();

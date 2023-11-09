@@ -24,9 +24,9 @@ static Obj* allocateObject(size_t size, ObjType type, ObjClass* cls) {
   obj->next = vm.objects;
   vm.objects = obj;
 
-#if DEBUG_LOG_GC
+# if DEBUG_LOG_GC
   printf("%p allocate %zu for %d\n", (void*)obj, size, type);
-#endif
+# endif
 
   return obj;
 }
@@ -199,12 +199,13 @@ void mapRemoveKey(ObjMap* map, Value key) {
   }
 }
 
-ObjModule* newModule(ObjString* name) {
+ObjModule* newModule(ObjString* name, bool isCore) {
   ObjModule* module = ALLOCATE_OBJ(ObjModule, OBJ_MODULE, NULL);
   pushRoot((Obj*)module);
   
   initTable(&module->variables);
   module->name = name;
+  module->isCore = isCore;
   popRoot();
   return module;
 }

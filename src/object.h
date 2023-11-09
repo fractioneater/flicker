@@ -65,6 +65,7 @@ typedef struct {
   Obj obj;
   Table variables;
   ObjString* name;
+  bool isCore;
 } ObjModule;
 
 typedef struct {
@@ -175,7 +176,7 @@ void mapSet(ObjMap* map, Value key, Value value);
 void mapClear(ObjMap* map);
 void mapRemoveKey(ObjMap* map, Value key);
 
-ObjModule* newModule(ObjString* name);
+ObjModule* newModule(ObjString* name, bool isCore);
 
 ObjNative* newNative(NativeFn function);
 

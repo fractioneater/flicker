@@ -32,6 +32,7 @@ typedef struct {
   bool coreInitialized;
 
   Table modules;
+  ObjModule* lastModule;
 
   CallFrame frames[FRAMES_MAX];
   int frameCount;
@@ -67,21 +68,21 @@ static inline ObjClass* getClass(Value value) {
   if (IS_NUMBER(value)) return vm.numberClass;
   if (IS_OBJ(value)) return AS_OBJ(value)->cls;
 
-#if NAN_TAGGING
+# if NAN_TAGGING
   switch (GET_TAG(value)) {
     case TAG_FALSE: return vm.boolClass; break;
     case TAG_TRUE:  return vm.boolClass; break;
     case TAG_NONE:  return vm.noneClass; break;
     case TAG_NAN:   return vm.numberClass; break;
   }
-#else
+# else
   switch (value.type) {
     case VAL_BOOL:   return vm.boolClass;
     case VAL_NONE:   return vm.noneClass;
     case VAL_NUMBER: return vm.numberClass;
     case VAL_OBJ:    return AS_OBJ(value)->cls;
   }
-#endif
+# endif
 
   return NULL;
 }

@@ -57,7 +57,7 @@
 // we don't even have to do any work to get numbers from these values, they're not
 // masked or modified in any way.
 #ifndef NAN_TAGGING
-  #define NAN_TAGGING 1
+#  define NAN_TAGGING 1
 #endif
 
 // CURRENT MAINTENANCE FLAGS
@@ -108,7 +108,7 @@
 
 #if DEBUG_ENABLE_ASSERTIONS
 
-  #define ASSERT(condition, message)                                       \
+#  define ASSERT(condition, message)                                       \
     do {                                                                   \
       if (!(condition)) {                                                  \
         fprintf(stderr, "\033[1m%s:%d\033[0m assert failed in %s(): %s\n", \
@@ -119,7 +119,7 @@
 
 #else
 
-  #define ASSERT(condition, message) do {} while (false)
+#  define ASSERT(condition, message) do {} while (false)
 
 #endif // DEBUG_ENABLE_ASSERTIONS
 #endif // flicker_common_h

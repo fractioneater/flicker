@@ -10,8 +10,8 @@ static uint64_t phi[16] = {
 
 void prngInit(PrngState* s, uint64_t seed[4]) {
   memset(s, 0, sizeof(PrngState));
-#define STEPS 1
-#define ROUNDS 13
+# define STEPS 1
+# define ROUNDS 13
   // Diffuse first two seed elements in s0, then the last two. Same for s1.
   // We must keep half of the state unchanged so users cannot set a bad state.
   memcpy(s->state, phi, sizeof(phi));
@@ -28,6 +28,6 @@ void prngInit(PrngState* s, uint64_t seed[4]) {
        s->state[j + 12] = s->output[j + 0];
     }
   }
-#undef STEPS
-#undef ROUNDS
+# undef STEPS
+# undef ROUNDS
 }

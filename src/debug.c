@@ -223,6 +223,12 @@ int disassembleInstruction(Chunk* chunk, int offset) {
       return invokeInstruction("SUPER_15", chunk, offset);
     case OP_SUPER_16:
       return invokeInstruction("SUPER_16", chunk, offset);
+    case OP_IMPORT_MODULE:
+      return constantInstruction("IMPORT_MODULE", chunk, offset);
+    case OP_IMPORT_VARIABLE:
+      return constantInstruction("IMPORT_VARIABLE", chunk, offset);
+    case OP_END_MODULE:
+      return simpleInstruction("END_MODULE", offset);
     case OP_CLOSURE: {
       int constant = variableConstant(chunk, offset);
       offset += constant >= 0x80 ? 3 : 2;

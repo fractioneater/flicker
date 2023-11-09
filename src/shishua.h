@@ -34,28 +34,28 @@ typedef struct PrngState {
 
 // buf could technically alias with prng_state, according to the compiler.
 #if defined(__GNUC__) || defined(_MSC_VER)
-  #define SHISHUA_RESTRICT __restrict
+#  define SHISHUA_RESTRICT __restrict
 #else
-  #define SHISHUA_RESTRICT
+#  define SHISHUA_RESTRICT
 #endif
 
 // Writes a 64-bit little endian integer to dst
 static inline void prngWriteLE64(void* dst, uint64_t val) {
   // Define to write in native endianness with memcpy
   // Also, use memcpy on known little endian setups.
-#if defined(SHISHUA_NATIVE_ENDIAN) \
+# if defined(SHISHUA_NATIVE_ENDIAN) \
    || defined(_WIN32) \
    || (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) \
    || defined(__LITTLE_ENDIAN__)
   memcpy(dst, &val, sizeof(uint64_t));
-#else
+# else
   // Byteshift write.
   uint8_t* d = (uint8_t*)dst;
   for (size_t i = 0; i < 8; i++) {
     d[i] = (uint8_t)(val & 0xff);
     val >>= 8;
   }
-#endif
+# endif
 }
 
 // buf's size must be a multiple of 128 bytes.
