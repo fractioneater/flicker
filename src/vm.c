@@ -97,7 +97,7 @@ void runtimeError(const char* format, ...) {
       prevLine = function->chunk.lines[instruction];
     }
   }
-  
+
   fprintf(stderr, "Error: ");
   va_list args;
   va_start(args, format);
@@ -153,54 +153,22 @@ static inline bool isSeparator(char c) {
   return false;
 }
 
-// TODO NEXT: Simplify the simplify() function
-#define STORE_COPY(length) \
-  do {                             \
-    char* new[length + 1];         \
-    strncpy(new, path, length);    \
-    new[length] = '\0';            \
-    withoutExtension = new;        \
-  } while (false)
-
-static char* simplify(const char* path) {
-  char* withoutExtension;
-
+static const char* simplify(const char* path) {
   // Remove extension
-  size_t length = strlen(path);
-  for (size_t i = length - 1; i >= 0; i--) {
-    if (isSeparator(path[i])) {
-      STORE_COPY(length);
-    }
-
-    if (path[i] == '.') {
-      STORE_COPY(i);
-    }
-  }
-  STORE_COPY(length);
+  char* withoutExtension = strdup(path);
+  size_t length = strcspn(withoutExtension, ".");
+  withoutExtension[length] = '\0';
 
   // Remove path
-  length = strlen(withoutExtension);
-  size_t lastSeparator = 0;
-  for (size_t i = 0; i < length; i++) {
-    if (isSeparator(path[i])) {
-      lastSeparator = i;
-    }
-  }
-
 # ifdef _WIN32
-  const char* forward = strrchr(withoutExtension, "/");
-  const char* backward = strrchr(withoutExtension, "\\");
+  const char* forward = strrchr(withoutExtension, '/');
+  const char* backward = strrchr(withoutExtension, '\\');
 
-  FREE_ARRAY(char, withoutExtension, strlen(withoutExtension));
-  return strlen(forward) > strlen(backward) ? backward : forward;
+  return strlen(forward) > strlen(backward) ? backward + 1 : forward + 1;
 # else
-  const char* basename = strrchr(withoutExtension, "/");
-  FREE_ARRAY(char, withoutExtension, strlen(withoutExtension));
-  return basename;
+  return strrchr(withoutExtension, '/') + 1;
 # endif
 }
-
-#undef STORE_COPY
 
 static Value importModule(ObjString* name) {
   Value existing;
@@ -210,7 +178,7 @@ static Value importModule(ObjString* name) {
 
   FILE* file = fopen(name->chars, "rb");
   if (file == NULL) {
-    runtimeError("Could not import file '%s'\n", name->chars);
+    runtimeError("File '%s' does not exist", name->chars);
     popRoot();
     return NONE_VAL;
   }
@@ -221,14 +189,14 @@ static Value importModule(ObjString* name) {
 
   char* buffer = (char*)malloc(fileSize + 1);
   if (buffer == NULL) {
-    runtimeError("Not enough memory to import '%s'\n", name->chars);
+    runtimeError("Not enough memory to import '%s'", name->chars);
     popRoot();
     return NONE_VAL;
   }
 
   size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
   if (bytesRead < fileSize) {
-    runtimeError("Could not read file '%s'\n", name->chars);
+    runtimeError("Could not read file '%s'", name->chars);
     free(buffer);
     popRoot();
     return NONE_VAL;
@@ -239,9 +207,9 @@ static Value importModule(ObjString* name) {
 
   const char* source = buffer;
   free(buffer);
-  
-  char* moduleName = simplify(name->chars);
-  ObjClosure* moduleClosure = compileInModule(source, takeString(moduleName, strlen(moduleName)), false);
+
+  const char* moduleName = simplify(name->chars);
+  ObjClosure* moduleClosure = compileInModule(source, copyString(moduleName), false);
 
   if (moduleClosure == NULL) {
     runtimeError("Failed to compile module '%s'", name->chars);
@@ -358,7 +326,7 @@ static bool invokeFromClass(ObjClass* cls, ObjString* name, int argCount) {
     runtimeError("%s does not implement '%s'", cls->name->chars, name->chars);
     return false;
   }
-  
+
   if (IS_NATIVE(method)) {
     return callNative(AS_NATIVE(method), argCount);
   }
