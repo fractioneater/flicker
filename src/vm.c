@@ -12,6 +12,7 @@
 #include "debug.h"
 #include "memory.h"
 #include "object.h"
+#include "utils.h"
 
 VM vm;
 
@@ -143,33 +144,6 @@ static ObjClosure* compileInModule(const char* source, ObjString* name, bool pri
   return closure;
 }
 
-static inline bool isSeparator(char c) {
-  if (c == '/') return true;
-
-# ifdef _WIN32
-  if (c == '\\') return true;
-# endif
-
-  return false;
-}
-
-static const char* simplify(const char* path) {
-  // Remove extension
-  char* withoutExtension = strdup(path);
-  size_t length = strcspn(withoutExtension, ".");
-  withoutExtension[length] = '\0';
-
-  // Remove path
-# ifdef _WIN32
-  const char* forward = strrchr(withoutExtension, '/');
-  const char* backward = strrchr(withoutExtension, '\\');
-
-  return strlen(forward) > strlen(backward) ? backward + 1 : forward + 1;
-# else
-  return strrchr(withoutExtension, '/') + 1;
-# endif
-}
-
 static Value importModule(ObjString* name) {
   Value existing;
   if (tableGet(&vm.modules, name, &existing)) return existing;
@@ -208,8 +182,8 @@ static Value importModule(ObjString* name) {
   const char* source = buffer;
   free(buffer);
 
-  const char* moduleName = simplify(name->chars);
-  ObjClosure* moduleClosure = compileInModule(source, copyString(moduleName), false);
+  char* moduleName = simplifyPath(name->chars);
+  ObjClosure* moduleClosure = compileInModule(source, takeString(moduleName, (int)strlen(moduleName)), false);
 
   if (moduleClosure == NULL) {
     runtimeError("Failed to compile module '%s'", name->chars);
@@ -774,8 +748,6 @@ static InterpretResult run() {
 # undef READ_CONSTANT
 # undef READ_SHORT
 # undef READ_STRING
-# undef BINARY_OP
-# undef BINARY_OP_INTS
 }
 
 InterpretResult interpret(const char* source, const char* module, bool printResult) {

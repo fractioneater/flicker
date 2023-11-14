@@ -6,41 +6,8 @@
 #include "common.h"
 #include "debug.h"
 #include "memory.h"
+#include "utils.h"
 #include "vm.h"
-
-static inline bool isSeparator(char c) {
-  if (c == '/') return true;
-
-# ifdef _WIN32
-  if (c == '\\') return true;
-# endif
-
-  return false;
-}
-
-#define RETURN_COPY(length)                 \
-  do {                                      \
-    char* new = ALLOCATE(char, length + 1); \
-    strncpy(new, path, length);             \
-    new[length] = '\0';                     \
-    return new;                             \
-  } while (false)
-
-static char* removeExtension(const char* path) {
-  size_t length = strlen(path);
-  for (size_t i = length - 1; i >= 0; i--) {
-    if (isSeparator(path[i])) {
-      RETURN_COPY(length);
-    }
-
-    if (path[i] == '.') {
-      RETURN_COPY(i);
-    }
-  }
-  RETURN_COPY(length);
-}
-
-#undef RETURN_COPY
 
 static void repl() {
   char line[1024];
@@ -87,11 +54,11 @@ static char* readFile(const char* path) {
 
 static void runFile(const char* path) {
   char* source = readFile(path);
-  char* newPath = removeExtension(path);
 
-  InterpretResult result = interpret(source, newPath, false);
+  char* moduleName = simplifyPath(path);
+  InterpretResult result = interpret(source, moduleName, false);
 
-  free(newPath);
+  free(moduleName);
   free(source);
 
   if (result == INTERPRET_COMPILE_ERROR) exit(65);

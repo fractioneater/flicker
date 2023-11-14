@@ -284,6 +284,7 @@ ObjString* copyStringLength(const char* chars, int length) {
 }
 
 ObjString* copyString(const char* chars) {
+  ASSERT(chars != NULL, "String should not be NULL");
   return copyStringLength(chars, (int)strlen(chars));
 }
 

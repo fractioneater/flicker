@@ -1,9 +1,35 @@
 #include "utils.h"
 
+#include <string.h>
+
 #include "memory.h"
 
 DEFINE_ARRAY(Byte, byte, uint8_t)
 DEFINE_ARRAY(Int, int, int)
+
+char* simplifyPath(const char* path) {
+  // Remove extension
+  char* withoutExtension = strdup(path);
+  size_t length = strcspn(withoutExtension, ".");
+  withoutExtension[length] = '\0';
+
+  // Remove path
+# ifdef _WIN32
+  const char* forward = strrchr(withoutExtension, '/');
+  const char* backward = strrchr(withoutExtension, '\\');
+
+  char* value = strlen(forward) > strlen(backward) ? backward : forward ;
+# else
+  char* value = strrchr(withoutExtension, '/');
+# endif
+  if (value == NULL) return withoutExtension;
+
+  // + 1 to leave out the slash character
+  value = strdup(value + 1);
+  free(withoutExtension);
+
+  return value;
+}
 
 int utf8EncodeNumBytes(int value) {
   if (value <= 0x7f) return 1;

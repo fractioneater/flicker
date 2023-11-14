@@ -49,6 +49,8 @@
 DECLARE_ARRAY(Byte, byte, uint8_t);
 DECLARE_ARRAY(Int, int, int);
 
+char* simplifyPath(const char* path);
+
 int utf8EncodeNumBytes(int value);
 int utf8Encode(int value, uint8_t* bytes);
 int utf8DecodeNumBytes(uint8_t byte);
