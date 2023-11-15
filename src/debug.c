@@ -250,6 +250,8 @@ int disassembleInstruction(Chunk* chunk, int offset) {
       return simpleInstruction("CLOSE_UPVALUE", offset);
     case OP_RETURN:
       return simpleInstruction("RETURN", offset);
+    case OP_RETURN_OUTPUT:
+      return simpleInstruction("RETURN_OUTPUT", offset);
     case OP_CLASS:
       return constantInstruction("CLASS", chunk, offset);
     case OP_INITIALIZER:

@@ -428,6 +428,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 
 static ObjFunction* endCompiler() {
   if (current->scopeDepth == 0 && parser.onExpression && parser.printResult) {
+    emitByte(OP_RETURN_OUTPUT);
     emitByte(OP_RETURN);
   } else {
     emitReturn();
@@ -1721,7 +1722,7 @@ static void eachStatement() {
   Token name = parser.previous;
 
   Token index;
-  bool hasIndex;
+  bool hasIndex = false;
   if (match(TOKEN_LEFT_BRACKET)) {
     hasIndex = true;
     expect(TOKEN_IDENTIFIER, "Expecting an index variable");

@@ -179,19 +179,20 @@ static Value importModule(ObjString* name) {
   buffer[bytesRead] = '\0';
   fclose(file);
 
-  const char* source = buffer;
-  free(buffer);
+  char* moduleChars = simplifyPath(name->chars);
+  ObjString* moduleName = takeString(moduleChars, (int)strlen(moduleChars));
+  pushRoot((Obj*)moduleName);
 
-  char* moduleName = simplifyPath(name->chars);
-  ObjClosure* moduleClosure = compileInModule(source, takeString(moduleName, (int)strlen(moduleName)), false);
+  ObjClosure* moduleClosure = compileInModule(buffer, moduleName, false);
+  
+  popRoot(); // moduleName
+  free(buffer);
+  popRoot(); // name
 
   if (moduleClosure == NULL) {
     runtimeError("Failed to compile module '%s'", name->chars);
-    popRoot();
     return NONE_VAL;
   }
-
-  popRoot();
 
   return OBJ_VAL(moduleClosure);
 }
@@ -439,6 +440,7 @@ static InterpretResult run() {
         frame->slots[slot] = peek();
         break;
       }
+      // TODO NEXT: Replace globals with module level variables //- REMOVE
       case OP_GET_GLOBAL: {
         ObjString* name = READ_STRING();
         Value value;
@@ -701,12 +703,7 @@ static InterpretResult run() {
         closeUpvalues(frame->slots);
         vm.frameCount--;
         if (vm.frameCount == 0) {
-          if (result != NONE_VAL) {
-            printf("= > ");
-            printValue(result);
-            printf("\n");
-          }
-          pop();
+          pop(); // Main
           return INTERPRET_OK;
         }
 
@@ -716,6 +713,11 @@ static InterpretResult run() {
         ip = frame->ip;
         break;
       }
+      case OP_RETURN_OUTPUT:
+        printf("= > ");
+        printValue(peek());
+        printf("\n");
+        break;
       case OP_CLASS: {
         Value superclass = peek();
         if (!IS_CLASS(superclass)) {
