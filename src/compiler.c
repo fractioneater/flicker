@@ -405,7 +405,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
 
-  compiler->function = newFunction();
+  compiler->function = newFunction(parser.module);
   current = compiler;
 
   if (type == TYPE_LAMBDA) {
@@ -1989,15 +1989,15 @@ static void statement() {
 }
 
 ObjFunction* compile(const char* source, ObjModule* module, bool printResult) {
-  initLexer(source);
-  Compiler compiler;
-  initCompiler(&compiler, TYPE_SCRIPT);
-
   parser.module = module;
   parser.printResult = printResult;
   parser.hadError = false;
   parser.panicMode = false;
   parser.onExpression = false;
+
+  initLexer(source);
+  Compiler compiler;
+  initCompiler(&compiler, TYPE_SCRIPT);
 
   advance();
 

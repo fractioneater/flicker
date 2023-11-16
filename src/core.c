@@ -1001,25 +1001,25 @@ DEF_NATIVE(sys_writeString) {
 // End of natives          //
 /////////////////////////////
 
-static ObjClass* defineClass(VM* vm, const char* name) {
+static ObjClass* defineClass(VM* vm, ObjModule* module, const char* name) {
   ObjString* className = copyString(name);
   pushRoot((Obj*)className);
 
   ObjClass* cls = newSingleClass(className);
-  tableSet(&vm->globals, className, OBJ_VAL(cls));
+  tableSet(&module->variables, className, OBJ_VAL(cls));
 
   popRoot();
   return cls;
 }
 
-#define GET_CORE_CLASS(cls, name)                           \
-  do {                                                      \
-    Value value;                                            \
-    if (tableGet(&vm->globals, copyString(name), &value)) { \
-      cls = AS_CLASS(value);                                \
-    } else {                                                \
-      ASSERT(false, "Class should already be defined");     \
-    }                                                       \
+#define GET_CORE_CLASS(cls, name)                                     \
+  do {                                                                \
+    Value value;                                                      \
+    if (tableGet(&coreModule->variables, copyString(name), &value)) { \
+      cls = AS_CLASS(value);                                          \
+    } else {                                                          \
+      ASSERT(false, "Class should already be defined");               \
+    }                                                                 \
   } while (false)
 
 void initializeCore(VM* vm) {
@@ -1028,7 +1028,7 @@ void initializeCore(VM* vm) {
   tableSet(&vm->modules, vm->coreString, OBJ_VAL(coreModule));
   popRoot();
 
-  vm->objectClass = defineClass(vm, "Object");
+  vm->objectClass = defineClass(vm, coreModule, "Object");
   NATIVE(vm->objectClass, "not()", object_not);
   NATIVE(vm->objectClass, "==(1)", object_equals);
   NATIVE(vm->objectClass, "!=(1)", object_notEquals);
@@ -1036,13 +1036,13 @@ void initializeCore(VM* vm) {
   NATIVE(vm->objectClass, "toString()", object_toString);
   NATIVE(vm->objectClass, "type", object_type);
 
-  vm->classClass = defineClass(vm, "Class");
+  vm->classClass = defineClass(vm, coreModule, "Class");
   bindSuperclass(vm->classClass, vm->objectClass);
   NATIVE(vm->classClass, "name", class_name);
   NATIVE(vm->classClass, "supertype", class_supertype);
   NATIVE(vm->classClass, "toString()", class_toString);
 
-  ObjClass* objectMetaclass = defineClass(vm, "Object metaclass");
+  ObjClass* objectMetaclass = defineClass(vm, coreModule, "Object metaclass");
 
   vm->objectClass->obj.cls = objectMetaclass;
   objectMetaclass->obj.cls = vm->classClass;
@@ -1053,7 +1053,7 @@ void initializeCore(VM* vm) {
   InterpretResult coreResult = interpret(coreSource, "core", false);
   if (coreResult != INTERPRET_OK) {
     fprintf(stderr, "Errors found in core file, aborting\n");
-    abort();
+    exit(65);
   }
 
   GET_CORE_CLASS(vm->boolClass, "Bool");

@@ -39,7 +39,6 @@ typedef struct {
 
   Value stack[STACK_MAX];
   Value* stackTop;
-  Table globals;
   Table strings;
   ObjUpvalue* openUpvalues;
   ObjString* initString;

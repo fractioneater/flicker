@@ -29,7 +29,6 @@ void initVM() {
   vm.grayCapacity = 0;
   vm.grayStack = NULL;
 
-  initTable(&vm.globals);
   initTable(&vm.strings);
 
   vm.initString = NULL;
@@ -47,7 +46,6 @@ void initVM() {
 }
 
 void freeVM() {
-  freeTable(&vm.globals);
   freeTable(&vm.strings);
   vm.initString = NULL;
   freeObjects();
@@ -129,7 +127,7 @@ static ObjClosure* compileInModule(const char* source, ObjString* name, bool pri
     popRoot();
 
     ObjModule* coreModule = getModule(vm.coreString);
-    tableAddAll(&coreModule->variables, &vm.globals);
+    tableAddAll(&coreModule->variables, &module->variables);
   }
 
   ObjFunction* function = compile(source, module, printResult);
@@ -440,11 +438,11 @@ static InterpretResult run() {
         frame->slots[slot] = peek();
         break;
       }
-      // TODO NEXT: Replace globals with module level variables //- REMOVE
       case OP_GET_GLOBAL: {
         ObjString* name = READ_STRING();
         Value value;
-        if (!tableGet(&vm.globals, name, &value)) {
+        ObjModule* module = frame->closure->function->module;
+        if (!tableGet(&module->variables, name, &value)) {
           frame->ip = ip;
           runtimeError("Undefined variable '%s'", name->chars);
           return INTERPRET_RUNTIME_ERROR;
@@ -454,14 +452,16 @@ static InterpretResult run() {
       }
       case OP_DEFINE_GLOBAL: {
         ObjString* name = READ_STRING();
-        tableSet(&vm.globals, name, peek());
+        ObjModule* module = frame->closure->function->module;
+        tableSet(&module->variables, name, peek());
         pop();
         break;
       }
       case OP_SET_GLOBAL: {
         ObjString* name = READ_STRING();
-        if (tableSet(&vm.globals, name, peek())) {
-          tableDelete(&vm.globals, name);
+        ObjModule* module = frame->closure->function->module;
+        if (tableSet(&module->variables, name, peek())) {
+          tableDelete(&module->variables, name);
           frame->ip = ip;
           runtimeError("Undefined variable '%s'", name->chars);
           return INTERPRET_RUNTIME_ERROR;
@@ -754,7 +754,11 @@ static InterpretResult run() {
 
 InterpretResult interpret(const char* source, const char* module, bool printResult) {
   ASSERT(module != NULL, "Module name should not be NULL");
-  ObjString* moduleName = copyString(module);
+  ObjString* moduleName;
+  if (strlen(module) == 4 && memcmp(module, vm.coreString, 4) == 0) {
+    moduleName = vm.coreString;
+  } else moduleName = copyString(module);
+
   pushRoot((Obj*)moduleName);
 
   ObjClosure* closure = compileInModule(source, moduleName, printResult);

@@ -90,11 +90,12 @@ ObjClosure* newClosure(ObjFunction* function) {
   return closure;
 }
 
-ObjFunction* newFunction() {
+ObjFunction* newFunction(ObjModule* module) {
   ObjFunction* function = ALLOCATE_OBJ(ObjFunction, OBJ_FUNCTION, vm.functionClass);
   function->arity = 0;
   function->upvalueCount = 0;
   function->name = NULL;
+  function->module = module;
   initChunk(&function->chunk);
   return function;
 }

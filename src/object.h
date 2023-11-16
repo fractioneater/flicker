@@ -74,6 +74,7 @@ typedef struct {
   int upvalueCount;
   Chunk chunk;
   ObjString* name;
+  ObjModule* module;
 } ObjFunction;
 
 typedef bool (*NativeFn)(Value* args);
@@ -159,7 +160,7 @@ void bindSuperclass(ObjClass* subclass, ObjClass* superclass);
 
 ObjClosure* newClosure(ObjFunction* function);
 
-ObjFunction* newFunction();
+ObjFunction* newFunction(ObjModule* module);
 
 ObjInstance* newInstance(ObjClass* cls);
 
