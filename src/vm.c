@@ -313,6 +313,7 @@ static bool invoke(ObjString* name, int argCount) {
   ObjClass* cls = getClass(receiver);
   ASSERT(cls != NULL, "Class cannot be NULL");
 
+  // First check if the method is a field.
   if (IS_INSTANCE(receiver)) {
     ObjInstance* instance = AS_INSTANCE(receiver);
     ObjString* fieldName = copyStringLength(name->chars, name->length - (ceil(log10(argCount + 1)) + 2));
@@ -324,6 +325,7 @@ static bool invoke(ObjString* name, int argCount) {
     }
   }
 
+  // If it's not a field, try to invoke it as a method.
   return invokeFromClass(cls, name, argCount);
 }
 
@@ -671,14 +673,22 @@ static InterpretResult run() {
 
         break;
       }
-        printf("Importing module %s\n", READ_STRING()->chars);
-        push(NONE_VAL); // Return value from executing the module
+      case OP_IMPORT_VARIABLE: {
+        ObjString* name = READ_STRING();
+        ASSERT(vm.lastModule != NULL, "Module should be imported already");
+        Value result;
+        if (!tableGet(&vm.lastModule->variables, name, &result)) {
+          frame->ip = ip;
+          runtimeError("Could not find variable '%s' in module '%s'", name->chars, vm.lastModule->name->chars);
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        push(result);
         break;
-      case OP_IMPORT_VARIABLE: // TODO
-        printf("Importing variable %s\n", READ_STRING()->chars);
-        push(NONE_VAL); // The value of the variable
+      }
+      case OP_END_MODULE: 
+        vm.lastModule = frame->closure->function->module;
         break;
-      case OP_END_MODULE: /* TODO */ break;
       case OP_CLOSURE: {
         ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
         ObjClosure* closure = newClosure(function);

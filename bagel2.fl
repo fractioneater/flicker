@@ -4,14 +4,14 @@
 class Grid
   init(+width, +height, default)
     this.list = List.filled(width * height, default)
-  
+
   get(i) = this.list[i]
 
   set(i, value)
     this.list[i] = value
 
   get(x, y) = this.list[y * this.width + x]
-  
+
   set(x, y, value)
     this.list[y * this.width + x] = value
 

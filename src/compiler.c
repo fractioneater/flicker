@@ -2040,6 +2040,8 @@ ObjFunction* compile(const char* source, ObjModule* module, bool printResult) {
     }
   }
 
+  emitByte(OP_END_MODULE);
+
   ObjFunction* function = endCompiler();
   return parser.hadError ? NULL : function;
 }
