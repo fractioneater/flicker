@@ -1382,7 +1382,12 @@ static void method() {
   }
 
   if (match(TOKEN_EQ)) {
-    expression();
+    if (current->type == TYPE_INITIALIZER) {
+      error("Can't return a value from an initializer");
+      emitBytes(OP_GET_LOCAL, 0);
+    } else {
+      expression();
+    }
     emitByte(OP_RETURN);
   } else {
     expectLine("Expecting a linebreak before method body");
