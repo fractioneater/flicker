@@ -290,7 +290,7 @@ static const char* coreSource __attribute__((unused)) =
 "    return super.map(transformation).toList()\n"
 "\n"
 "  sort()\n"
-"    this.sort { |low, high| return low <= high }\n"
+"    this.sort { |low, high| = low <= high }\n"
 "\n"
 "  sort(comparer)\n"
 "    if comparer is not Function\n"

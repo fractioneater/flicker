@@ -1319,7 +1319,13 @@ static void lambda(bool canAssign) {
     }
   }
 
-  lambdaBlock();
+  if (match(TOKEN_EQ)) {
+    expression();
+    emitByte(OP_RETURN);
+    expect(TOKEN_RIGHT_BRACE, "Expecting '}' after lambda");
+  } else {
+    lambdaBlock();
+  }
 
   ObjFunction* function = endCompiler();
   emitConstantArg(OP_CLOSURE, OBJ_VAL(function));

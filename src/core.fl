@@ -288,7 +288,7 @@ class List < Sequence
     return super.map(transformation).toList()
 
   sort()
-    this.sort { |low, high| return low <= high }
+    this.sort { |low, high| = low <= high }
 
   sort(comparer)
     if comparer is not Function
