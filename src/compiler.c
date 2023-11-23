@@ -1244,8 +1244,14 @@ static void block() {
 
 static void lambdaBlock() {
   if (matchLine()) ignoreIndentation();
+  parser.onExpression = false;
 
   while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
+    if (parser.onExpression) {
+      emitByte(OP_POP);
+      parser.onExpression = false;
+    }
+
     declaration();
 
     if (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
@@ -1319,12 +1325,12 @@ static void lambda(bool canAssign) {
     }
   }
 
-  if (match(TOKEN_EQ)) {
-    expression();
+  lambdaBlock();
+
+  // If the lambda is just an expression, return its value.
+  if (parser.onExpression) {
     emitByte(OP_RETURN);
-    expect(TOKEN_RIGHT_BRACE, "Expecting '}' after lambda");
-  } else {
-    lambdaBlock();
+    parser.onExpression = false;
   }
 
   ObjFunction* function = endCompiler();
@@ -1992,7 +1998,7 @@ static void statement() {
   else if (match(TOKEN_IF)) ifStatement();
   else if (match(TOKEN_WHEN)) whenStatement();
   else {
-    if (parser.printResult && current->scopeDepth == 0) {
+    if ((parser.printResult && current->scopeDepth == 0) || current->type == TYPE_LAMBDA) {
       parser.onExpression = true;
       expression();
     } else expressionStatement();
