@@ -25,6 +25,9 @@ typedef struct {
   // The module being parsed.
   ObjModule* module;
 
+  // How many of the following dedent tokens will be ignored.
+  int ignoreDedents;
+
   // Print the value returned by the code.
   bool printResult;
 
@@ -216,6 +219,11 @@ static void advance() {
 
   for (;;) {
     parser.current = nextToken();
+    if (parser.ignoreDedents > 0 && parser.current.type == TOKEN_DEDENT) {
+      parser.ignoreDedents--;
+      continue;
+    }
+
     if (parser.current.type != TOKEN_ERROR) break;
 
     errorAtCurrent(parser.current.start);
@@ -674,33 +682,25 @@ static void finishParameterList(Signature* signature) {
   } while (match(TOKEN_COMMA));
 }
 
-static void finishArgumentList(Signature* signature, TokenType end) {
+static void finishArgumentList(Signature* signature, const char* type, TokenType end) {
   if (!check(end)) {
     do {
-      matchLine();
-      validateParameterCount("Method", ++signature->arity);
+      if (matchLine() && match(TOKEN_INDENT)) {
+        parser.ignoreDedents++;
+      }
+      validateParameterCount(type, ++signature->arity);
       expression();
     } while (match(TOKEN_COMMA));
 
     matchLine();
   }
-}
 
-static uint8_t functionArgumentList() {
-  uint8_t argCount = 0;
-
-  matchLine();
-  if (!check(TOKEN_RIGHT_PAREN)) {
-    do {
-      matchLine();
-      expression();
-      validateParameterCount("Function", ++argCount);
-    } while (match(TOKEN_COMMA));
-
-    matchLine();
+  if (end == TOKEN_RIGHT_PAREN) {
+    expect(end, "Expecting ')' after arguments");
+  } else {
+    expect(end, (signature->arity == 1 ? "Expecting ']' after subscript value"
+                                       : "Expecting ']' after subscript values"));
   }
-  expect(TOKEN_RIGHT_PAREN, "Expecting ')' after arguments");
-  return argCount;
 }
 
 static inline void emitSignatureArg(uint8_t instruction, Signature* signature) {
@@ -785,7 +785,10 @@ static void namedVariable(Token name, bool canAssign) {
   }
 
   if (canAssign && match(TOKEN_EQ)) {
-    matchLine();
+    if (matchLine() && match(TOKEN_INDENT)) {
+      parser.ignoreDedents++;
+    }
+
     expression();
     if (setOp == OP_SET_GLOBAL) {
       emitVariableArg(setOp, arg);
@@ -806,8 +809,9 @@ static void variable(bool canAssign) {
 }
 
 static void call(bool canAssign) {
-  uint8_t argCount = functionArgumentList();
-  emitByte(OP_CALL_0 + argCount);
+  Signature signature = { NULL, 0, SIG_METHOD, 0 };
+  finishArgumentList(&signature, "Function", TOKEN_RIGHT_PAREN);
+  emitByte(OP_CALL_0 + signature.arity);
 }
 
 static void callFunction(bool canAssign) {
@@ -849,6 +853,10 @@ static void dot(bool canAssign) {
   Signature signature = signatureFromToken(SIG_METHOD);
 
   if (canAssign && match(TOKEN_EQ)) {
+    if (matchLine() && match(TOKEN_INDENT)) {
+      parser.ignoreDedents++;
+    }
+
     expression();
     emitVariableArg(OP_SET_PROPERTY, name);
   } else if (match(TOKEN_LEFT_PAREN) || match(TOKEN_LEFT_BRACE)) {
@@ -856,8 +864,7 @@ static void dot(bool canAssign) {
       lambda(false);
       signature.arity = 1;
     } else {
-      finishArgumentList(&signature, TOKEN_RIGHT_PAREN);
-      expect(TOKEN_RIGHT_PAREN, "Expecting ')' after arguments");
+      finishArgumentList(&signature, "Method", TOKEN_RIGHT_PAREN);
     }
 
     callSignature(signature.arity, &signature);
@@ -910,8 +917,7 @@ static void super_(bool canAssign) {
         lambda(false);
         signature.arity = 1;
       } else {
-        finishArgumentList(&signature, TOKEN_RIGHT_PAREN);
-        expect(TOKEN_RIGHT_PAREN, "Expecting ')' after arguments");
+        finishArgumentList(&signature, "Method", TOKEN_RIGHT_PAREN);
       }
     } else {
       signature.type = SIG_ATTRIBUTE;
@@ -1015,6 +1021,12 @@ static void collection(bool canAssign) {
     return;
   }
 
+  bool indented = false;
+  if (matchLine()) {
+    expect(TOKEN_INDENT, "Expecting indentation to increase before collection body");
+    indented = true;
+  }
+
   pushScope();
 
   expression();
@@ -1030,7 +1042,15 @@ static void collection(bool canAssign) {
   emitByte(OP_CALL_0);
 
   do {
-    matchLine();
+    if (matchLine()) {
+      if (!indented) {
+        expect(TOKEN_INDENT, "Expecting indentation to increase before collection body");
+        indented = true;
+      } else {
+        if (match(TOKEN_DEDENT)) indented = false;
+      }
+    }
+
     if (check(TOKEN_RIGHT_BRACKET)) break;
 
     if (first) {
@@ -1051,7 +1071,13 @@ static void collection(bool canAssign) {
   } while (match(TOKEN_COMMA));
 
   matchLine();
+  if (indented && match(TOKEN_DEDENT)) indented = false;
   expect(TOKEN_RIGHT_BRACKET, isMap ? "Expecting ']' after map literal" : "Expecting ']' after list literal");
+
+  if (indented) {
+    matchLine();
+    expect(TOKEN_DEDENT, "Expecting indentation to decrease");
+  }
 
   emitBytes(OP_SET_LOCAL, firstSlot);
 
@@ -1060,10 +1086,13 @@ static void collection(bool canAssign) {
 
 static void subscript(bool canAssign) {
   Signature signature = { "get", 3, SIG_METHOD, 0, NULL };
-  finishArgumentList(&signature, TOKEN_RIGHT_BRACKET);
-  expect(TOKEN_RIGHT_BRACKET, (signature.arity == 1 ? "Expecting ']' after subscript value" : "Expecting ']' after subscript values"));
+  finishArgumentList(&signature, "Method", TOKEN_RIGHT_BRACKET);
 
   if (canAssign && match(TOKEN_EQ)) {
+    if (matchLine() && match(TOKEN_INDENT)) {
+      parser.ignoreDedents++;
+    }
+
     expression();
     validateParameterCount("Method", ++signature.arity);
     signature.name = "set";
@@ -1078,7 +1107,9 @@ static void binary(bool canAssign) {
 
   bool negate = (operatorType == TOKEN_IS && match(TOKEN_NOT));
 
-  matchLine();
+  if (matchLine() && match(TOKEN_INDENT)) {
+    parser.ignoreDedents++;
+  }
 
   if (operatorType == TOKEN_STAR_STAR) {
     expressionBp((BindingPower)(rule->bp));
@@ -1098,7 +1129,9 @@ static void unary(bool canAssign) {
   TokenType operatorType = parser.previous.type;
   ParseRule* rule = getRule(operatorType);
 
-  matchLine();
+  if (matchLine() && match(TOKEN_INDENT)) {
+    parser.ignoreDedents++;
+  }
 
   // Compile the operand.
   expressionBp(operatorType == TOKEN_NOT ? BP_NOT : BP_UNARY);
@@ -1277,7 +1310,7 @@ static void function(FunctionType type) {
   expect(TOKEN_LEFT_PAREN, "Expecting '(' after function name");
   if (!check(TOKEN_RIGHT_PAREN)) {
     do {
-      matchLine();
+      matchLine(); // TODO: We almost always want function parameters indented.
       validateParameterCount("Function", ++current->function->arity);
 
       int constant = parseVariable("Expecting a parameter name");
@@ -1309,19 +1342,19 @@ static void lambda(bool canAssign) {
   initCompiler(&compiler, TYPE_LAMBDA);
   pushScope();
 
-  matchLine();
+  if (matchLine()) ignoreIndentation();
 
   if (match(TOKEN_PIPE)) {
     if (!match(TOKEN_PIPE)) {
       do {
-        matchLine();
+        if (matchLine()) ignoreIndentation();
         validateParameterCount("Lambda", ++current->function->arity);
 
         int constant = parseVariable("Expecting a parameter name");
         defineVariable(constant);
       } while (match(TOKEN_COMMA));
       expect(TOKEN_PIPE, "Expecting '|' after parameters");
-      matchLine();
+      if (matchLine()) ignoreIndentation();
     }
   }
 
@@ -1486,7 +1519,10 @@ static void varDeclaration() {
   int global = parseVariable("Expecting a variable name");
 
   if (match(TOKEN_EQ)) {
-    matchLine();
+    if (matchLine() && match(TOKEN_INDENT)) {
+      parser.ignoreDedents++;
+    }
+
     expression();
   } else {
     emitByte(OP_NONE);
@@ -2011,6 +2047,8 @@ ObjFunction* compile(const char* source, ObjModule* module, bool printResult) {
   parser.hadError = false;
   parser.panicMode = false;
   parser.onExpression = false;
+
+  parser.ignoreDedents = 0;
 
   initLexer(source);
   Compiler compiler;

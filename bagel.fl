@@ -1,19 +1,16 @@
-# Testing callable references to inherited methods.
+# Testing that end with an expression.
 # Sadly there are no bagels to be found in this file.
 
-class A
-  inherited(number)
-    # The contents of this function don't matter.
-    if (number > 14.2778)
-      print "Foo"
-    else
-      print "Your number is unnacceptable"
+var a = 20 + 294
 
-class B < A
-  attribute f = super::inherited(1)
+print a
 
-var instance = B()
-var callable = instance.f
-callable(2)
-print callable.receiver == instance
-print callable.arity
+fun a(arg1, arg2, arg3, arg4)
+  return arg1 + arg2 + arg3 + arg4
+
+print a(0.86849298983, 9942.0528848892, 9200.482999 +
+  848292929294020 - 24825010,
+  28388.28495950
+)
+
+print [4, 25]
