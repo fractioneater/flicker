@@ -365,7 +365,7 @@ DEF_NUM_CONSTANT(maxInteger, 9007199254740991.0)
 DEF_NUM_CONSTANT(minInteger, -9007199254740991.0)
 
 #define DEF_NUM_INFIX(name, op, type)                            \
-  DEF_NATIVE(number_##name) {                                 \
+  DEF_NATIVE(number_##name) {                                    \
     if (!validateNumber(args[1], "Right operand")) return false; \
     RETURN_##type(AS_NUMBER(args[0]) op AS_NUMBER(args[1]));     \
   }
@@ -380,7 +380,7 @@ DEF_NUM_INFIX(lte,      <=, BOOL)
 DEF_NUM_INFIX(gte,      >=, BOOL)
 
 #define DEF_NUM_BITWISE(name, op)                                \
-  DEF_NATIVE(number_bitwise##name) {                          \
+  DEF_NATIVE(number_bitwise##name) {                             \
     if (!validateNumber(args[1], "Right operand")) return false; \
     uint32_t left = (uint32_t)AS_NUMBER(args[0]);                \
     uint32_t right = (uint32_t)AS_NUMBER(args[1]);               \
@@ -997,6 +997,46 @@ DEF_NATIVE(sys_writeString) {
   RETURN_VAL(args[1]);
 }
 
+////////////////////
+// Tuple          //
+////////////////////
+
+DEF_NATIVE(tuple_count) {
+  RETURN_NUMBER(AS_TUPLE(args[0])->count);
+}
+
+DEF_NATIVE(tuple_get) {
+  ObjTuple* tuple = AS_TUPLE(args[0]);
+  uint32_t index = validateIndex(args[1], tuple->count, "Index");
+  if (index == UINT32_MAX) return false;
+
+  RETURN_VAL(tuple->items[index]);
+}
+
+DEF_NATIVE(tuple_iterate) {
+  ObjTuple* tuple = AS_TUPLE(args[0]);
+
+  if (IS_NONE(args[1])) {
+    if (tuple->count == 0) RETURN_FALSE();
+    RETURN_NUMBER(0);
+  }
+
+  if (!validateInt(args[1], "Iterator")) return false;
+
+  double index = AS_NUMBER(args[1]);
+  if (index < 0 || index >= tuple->count - 1) RETURN_FALSE();
+
+  RETURN_NUMBER(index + 1);
+}
+
+DEF_NATIVE(tuple_iteratorValue) {
+  ObjTuple* tuple = AS_TUPLE(args[0]);
+  uint32_t index = validateIndex(args[1], tuple->count, "Iterator");
+  if (index == UINT32_MAX) return false;
+
+  RETURN_VAL(tuple->items[index]);
+}
+
 /////////////////////////////
 // End of natives          //
 /////////////////////////////
@@ -1208,6 +1248,12 @@ void initializeCore(VM* vm) {
   NATIVE(sysClass->obj.cls, "input(1)", sys_input);
   NATIVE(sysClass->obj.cls, "printString(1)", sys_printString);
   NATIVE(sysClass->obj.cls, "writeString(1)", sys_writeString);
+
+  GET_CORE_CLASS(vm->tupleClass, "Tuple");
+  NATIVE(vm->tupleClass, "count", tuple_count);
+  NATIVE(vm->tupleClass, "get(1)", tuple_get);
+  NATIVE(vm->tupleClass, "iterate(1)", tuple_iterate);
+  NATIVE(vm->tupleClass, "iteratorValue(1)", tuple_iteratorValue);
 
   // Some string objects were created before stringClass even existed. Those
   // strings have a NULL classObj, so that needs to be fixed.

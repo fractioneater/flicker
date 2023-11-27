@@ -460,6 +460,13 @@ uint32_t stringFind(ObjString* string, ObjString* search, uint32_t start) {
   return UINT32_MAX;
 }
 
+ObjTuple* newTuple(int count) {
+  ObjTuple* tuple = ALLOCATE_OBJ(ObjTuple, OBJ_TUPLE, vm.tupleClass);
+  tuple->count = count;
+  tuple->items = ALLOCATE(Value, count);
+  return tuple;
+}
+
 ObjUpvalue* newUpvalue(Value* slot) {
   ObjUpvalue* upvalue = ALLOCATE_OBJ(ObjUpvalue, OBJ_UPVALUE, NULL);
   upvalue->closed = NONE_VAL;
@@ -510,9 +517,7 @@ void printObject(Value value) {
       bool first = true;
       for (int i = 0; i < table.capacity; i++) {
         if (table.entries[i].key != NULL) {
-          if (!first) {
-            printf(", ");
-          }
+          if (!first) printf(", ");
           first = false;
           printf("%s -> ", table.entries[i].key->chars);
           printValue(table.entries[i].value);
@@ -540,6 +545,16 @@ void printObject(Value value) {
     case OBJ_STRING:
       printf("%s", AS_CSTRING(value));
       break;
+    case OBJ_TUPLE: {
+      ObjTuple* tuple = AS_TUPLE(value);
+      printf("(");
+      for (int i = 0; i < tuple->count; i++) {
+        printValue(tuple->items[i]);
+        if (i != tuple->count - 1) printf(", ");
+      }
+      printf(")");
+      break;
+    }
     case OBJ_UPVALUE:
       printf("upvalue");
       break;

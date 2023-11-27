@@ -689,6 +689,17 @@ static InterpretResult run() {
       case OP_END_MODULE: 
         vm.lastModule = frame->closure->function->module;
         break;
+      case OP_TUPLE: {
+        int length = READ_BYTE();
+        ObjTuple* tuple = newTuple(length);
+
+        for (int i = length - 1; i >= 0; i--) {
+          tuple->items[i] = pop();
+        }
+        
+        push(OBJ_VAL(tuple));
+        break;
+      }
       case OP_CLOSURE: {
         ObjFunction* function = AS_FUNCTION(READ_CONSTANT());
         ObjClosure* closure = newClosure(function);

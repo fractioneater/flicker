@@ -1,16 +1,7 @@
-# Testing that end with an expression.
+# Testing longer lines with a linebreak split.
 # Sadly there are no bagels to be found in this file.
 
-var a = 20 + 294
+fun a()
+  return 2, "string"
 
-print a
-
-fun a(arg1, arg2, arg3, arg4)
-  return arg1 + arg2 + arg3 + arg4
-
-print a(0.86849298983, 9942.0528848892, 9200.482999 +
-  848292929294020 - 24825010,
-  28388.28495950
-)
-
-print [4, 25]
+var a = a()

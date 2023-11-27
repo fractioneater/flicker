@@ -1673,7 +1673,14 @@ static void returnStatement() {
       error("Can't return a value from an initializer");
     }
 
-    expression();
+    uint8_t values = 0;
+    do {
+      values++;
+      expression();
+      if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
+    } while (match(TOKEN_COMMA));
+    
+    if (values > 1) emitBytes(OP_TUPLE, values);
     emitByte(OP_RETURN);
   }
 }

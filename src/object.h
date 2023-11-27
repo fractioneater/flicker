@@ -21,6 +21,7 @@
 #define IS_PRNG(value)         isObjType(value, OBJ_PRNG)
 #define IS_RANGE(value)        isObjType(value, OBJ_RANGE)
 #define IS_STRING(value)       isObjType(value, OBJ_STRING)
+#define IS_TUPLE(value)        isObjType(value, OBJ_TUPLE)
 
 #define AS_BOUND_METHOD(value) ((ObjBoundMethod*)AS_OBJ(value))
 #define AS_CLASS(value)        ((ObjClass*)AS_OBJ(value))
@@ -35,6 +36,7 @@
 #define AS_RANGE(value)        ((ObjRange*)AS_OBJ(value))
 #define AS_STRING(value)       ((ObjString*)AS_OBJ(value))
 #define AS_CSTRING(value)      (((ObjString*)AS_OBJ(value))->chars)
+#define AS_TUPLE(value)        ((ObjTuple*)AS_OBJ(value))
 
 typedef enum {
   OBJ_BOUND_METHOD,
@@ -49,6 +51,7 @@ typedef enum {
   OBJ_PRNG,
   OBJ_RANGE,
   OBJ_STRING,
+  OBJ_TUPLE,
   OBJ_UPVALUE
 } ObjType;
 
@@ -83,6 +86,12 @@ typedef struct {
   Obj obj;
   NativeFn function;
 } ObjNative;
+
+typedef struct {
+  Obj obj;
+  int count;
+  Value* items;
+} ObjTuple;
 
 typedef struct {
   Obj obj;
@@ -197,6 +206,8 @@ ObjString* stringFromRange(ObjString* string, uint32_t start, uint32_t count, in
 ObjString* stringFormat(const char* format, ...);
 ObjString* stringCodePointAt(ObjString* string, uint32_t index);
 uint32_t stringFind(ObjString* string, ObjString* search, uint32_t start);
+
+ObjTuple* newTuple(int count);
 
 ObjUpvalue* newUpvalue(Value* slot);
 

@@ -132,6 +132,13 @@ static void blackenObject(Obj* object) {
       markObject((Obj*)module->name);
       break;
     }
+    case OBJ_TUPLE: {
+      ObjTuple* tuple = (ObjTuple*)object;
+      for (int i = 0; i < tuple->count; i++) {
+        markValue(tuple->items[i]);
+      }
+      break;
+    }
     case OBJ_UPVALUE:
       markValue(((ObjUpvalue*)object)->closed);
       break;
@@ -206,6 +213,12 @@ static void freeObject(Obj* object) {
       ObjString* string = (ObjString*)object;
       FREE_ARRAY(char, string->chars, string->length + 1);
       FREE(ObjString, object);
+      break;
+    }
+    case OBJ_TUPLE: {
+      ObjTuple* tuple = (ObjTuple*)object;
+      FREE_ARRAY(Value, tuple->items, tuple->count);
+      FREE(ObjTuple, object);
       break;
     }
     case OBJ_UPVALUE:

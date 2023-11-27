@@ -29,6 +29,7 @@ typedef struct {
   ObjClass* randomClass;
   ObjClass* rangeClass;
   ObjClass* stringClass;
+  ObjClass* tupleClass;
   bool coreInitialized;
 
   Table modules;

@@ -86,7 +86,7 @@
 // Always run GC whenever the vm or compiler messes with memory.
 #define DEBUG_STRESS_GC 0
 
-// Log memory allocation and garbage collector runs.
+// Log memory management and garbage collector runs.
 #define DEBUG_LOG_GC 0
 
 // Prevents the VM from initializing the core library. (Why would you do this?)

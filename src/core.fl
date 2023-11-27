@@ -70,7 +70,7 @@ class Sequence
 
     return TakeSequence(this, count)
 
-  where(predicate) = WhereSequence(this, predicate)
+  filter(predicate) = FilterSequence(this, predicate)
 
   reduce(acc, function)
     each element in this
@@ -138,7 +138,7 @@ class TakeSequence < Sequence
 
   iteratorValue(iterator) = this.sequence.iteratorValue(iterator)
 
-class WhereSequence < Sequence
+class FilterSequence < Sequence
   init(+sequence, +function)
     pass
 
@@ -351,6 +351,17 @@ class MapValueSequence < Sequence
   iteratorValue(iterator) = this.map.valueIteratorValue(iterator)
 
 class Range < Sequence []
+class Tuple < Sequence
+  init()
+    error "Tuple class is not directly callable"
+
+  toString()
+    result = "("
+    for var i = 0; i < this.count; i = i = 1
+      result = result + this[i]
+      if i != this.count - 1 do result = result + ", "
+    result = result + ")"
+    return result
 
 class Sys
   init()

@@ -229,6 +229,8 @@ int disassembleInstruction(Chunk* chunk, int offset) {
       return constantInstruction("IMPORT_VARIABLE", chunk, offset);
     case OP_END_MODULE:
       return simpleInstruction("END_MODULE", offset);
+    case OP_TUPLE:
+      return byteInstruction("TUPLE", chunk, offset);
     case OP_CLOSURE: {
       int constant = variableConstant(chunk, offset);
       offset += constant >= 0x80 ? 3 : 2;
