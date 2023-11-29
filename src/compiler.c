@@ -1516,19 +1516,69 @@ static void funDeclaration() {
 }
 
 static void varDeclaration() {
-  int global = parseVariable("Expecting a variable name");
+  if (match(TOKEN_LEFT_PAREN)) {
+    IntArray vars;
+    intArrayInit(&vars);
 
-  if (match(TOKEN_EQ)) {
-    if (matchLine() && match(TOKEN_INDENT)) {
-      parser.ignoreDedents++;
+    do {
+      intArrayWrite(&vars, parseVariable("Expecting a variable name"));
+    } while (match(TOKEN_COMMA));
+
+    if (vars.count > UINT8_MAX) {
+      error("Cannot define more than %d variables with one statement", UINT8_MAX);
     }
 
-    expression();
-  } else {
-    emitByte(OP_NONE);
-  }
+    expect(TOKEN_RIGHT_PAREN, "Expecting ')' after variable names");
 
-  defineVariable(global);
+    bool isNone = false;
+    if (match(TOKEN_EQ)) {
+      if (matchLine() && match(TOKEN_INDENT)) {
+        parser.ignoreDedents++;
+      }
+      expression();
+    } else {
+      isNone = true;
+      emitByte(OP_NONE);
+    }
+
+    if (!isNone) {
+      emitByte(OP_DUP);
+      callMethod(0, "count", 5);
+      emitConstant(NUMBER_VAL((uint8_t)vars.count));
+      callMethod(1, "==(1)", 5);
+      int jump = emitJump(OP_JUMP_TRUTHY_POP);
+
+      if (vars.count == 1) {
+        emitConstant(OBJ_VAL(copyStringLength("Must have exactly 1 value to unpack", 35)));
+      } else {
+        emitConstant(OBJ_VAL(stringFormat("Must have exactly $ values to unpack", numberToCString(vars.count))));
+      }
+      emitByte(OP_ERROR);
+
+      patchJump(jump);
+    }
+
+    for (int i = 0; i < vars.count; i++) {
+      emitByte(OP_DUP);
+      if (!isNone) {
+        emitConstant(NUMBER_VAL((uint8_t)i));
+        callMethod(1, "get(1)", 6);
+      }
+      defineVariable(vars.data[i]);
+    }
+    emitByte(OP_POP); // The value was duplicated, so pop the original.
+  } else {
+    int global = parseVariable("Expecting a variable name");
+
+    if (match(TOKEN_EQ)) {
+      if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
+      expression();
+    } else {
+      emitByte(OP_NONE);
+    }
+
+    defineVariable(global);
+  }
 }
 
 static void useStatement() {
@@ -1673,14 +1723,18 @@ static void returnStatement() {
       error("Can't return a value from an initializer");
     }
 
-    uint8_t values = 0;
+    int values = 0;
     do {
       values++;
       expression();
       if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
     } while (match(TOKEN_COMMA));
     
-    if (values > 1) emitBytes(OP_TUPLE, values);
+    if (values >= UINT8_MAX) {
+      error("Cannot return more than %d values", UINT8_MAX);
+    }
+
+    if (values > 1) emitBytes(OP_TUPLE, (uint8_t)values);
     emitByte(OP_RETURN);
   }
 }

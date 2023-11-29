@@ -1,7 +1,12 @@
 # Testing longer lines with a linebreak split.
 # Sadly there are no bagels to be found in this file.
 
-fun a()
-  return 2, "string"
-
-var a = a()
+fun give(num)
+  if num == 1
+    return 6
+  elif num == 2
+    return 5, "abc"
+  elif num == 3
+    return True, "Foo", 0
+  elif num == 4
+    return [4, 2], 11, "Blue", False
