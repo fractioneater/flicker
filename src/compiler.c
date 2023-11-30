@@ -1566,6 +1566,8 @@ static void varDeclaration() {
       }
       defineVariable(vars.data[i]);
     }
+
+    intArrayFree(&vars);
     emitByte(OP_POP); // The value was duplicated, so pop the original.
   } else {
     int global = parseVariable("Expecting a variable name");

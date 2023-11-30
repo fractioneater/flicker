@@ -1,4 +1,4 @@
-# Testing longer lines with a linebreak split.
+# Testing functions with multiple returns.
 # Sadly there are no bagels to be found in this file.
 
 fun give(num)
