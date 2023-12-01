@@ -1,4 +1,4 @@
-# Testing functions with multiple returns.
+# Testing functions with multiple return values.
 # Sadly there are no bagels to be found in this file.
 
 fun give(num)

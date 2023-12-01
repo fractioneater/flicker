@@ -24,7 +24,7 @@ class Sequence
     var result = 0
     each i in this do result = result + 1
     return result
-  
+
   attribute isEmpty = not this.iterate(None)
 
   all(function)
@@ -153,6 +153,7 @@ class FilterSequence < Sequence
 class String < Sequence
   attribute bytes = StringByteSequence(this)
   attribute codePoints = StringCodePointSequence(this)
+  attribute length = this.byteCount
 
   +(other) = this.concatenate(other.toString())
 
@@ -265,6 +266,8 @@ class StringCodePointSequence < Sequence
   iteratorValue(iterator) = this.string.codePointAt(iterator)
 
 class List < Sequence
+  attribute count = this.size
+
   +(other)
     var result = this[0..-1]
     each element in other
@@ -314,6 +317,7 @@ class List < Sequence
   toString() = "[=(this.joinToString())]"
 
 class Map < Sequence
+  attribute count = this.size
   attribute keys = MapKeySequence(this)
   attribute values = MapValueSequence(this)
 
@@ -354,6 +358,8 @@ class Range < Sequence []
 class Tuple < Sequence
   init()
     error "Tuple class is not directly callable"
+
+  attribute count = this.size
 
   toString()
     result = "("

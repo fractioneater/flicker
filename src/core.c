@@ -1001,7 +1001,7 @@ DEF_NATIVE(sys_writeString) {
 // Tuple          //
 ////////////////////
 
-DEF_NATIVE(tuple_count) {
+DEF_NATIVE(tuple_size) {
   RETURN_NUMBER(AS_TUPLE(args[0])->count);
 }
 
@@ -1191,7 +1191,6 @@ void initializeCore(VM* vm) {
   NATIVE(vm->stringClass, "iterate(1)", string_iterate);
   NATIVE(vm->stringClass, "iterateByte(1)", string_iterateByte);
   NATIVE(vm->stringClass, "iteratorValue(1)", string_iteratorValue);
-  NATIVE(vm->stringClass, "length", string_byteCount);
   NATIVE(vm->stringClass, "lowercase()", string_lowercase);
   NATIVE(vm->stringClass, ":(1)", string_rangeColon);
   NATIVE(vm->stringClass, "..(1)", string_rangeDotDot);
@@ -1206,13 +1205,13 @@ void initializeCore(VM* vm) {
   NATIVE(vm->listClass, "add(1)", list_add);
   NATIVE(vm->listClass, "addCore(1)", list_addCore);
   NATIVE(vm->listClass, "clear()", list_clear);
-  NATIVE(vm->listClass, "size", list_size);
+  NATIVE(vm->listClass, "indexOf(1)", list_indexOf);
   NATIVE(vm->listClass, "insert(2)", list_insert);
   NATIVE(vm->listClass, "iterate(1)", list_iterate);
   NATIVE(vm->listClass, "iteratorValue(1)", list_iteratorValue);
   NATIVE(vm->listClass, "removeAt(1)", list_removeAt);
   NATIVE(vm->listClass, "remove(1)", list_removeValue);
-  NATIVE(vm->listClass, "indexOf(1)", list_indexOf);
+  NATIVE(vm->listClass, "size", list_size);
   NATIVE(vm->listClass, "swap(2)", list_swap);
 
   GET_CORE_CLASS(vm->mapClass, "Map");
@@ -1222,9 +1221,8 @@ void initializeCore(VM* vm) {
   NATIVE(vm->mapClass, "addCore(2)", map_addCore);
   NATIVE(vm->mapClass, "clear()", map_clear);
   NATIVE(vm->mapClass, "containsKey(1)", map_containsKey);
-  NATIVE(vm->mapClass, "count", map_size);
-  NATIVE(vm->mapClass, "size", map_size);
   NATIVE(vm->mapClass, "remove(1)", map_remove);
+  NATIVE(vm->mapClass, "size", map_size);
   NATIVE(vm->mapClass, "iterate(1)", map_iterate);
   NATIVE(vm->mapClass, "keyIteratorValue(1)", map_keyIteratorValue);
   NATIVE(vm->mapClass, "valueIteratorValue(1)", map_valueIteratorValue);
@@ -1250,10 +1248,10 @@ void initializeCore(VM* vm) {
   NATIVE(sysClass->obj.cls, "writeString(1)", sys_writeString);
 
   GET_CORE_CLASS(vm->tupleClass, "Tuple");
-  NATIVE(vm->tupleClass, "count", tuple_count);
   NATIVE(vm->tupleClass, "get(1)", tuple_get);
   NATIVE(vm->tupleClass, "iterate(1)", tuple_iterate);
   NATIVE(vm->tupleClass, "iteratorValue(1)", tuple_iteratorValue);
+  NATIVE(vm->tupleClass, "size", tuple_size);
 
   // Some string objects were created before stringClass even existed. Those
   // strings have a NULL classObj, so that needs to be fixed.
