@@ -153,7 +153,6 @@ class FilterSequence < Sequence
 class String < Sequence
   attribute bytes = StringByteSequence(this)
   attribute codePoints = StringCodePointSequence(this)
-  attribute length = this.byteCount
 
   +(other) = this.concatenate(other.toString())
 
@@ -266,8 +265,6 @@ class StringCodePointSequence < Sequence
   iteratorValue(iterator) = this.string.codePointAt(iterator)
 
 class List < Sequence
-  attribute count = this.size
-
   +(other)
     var result = this[0..-1]
     each element in other
@@ -358,8 +355,6 @@ class Range < Sequence []
 class Tuple < Sequence
   init()
     error "Tuple class is not directly callable"
-
-  attribute count = this.size
 
   toString()
     result = "("

@@ -259,9 +259,7 @@ DEF_NATIVE(map_containsKey) {
   RETURN_BOOL(!IS_UNDEFINED(mapGet(AS_MAP(args[0]), args[1])));
 }
 
-DEF_NATIVE(map_size) {
-  RETURN_NUMBER(AS_MAP(args[0])->count);
-}
+DEF_NATIVE(map_size) { RETURN_NUMBER(AS_MAP(args[0])->count); }
 
 DEF_NATIVE(map_remove) {
   if (!validateString(args[1], "Key")) return false;
@@ -595,7 +593,15 @@ DEF_NATIVE(random_seed) {
 
     for (int i = 0; i < 4; i++) {
       if (!validateInt(list->items[i], "Seed")) return false;
-      seed[i] = (uint64_t)list->items[i];
+      seed[i] = (uint64_t)AS_NUMBER(list->items[i]);
+    }
+  } else if (IS_TUPLE(args[1])) {
+    ObjTuple* tuple = AS_TUPLE(args[1]);
+    if (tuple->count != 4) RETURN_ERROR("Seed value must have 4 elements");
+
+    for (int i = 0; i < 4; i++) {
+      if (!validateInt(tuple->items[i], "Seed")) return false;
+      seed[i] = (uint64_t)AS_NUMBER(tuple->items[i]);
     }
   } else {
     RETURN_ERROR("Seed must be either a number or a list");
@@ -1001,10 +1007,6 @@ DEF_NATIVE(sys_writeString) {
 // Tuple          //
 ////////////////////
 
-DEF_NATIVE(tuple_size) {
-  RETURN_NUMBER(AS_TUPLE(args[0])->count);
-}
-
 DEF_NATIVE(tuple_get) {
   ObjTuple* tuple = AS_TUPLE(args[0]);
   uint32_t index = validateIndex(args[1], tuple->count, "Index");
@@ -1036,6 +1038,8 @@ DEF_NATIVE(tuple_iteratorValue) {
 
   RETURN_VAL(tuple->items[index]);
 }
+
+DEF_NATIVE(tuple_size) { RETURN_NUMBER(AS_TUPLE(args[0])->count); }
 
 /////////////////////////////
 // End of natives          //
@@ -1212,6 +1216,7 @@ void initializeCore(VM* vm) {
   NATIVE(vm->listClass, "removeAt(1)", list_removeAt);
   NATIVE(vm->listClass, "remove(1)", list_removeValue);
   NATIVE(vm->listClass, "size", list_size);
+  NATIVE(vm->listClass, "count", list_size);
   NATIVE(vm->listClass, "swap(2)", list_swap);
 
   GET_CORE_CLASS(vm->mapClass, "Map");
@@ -1223,6 +1228,7 @@ void initializeCore(VM* vm) {
   NATIVE(vm->mapClass, "containsKey(1)", map_containsKey);
   NATIVE(vm->mapClass, "remove(1)", map_remove);
   NATIVE(vm->mapClass, "size", map_size);
+  NATIVE(vm->mapClass, "count", map_size);
   NATIVE(vm->mapClass, "iterate(1)", map_iterate);
   NATIVE(vm->mapClass, "keyIteratorValue(1)", map_keyIteratorValue);
   NATIVE(vm->mapClass, "valueIteratorValue(1)", map_valueIteratorValue);
@@ -1252,6 +1258,7 @@ void initializeCore(VM* vm) {
   NATIVE(vm->tupleClass, "iterate(1)", tuple_iterate);
   NATIVE(vm->tupleClass, "iteratorValue(1)", tuple_iteratorValue);
   NATIVE(vm->tupleClass, "size", tuple_size);
+  NATIVE(vm->tupleClass, "count", tuple_size);
 
   // Some string objects were created before stringClass even existed. Those
   // strings have a NULL classObj, so that needs to be fixed.

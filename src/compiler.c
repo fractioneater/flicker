@@ -160,6 +160,11 @@ typedef struct Compiler {
   // The upvalues that have been captured from outside scopes.
   Upvalue upvalues[UINT8_COUNT];
 
+  // The array the compiler is writing bytecode to, NULL if the
+  // compiler is writing to the main chunk.
+  ByteArray* customWrite;
+  IntArray* customLine;
+
   // The level of block scope nesting.
   int scopeDepth;
 } Compiler;
@@ -285,6 +290,11 @@ static void expectStatementEnd(const char* message) {
 }
 
 static void emitByte(uint8_t byte) {
+  if (current->customWrite != NULL) {
+    byteArrayWrite(current->customWrite, byte);
+    intArrayWrite(current->customLine, parser.previous.line);
+    return;
+  }
   writeChunk(currentChunk(), byte, parser.previous.line);
 }
 
@@ -412,6 +422,8 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   compiler->type = type;
   compiler->localCount = 0;
   compiler->scopeDepth = 0;
+
+  compiler->customWrite = NULL;
 
   compiler->function = newFunction(parser.module);
   current = compiler;
@@ -848,7 +860,7 @@ static void callable(bool canAssign) {
 
 static void dot(bool canAssign) {
   expect(TOKEN_IDENTIFIER, "Expecting a property name after '.'");
-  
+
   int name = identifierConstant(&parser.previous);
   Signature signature = signatureFromToken(SIG_METHOD);
 
@@ -1019,6 +1031,11 @@ static void collection(bool canAssign) {
     emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyStringLength("List", 4)));
     emitByte(OP_CALL_0);
     return;
+  } else if (match(TOKEN_RIGHT_ARROW)) {
+    expect(TOKEN_RIGHT_BRACKET, "Expecting ']' to end empty map");
+    emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyStringLength("Map", 3)));
+    emitByte(OP_CALL_0);
+    return;
   }
 
   bool indented = false;
@@ -1027,12 +1044,18 @@ static void collection(bool canAssign) {
     indented = true;
   }
 
-  pushScope();
+  ByteArray code;
+  IntArray lines;
+  byteArrayInit(&code);
+  intArrayInit(&lines);
+
+  current->customWrite = &code;
+  current->customLine = &lines;
 
   expression();
-  addLocal(syntheticToken("`first"));
-  markInitialized();
-  int firstSlot = current->localCount - 1;
+
+  current->customWrite = NULL;
+  current->customLine = NULL;
 
   bool isMap = match(TOKEN_RIGHT_ARROW);
   bool first = true;
@@ -1054,9 +1077,15 @@ static void collection(bool canAssign) {
     if (check(TOKEN_RIGHT_BRACKET)) break;
 
     if (first) {
-      emitBytes(OP_GET_LOCAL, firstSlot);
+      // Transfer all the code that makes up the first item into the current chunk.
+      for (int i = 0; i < code.count; i++) {
+        writeChunk(currentChunk(), code.data[i], lines.data[i]);
+      }
+
+      byteArrayFree(&code);
+      intArrayFree(&lines);
     } else {
-      expression();      
+      expression();
     }
 
     if (isMap) {
@@ -1078,10 +1107,6 @@ static void collection(bool canAssign) {
     matchLine();
     expect(TOKEN_DEDENT, "Expecting indentation to decrease");
   }
-
-  emitBytes(OP_SET_LOCAL, firstSlot);
-
-  popScope();
 }
 
 static void subscript(bool canAssign) {
@@ -1243,6 +1268,7 @@ static void expressionBp(BindingPower bp) {
     infixRule(canAssign);
   }
 
+  // The equals sign should be handled already.
   if (canAssign && match(TOKEN_EQ)) {
     error("Invalid assignment target");
   }
@@ -1393,10 +1419,10 @@ static void method() {
   Signature signature = signatureFromToken(SIG_METHOD);
 
   FunctionType type = isStatic ? TYPE_STATIC_METHOD : TYPE_METHOD;
-  if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {    
+  if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
     if (isStatic) error("Initializers cannot be static");
     if (currentClass->hasInitializer) error("Classes can only have one initializer");
-    
+
     type = TYPE_INITIALIZER;
     currentClass->hasInitializer = true;
   }
@@ -1731,7 +1757,7 @@ static void returnStatement() {
       expression();
       if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
     } while (match(TOKEN_COMMA));
-    
+
     if (values >= UINT8_MAX) {
       error("Cannot return more than %d values", UINT8_MAX);
     }
