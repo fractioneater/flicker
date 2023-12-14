@@ -797,22 +797,35 @@ static void namedVariable(Token name, bool canAssign) {
   }
 
   if (canAssign && match(TOKEN_EQ)) {
+    bool modifier = false;
+    if (match(TOKEN_GT)) {
+      if (getOp == OP_GET_GLOBAL) emitVariableArg(getOp, arg);
+      else emitBytes(getOp, (uint8_t)arg);
+      modifier = true;
+    }
+
     if (matchLine() && match(TOKEN_INDENT)) {
       parser.ignoreDedents++;
     }
 
-    expression();
+    if (modifier) {
+      advance();
+      ParseFn infixRule = getRule(parser.previous.type)->infix;
+      if (infixRule == NULL) {
+        error("Expecting an infix operator to modify variable '%.*s'", name.start, name.length);
+      }
+
+      infixRule(false);
+    } else expression();
+
     if (setOp == OP_SET_GLOBAL) {
       emitVariableArg(setOp, arg);
     } else {
       emitBytes(setOp, (uint8_t)arg);
     }
   } else {
-    if (getOp == OP_GET_GLOBAL) {
-      emitVariableArg(getOp, arg);
-    } else {
-      emitBytes(getOp, (uint8_t)arg);
-    }
+    if (getOp == OP_GET_GLOBAL) emitVariableArg(getOp, arg);
+    else emitBytes(getOp, (uint8_t)arg);
   }
 }
 
