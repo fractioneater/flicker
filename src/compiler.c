@@ -1412,6 +1412,10 @@ static void lambda(bool canAssign) {
     emitByte(compiler.upvalues[i].isLocal ? 1 : 0);
     emitByte(compiler.upvalues[i].index);
   }
+
+  if ((parser.printResult && current->scopeDepth == 0) || current->type == TYPE_LAMBDA) {
+    parser.onExpression = true;
+  }
 }
 
 static void method() {
