@@ -812,10 +812,10 @@ static void namedVariable(Token name, bool canAssign) {
       advance();
       ParseFn infixRule = getRule(parser.previous.type)->infix;
       if (infixRule == NULL) {
-        error("Expecting an infix operator to modify variable '%.*s'", name.start, name.length);
+        error("Expecting an infix operator to modify variable");
+      } else {
+        infixRule(false);
       }
-
-      infixRule(false);
     } else expression();
 
     if (setOp == OP_SET_GLOBAL) {
