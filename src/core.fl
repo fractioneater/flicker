@@ -22,7 +22,7 @@ class Sequence
 
   attribute count
     var result = 0
-    each i in this do result => + 1
+    each i in this do result = result + 1
     return result
 
   attribute isEmpty = not this.iterate(None)
@@ -49,7 +49,7 @@ class Sequence
   count(function)
     var result = 0
     each element in this
-      if function(element) do result => + 1
+      if function(element) do result = result + 1
     return result
 
   forEach(function)
@@ -93,8 +93,8 @@ class Sequence
     var result = ""
 
     each item[index] in this
-      if index != 0 do result => + sep
-      result => + item.toString()
+      if index != 0 do result = result + sep
+      result = result + item.toString()
 
     return result
 
@@ -122,7 +122,7 @@ class SkipSequence < Sequence
       return this.sequence.iterate(iterator)
     else
       iterator = this.sequence.iterate(iterator)
-      for var count = this.count; count > 0 and iterator; count => - 1
+      for var count = this.count; count > 0 and iterator; count = count - 1
         iterator = this.sequence.iterate(iterator)
       return iterator
 
@@ -162,7 +162,7 @@ class String < Sequence
 
     var result = ""
     each i in 0..<count
-      result => + this
+      result = result + this
     return result
 
   split(delimiter)
@@ -203,10 +203,10 @@ class String < Sequence
     var size = this.byteCount
 
     while last < size and (index = this.indexOf(from, last)) != -1
-      result => + this[last..<index] + to
+      result = result + this[last..<index] + to
       last = index + fromSize
 
-    if last < size do result => + this[last..-1]
+    if last < size do result = result + this[last..-1]
 
     return result
 
@@ -237,7 +237,7 @@ class String < Sequence
       while end >= start
         var codePoint = this.codePointAt(end)
         if codePoint != -1 and not codePoints.contains(codePoint) do break
-        end => - 1
+        end = end - 1
 
       if end <= start do return ""
     else do end = -1
@@ -306,7 +306,7 @@ class List < Sequence
     var i = low - 1
     each j in low..<high
       if comparer(this[j], pivot)
-        i => + 1
+        i = i + 1
         this.swap(i, j)
     this.swap(i + 1, high)
     return i + 1
@@ -323,9 +323,9 @@ class Map < Sequence
     var first = True
 
     each key in this.keys
-      if not first do result => + ", "
+      if not first do result = result + ", "
       first = False
-      result => + "=(key) -> =(this[key])"
+      result = result + "=(key) -> =(this[key])"
 
     return result + "]"
 
@@ -358,10 +358,10 @@ class Tuple < Sequence
 
   toString()
     result = "("
-    for var i = 0; i < this.count; i => + 1
-      result => + this[i]
-      if i != this.count - 1 do result => + ", "
-    result => + ")"
+    for var i = 0; i < this.count; i = i + 1
+      result = result + this[i]
+      if i != this.count - 1 do result = result + ", "
+    result = result + ")"
     return result
 
 class Sys
