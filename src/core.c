@@ -338,16 +338,33 @@ DEF_NATIVE(number_fromString) {
 
   if (string->length == 0) RETURN_NONE();
 
+  char* copy = ALLOCATE(char, string->length);
+  memcpy(copy, string->chars, string->length);
+
+  char *read = copy, *write = copy;
+  while (*read) {
+    *write = *read++;
+    write += (*write != '_');
+  }
+  *write = '\0';
+
   errno = 0;
   char* end;
-  double number = strtod(string->chars, &end);
+  double number = strtod(copy, &end);
 
   while (*end != '\0' && isspace((unsigned char)*end)) end++;
 
-  if (errno == ERANGE) RETURN_ERROR("Number literal is too large");
+  if (errno == ERANGE) {
+    FREE_ARRAY(char, copy, string->length);
+    RETURN_ERROR("Number literal is too large");
+  }
 
-  if (end < string->chars + string->length) RETURN_NONE();
+  if (end < copy + strlen(copy)) {
+    FREE_ARRAY(char, copy, string->length);
+    RETURN_NONE();
+  }
 
+  FREE_ARRAY(char, copy, string->length);
   RETURN_NUMBER(number);
 }
 

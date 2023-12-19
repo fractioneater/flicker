@@ -50,7 +50,7 @@ static bool isAlpha(char c) {
          c == '_';
 }
 
-static bool isDigit(char c) { return '0' <= c && c <= '9'; }
+static bool isDigit(char c) { return c == '_' || ('0' <= c && c <= '9'); }
 
 static bool atEnd() { return *lexer.current == '\0'; }
 
@@ -291,7 +291,17 @@ static Token makeNumber(bool isHex) {
   if (isHex) {
     token.value = NUMBER_VAL((double)strtoll(lexer.start, NULL, 16));
   } else {
-    token.value = NUMBER_VAL(strtod(lexer.start, NULL));
+    char* copy = ALLOCATE(char, strlen(lexer.start));
+    memcpy(copy, lexer.start, strlen(lexer.start));
+
+    char *read = copy, *write = copy;
+    while (*read) {
+      *write = *read++;
+      write += (*write != '_');
+    }
+
+    token.value = NUMBER_VAL(strtod(copy, NULL));
+    FREE_ARRAY(char, copy, strlen(copy));
   }
 
   if (errno == ERANGE) {
