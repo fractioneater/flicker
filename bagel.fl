@@ -1,11 +1,28 @@
 # Testing immutable variables (only works with locals right now).
 # Sadly there are no bagels to be found in this file.
 
+# Comment out the "problematic lines" and the code will run smoothly.
+
+val global = True
+global = not global   # Problematic line #1
+
 if True
   var a = 3
-  val b = 5
+  val b = 2
 
   print b
 
-  a = 9
-  b = 4
+  a = a + 4
+  b = b + 4           # Problematic line #2
+
+var x = "global"
+fun outer()
+  val x = "outer"
+
+  fun inner()
+    x = 5             # Problematic line #3
+    print x
+  
+  inner()
+
+outer()

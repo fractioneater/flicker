@@ -108,6 +108,9 @@ typedef struct {
 
   // If the upvalue is capturing a local variable from the enclosing function.
   bool isLocal;
+
+  // Whether or not the upvalue can be reassigned.
+  bool isMutable;
 } Upvalue;
 
 typedef struct Loop {
@@ -541,7 +544,7 @@ static int resolveLocal(Compiler* compiler, Token* name) {
   return -1;
 }
 
-static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) {
+static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal, bool isMutable) {
   int upvalueCount = compiler->function->upvalueCount;
 
   for (int i = 0; i < upvalueCount; i++) {
@@ -558,6 +561,7 @@ static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal) {
 
   compiler->upvalues[upvalueCount].isLocal = isLocal;
   compiler->upvalues[upvalueCount].index = index;
+  compiler->upvalues[upvalueCount].isMutable = isMutable;
   return compiler->function->upvalueCount++;
 }
 
@@ -567,12 +571,14 @@ static int resolveUpvalue(Compiler* compiler, Token* name) {
   int local = resolveLocal(compiler->enclosing, name);
   if (local != -1) {
     compiler->enclosing->locals[local].isCaptured = true;
-    return addUpvalue(compiler, (uint8_t)local, true);
+    bool isMutable = compiler->enclosing->locals[local].isMutable;
+    return addUpvalue(compiler, (uint8_t)local, true, isMutable);
   }
 
   int upvalue = resolveUpvalue(compiler->enclosing, name);
   if (upvalue != -1) {
-    return addUpvalue(compiler, (uint8_t)upvalue, false);
+    bool isMutable = compiler->enclosing->upvalues[upvalue].isMutable;
+    return addUpvalue(compiler, (uint8_t)upvalue, false, isMutable);
   }
 
   return -1;
@@ -803,6 +809,8 @@ static void namedVariable(Token name, bool canAssign) {
 
   if (canAssign && match(TOKEN_EQ)) {
     if (setOp == OP_SET_LOCAL && !current->locals[arg].isMutable) {
+      error("Value cannot be reassigned");
+    } else if (setOp == OP_SET_UPVALUE && !current->upvalues[arg].isMutable) {
       error("Value cannot be reassigned");
     }
 
