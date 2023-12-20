@@ -95,6 +95,9 @@ typedef struct {
   // The scope depth that this variable was declared in.
   int depth;
 
+  // Whether or not this local can be reassigned.
+  bool isMutable;
+
   // If this local is being used as an upvalue.
   bool isCaptured;
 } Local;
@@ -436,6 +439,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 
   Local* local = &current->locals[current->localCount++];
   local->depth = 0;
+  local->isMutable = false;
   local->isCaptured = false;
   if (type != TYPE_FUNCTION) {
     local->name.start = "this";
@@ -574,7 +578,7 @@ static int resolveUpvalue(Compiler* compiler, Token* name) {
   return -1;
 }
 
-static void addLocal(Token name) {
+static void addLocal(Token name, bool isMutable) {
   if (current->localCount == UINT8_COUNT) {
     error("Too many local variables in one function");
     return;
@@ -583,10 +587,11 @@ static void addLocal(Token name) {
   Local* local = &current->locals[current->localCount++];
   local->name = name;
   local->depth = -1;
+  local->isMutable = isMutable;
   local->isCaptured = false;
 }
 
-static void declareVariable() {
+static void declareVariable(bool isMutable) {
   if (current->scopeDepth == 0) return;
 
   Token* name = &parser.previous;
@@ -601,13 +606,13 @@ static void declareVariable() {
     }
   }
 
-  addLocal(*name);
+  addLocal(*name, isMutable);
 }
 
-static int parseVariable(const char* errorMessage) {
+static int parseVariable(const char* errorMessage, bool isMutable) {
   expect(TOKEN_IDENTIFIER, errorMessage);
 
-  declareVariable();
+  declareVariable(isMutable);
   if (current->scopeDepth > 0) return 0;
 
   return identifierConstant(&parser.previous);
@@ -618,13 +623,13 @@ static void markInitialized() {
   current->locals[current->localCount - 1].depth = current->scopeDepth;
 }
 
-static void defineVariable(int global) {
+static void defineVariable(int global, bool isMutable) {
   if (current->scopeDepth > 0) {
     markInitialized();
     return;
   }
 
-  emitVariableArg(OP_DEFINE_GLOBAL, global);
+  emitVariableArg(OP_DEFINE_IMMUTABLE_GLOBAL - isMutable, global);
 }
 
 static void signatureParameterList(char name[MAX_METHOD_SIGNATURE], int* length, int arity) {
@@ -689,8 +694,8 @@ static void finishParameterList(Signature* signature) {
 
     signature->asProperty[signature->arity - 1] = match(TOKEN_PLUS);
 
-    int constant = parseVariable("Expecting a parameter name");
-    defineVariable(constant);
+    int constant = parseVariable("Expecting a parameter name", true);
+    defineVariable(constant, true);
   } while (match(TOKEN_COMMA));
 }
 
@@ -733,8 +738,8 @@ void binarySignature(Signature* signature) {
   signature->asProperty = NULL;
 
   expect(TOKEN_LEFT_PAREN, "Expecting '(' after operator name");
-  int constant = parseVariable("Expecting a parameter name");
-  defineVariable(constant);
+  int constant = parseVariable("Expecting a parameter name", true);
+  defineVariable(constant, true);
   expect(TOKEN_RIGHT_PAREN, "Expecting ')' after parameter name");
 }
 
@@ -752,8 +757,8 @@ void mixedSignature(Signature* signature) {
     signature->arity = 1;
     signature->asProperty = NULL;
 
-    int constant = parseVariable("Expecting a parameter name");
-    defineVariable(constant);
+    int constant = parseVariable("Expecting a parameter name", true);
+    defineVariable(constant, true);
     expect(TOKEN_RIGHT_PAREN, "Expecting ')' after parameter name");
   }
 }
@@ -797,6 +802,10 @@ static void namedVariable(Token name, bool canAssign) {
   }
 
   if (canAssign && match(TOKEN_EQ)) {
+    if (setOp == OP_SET_LOCAL && !current->locals[arg].isMutable) {
+      error("Value cannot be reassigned");
+    }
+
     // bool modifier = false;
     // if (match(TOKEN_GT)) {
     //   if (getOp == OP_GET_GLOBAL) emitVariableArg(getOp, arg);
@@ -1254,6 +1263,7 @@ ParseRule rules[] = {
   /* TOKEN_THIS          */ PREFIX(this_, BP_NONE),
   /* TOKEN_TRUE          */ PREFIX(literal, BP_NONE),
   /* TOKEN_USE           */ UNUSED,
+  /* TOKEN_VAL           */ UNUSED,
   /* TOKEN_VAR           */ UNUSED,
   /* TOKEN_WHEN          */ UNUSED, // TODO: When expressions
   /* TOKEN_WHILE         */ UNUSED,
@@ -1353,8 +1363,8 @@ static void function(FunctionType type) {
       matchLine(); // TODO: We almost always want function parameters indented.
       validateParameterCount("Function", ++current->function->arity);
 
-      int constant = parseVariable("Expecting a parameter name");
-      defineVariable(constant);
+      int constant = parseVariable("Expecting a parameter name", true);
+      defineVariable(constant, true);
     } while (match(TOKEN_COMMA));
   }
   expect(TOKEN_RIGHT_PAREN, "Expecting ')' after parameters");
@@ -1390,8 +1400,8 @@ static void lambda(bool canAssign) {
         if (matchLine()) ignoreIndentation();
         validateParameterCount("Lambda", ++current->function->arity);
 
-        int constant = parseVariable("Expecting a parameter name");
-        defineVariable(constant);
+        int constant = parseVariable("Expecting a parameter name", true);
+        defineVariable(constant, true);
       } while (match(TOKEN_COMMA));
       expect(TOKEN_PIPE, "Expecting '|' after parameters");
       if (matchLine()) ignoreIndentation();
@@ -1503,7 +1513,7 @@ static void classDeclaration() {
   expect(TOKEN_IDENTIFIER, "Expecting a class name");
   Token className = parser.previous;
   int nameConstant = identifierConstant(&parser.previous);
-  declareVariable();
+  declareVariable(false);
 
   if (match(TOKEN_LT)) {
     expect(TOKEN_IDENTIFIER, "Expecting a superclass name");
@@ -1517,7 +1527,7 @@ static void classDeclaration() {
   }
 
   emitVariableArg(OP_CLASS, nameConstant);
-  defineVariable(nameConstant);
+  defineVariable(nameConstant, false);
 
   ClassCompiler classCompiler;
   classCompiler.hasInitializer = false;
@@ -1525,8 +1535,8 @@ static void classDeclaration() {
   currentClass = &classCompiler;
 
   pushScope();
-  addLocal(syntheticToken("super"));
-  defineVariable(0);
+  addLocal(syntheticToken("super"), false);
+  defineVariable(0, false);
 
   namedVariable(className, false);
 
@@ -1553,19 +1563,20 @@ static void classDeclaration() {
 }
 
 static void funDeclaration() {
-  int global = parseVariable("Expecting a function name");
+  int global = parseVariable("Expecting a function name", true);
   markInitialized();
   function(TYPE_FUNCTION);
-  defineVariable(global);
+  defineVariable(global, true);
 }
 
 static void varDeclaration() {
+  bool isMutable = (parser.previous.type == TOKEN_VAR);
   if (match(TOKEN_LEFT_PAREN)) {
     IntArray vars;
     intArrayInit(&vars);
 
     do {
-      intArrayWrite(&vars, parseVariable("Expecting a variable name"));
+      intArrayWrite(&vars, parseVariable("Expecting a variable name", isMutable));
     } while (match(TOKEN_COMMA));
 
     if (vars.count > UINT8_MAX) {
@@ -1584,6 +1595,8 @@ static void varDeclaration() {
       isNone = true;
       emitByte(OP_NONE);
     }
+
+    // TODO: If the variable is immutable and not initialized, emit a compiler warning.
 
     if (!isNone) {
       emitByte(OP_DUP);
@@ -1608,13 +1621,13 @@ static void varDeclaration() {
         emitConstant(NUMBER_VAL((uint8_t)i));
         callMethod(1, "get(1)", 6);
       }
-      defineVariable(vars.data[i]);
+      defineVariable(vars.data[i], isMutable);
     }
 
     intArrayFree(&vars);
     emitByte(OP_POP); // The value was duplicated, so pop the original.
   } else {
-    int global = parseVariable("Expecting a variable name");
+    int global = parseVariable("Expecting a variable name", isMutable);
 
     if (match(TOKEN_EQ)) {
       if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
@@ -1623,7 +1636,7 @@ static void varDeclaration() {
       emitByte(OP_NONE);
     }
 
-    defineVariable(global);
+    defineVariable(global, isMutable);
   }
 }
 
@@ -1644,9 +1657,9 @@ static void useStatement() {
       int sourceConstant = identifierConstant(&parser.previous);
       int nameConstant = sourceConstant;
       if (match(TOKEN_RIGHT_ARROW)) {
-        nameConstant = parseVariable("Expecting a variable name alias");
+        nameConstant = parseVariable("Expecting a variable name alias", false);
       } else {
-        declareVariable();
+        declareVariable(false);
       }
 
       intArrayWrite(&sourceConstants, sourceConstant);
@@ -1667,7 +1680,7 @@ static void useStatement() {
   if (variableCount > 0) {
     for (int i = 0; i < variableCount; i++) {
       emitVariableArg(OP_IMPORT_VARIABLE, sourceConstants.data[i]);
-      defineVariable(nameConstants.data[i]);
+      defineVariable(nameConstants.data[i], false);
     }
   }
 }
@@ -1828,7 +1841,7 @@ static void forStatement() {
 
   if (match(TOKEN_SEMICOLON)) {
     // No initializer.
-  } else if (match(TOKEN_VAR)) {
+  } else if (match(TOKEN_VAR) || match(TOKEN_VAL)) {
     varDeclaration();
     expectStatementEnd("Expecting ';' after loop initializer");
   } else {
@@ -1900,11 +1913,11 @@ static void eachStatement() {
     return;
   }
 
-  addLocal(syntheticToken("`seq"));
+  addLocal(syntheticToken("`seq"), false);
   markInitialized();
   int seqSlot = current->localCount - 1;
   emitByte(OP_NONE);
-  addLocal(syntheticToken("`iter"));
+  addLocal(syntheticToken("`iter"), false);
   markInitialized();
   int iterSlot = current->localCount - 1;
 
@@ -1925,11 +1938,11 @@ static void eachStatement() {
   callMethod(1, "iteratorValue(1)", 16);
 
   pushScope(); // Loop variable
-  addLocal(name);
+  addLocal(name, false);
   markInitialized();
   if (hasIndex) {
     emitBytes(OP_GET_LOCAL, iterSlot);
-    addLocal(index);
+    addLocal(index, false);
     markInitialized();
   }
 
@@ -2121,7 +2134,7 @@ static void synchronize() {
 static void declaration() {
   if (match(TOKEN_CLASS)) classDeclaration();
   else if (match(TOKEN_FUN)) funDeclaration();
-  else if (match(TOKEN_VAR)) varDeclaration();
+  else if (match(TOKEN_VAR) || match(TOKEN_VAL)) varDeclaration();
   else if (match(TOKEN_USE)) useStatement();
   else statement();
 

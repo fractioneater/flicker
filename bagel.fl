@@ -1,12 +1,11 @@
-# Testing functions with multiple return values.
+# Testing immutable variables (only works with locals right now).
 # Sadly there are no bagels to be found in this file.
 
-fun give(num)
-  if num == 1
-    return 6
-  elif num == 2
-    return 5, "abc"
-  elif num == 3
-    return True, "Foo", 0
-  elif num == 4
-    return [4, 2], 11, "Blue", False
+if True
+  var a = 3
+  val b = 5
+
+  print b
+
+  a = 9
+  b = 4

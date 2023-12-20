@@ -74,7 +74,7 @@ ObjClass* newClass(ObjString* name) {
 void bindSuperclass(ObjClass* subclass, ObjClass* superclass) {
   ASSERT(superclass != NULL, "Must have superclass");
   subclass->superclass = superclass;
-  tableAddAll(&superclass->methods, &subclass->methods);
+  tableAddAll(&superclass->methods, &subclass->methods, true);
 }
 
 ObjClosure* newClosure(ObjFunction* function) {
@@ -184,7 +184,7 @@ Value mapGet(ObjMap* map, Value key) {
 }
 
 void mapSet(ObjMap* map, Value key, Value value) {
-  if (tableSet(&map->table, AS_STRING(key), value)) {
+  if (tableSet(&map->table, AS_STRING(key), value, false)) {
     map->count++;
   }
 }
@@ -244,7 +244,7 @@ static ObjString* allocateString(char* chars, int length, uint32_t hash) {
   string->hash = hash;
 
   push(OBJ_VAL(string));
-  tableSet(&vm.strings, string, NONE_VAL);
+  tableSet(&vm.strings, string, NONE_VAL, true);
   pop();
 
   return string;

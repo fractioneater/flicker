@@ -7,7 +7,7 @@
 #include "vm.h"
 
 #define NATIVE(cls, name, function) \
-  tableSet(&cls->methods, copyString(name), OBJ_VAL(newNative(native_##function)))
+  tableSet(&cls->methods, copyString(name), OBJ_VAL(newNative(native_##function)), true)
 
 #define NATIVE_INIT(cls, function, argCount)                  \
   do {                                                        \

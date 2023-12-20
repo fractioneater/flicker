@@ -1067,7 +1067,7 @@ static ObjClass* defineClass(VM* vm, ObjModule* module, const char* name) {
   pushRoot((Obj*)className);
 
   ObjClass* cls = newSingleClass(className);
-  tableSet(&module->variables, className, OBJ_VAL(cls));
+  tableSet(&module->variables, className, OBJ_VAL(cls), true);
 
   popRoot();
   return cls;
@@ -1086,7 +1086,7 @@ static ObjClass* defineClass(VM* vm, ObjModule* module, const char* name) {
 void initializeCore(VM* vm) {
   ObjModule* coreModule = newModule(vm->coreString, true);
   pushRoot((Obj*)coreModule);
-  tableSet(&vm->modules, vm->coreString, OBJ_VAL(coreModule));
+  tableSet(&vm->modules, vm->coreString, OBJ_VAL(coreModule), true);
   popRoot();
 
   vm->objectClass = defineClass(vm, coreModule, "Object");

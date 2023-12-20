@@ -123,11 +123,11 @@ static ObjClosure* compileInModule(const char* source, ObjString* name, bool pri
     module = newModule(name, false);
     pushRoot((Obj*)module);
 
-    tableSet(&vm.modules, name, OBJ_VAL(module));
+    tableSet(&vm.modules, name, OBJ_VAL(module), true);
     popRoot();
 
     ObjModule* coreModule = getModule(vm.coreString);
-    tableAddAll(&coreModule->variables, &module->variables);
+    tableAddAll(&coreModule->variables, &module->variables, false);
   }
 
   ObjFunction* function = compile(source, module, printResult);
@@ -377,7 +377,7 @@ static void closeUpvalues(Value* last) {
 
 static void defineMethod(ObjClass* cls, ObjString* name) {
   Value method = peek();
-  tableSet(&cls->methods, name, method);
+  tableSet(&cls->methods, name, method, true);
   pop();
 }
 
@@ -455,17 +455,35 @@ static InterpretResult run() {
       case OP_DEFINE_GLOBAL: {
         ObjString* name = READ_STRING();
         ObjModule* module = frame->closure->function->module;
-        tableSet(&module->variables, name, peek());
-        pop();
+        if (!tableSetMutable(&module->variables, name, pop(), true)) {
+          frame->ip = ip;
+          runtimeError("Conflicting declarations of value '%s'", name->chars);
+          return INTERPRET_RUNTIME_ERROR;
+        }
+        break;
+      }
+      case OP_DEFINE_IMMUTABLE_GLOBAL: {
+        ObjString* name = READ_STRING();
+        ObjModule* module = frame->closure->function->module;
+        if (!tableSetMutable(&module->variables, name, pop(), false)) {
+          frame->ip = ip;
+          runtimeError("Conflicting declarations of value '%s'", name->chars);
+          return INTERPRET_RUNTIME_ERROR;
+        }
         break;
       }
       case OP_SET_GLOBAL: {
         ObjString* name = READ_STRING();
         ObjModule* module = frame->closure->function->module;
-        if (tableSet(&module->variables, name, peek())) {
-          tableDelete(&module->variables, name);
+        if (!tableContains(&module->variables, name)) {
           frame->ip = ip;
           runtimeError("Undefined variable '%s'", name->chars);
+          return INTERPRET_RUNTIME_ERROR;
+        }
+
+        if (!tableSetMutable(&module->variables, name, peek(), true)) {
+          frame->ip = ip;
+          runtimeError("Value '%s' cannot be reassigned", name->chars);
           return INTERPRET_RUNTIME_ERROR;
         }
         break;
@@ -529,7 +547,7 @@ static InterpretResult run() {
         }
 
         ObjInstance* instance = AS_INSTANCE(peek2());
-        tableSet(&instance->fields, READ_STRING(), peek());
+        tableSet(&instance->fields, READ_STRING(), peek(), true);
         Value value = pop();
         pop();
         push(value);

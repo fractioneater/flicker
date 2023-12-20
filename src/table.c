@@ -59,6 +59,15 @@ bool tableGet(Table* table, ObjString* key, Value* value) {
   return true;
 }
 
+bool tableContains(Table* table, ObjString* key) {
+  ASSERT(table != NULL, "Table cannot be NULL");
+
+  if (table->count == 0) return false;
+
+  Entry* entry = findEntry(table->entries, table->capacity, key);
+  return entry->key != NULL;
+}
+
 static void adjustCapacity(Table* table, int capacity) {
   ASSERT(table != NULL, "Table cannot be NULL");
 
@@ -66,6 +75,7 @@ static void adjustCapacity(Table* table, int capacity) {
   for (int i = 0; i < capacity; i++) {
     entries[i].key = NULL;
     entries[i].value = NONE_VAL;
+    entries[i].isMutable = true;
   }
 
   table->count = 0;
@@ -76,6 +86,7 @@ static void adjustCapacity(Table* table, int capacity) {
     Entry* dest = findEntry(entries, capacity, entry->key);
     dest->key = entry->key;
     dest->value = entry->value;
+    dest->isMutable = entry->isMutable;
     table->count++;
   }
 
@@ -84,7 +95,7 @@ static void adjustCapacity(Table* table, int capacity) {
   table->capacity = capacity;
 }
 
-bool tableSet(Table* table, ObjString* key, Value value) {
+bool tableSet(Table* table, ObjString* key, Value value, bool isMutable) {
   ASSERT(table != NULL, "Table cannot be NULL");
 
   if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
@@ -98,7 +109,29 @@ bool tableSet(Table* table, ObjString* key, Value value) {
 
   entry->key = key;
   entry->value = value;
+  entry->isMutable = isMutable;
   return isNewKey;
+}
+
+bool tableSetMutable(Table* table, ObjString* key, Value value, bool isMutable) {
+  ASSERT(table != NULL, "Table cannot be NULL");
+
+  if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
+    int capacity = GROW_CAPACITY(table->capacity);
+    adjustCapacity(table, capacity);
+  }
+
+  Entry* entry = findEntry(table->entries, table->capacity, key);
+  bool isNewKey = entry->key == NULL;
+
+  if (!entry->isMutable) return false;
+
+  if (isNewKey && IS_NONE(entry->value)) table->count++;
+
+  entry->key = key;
+  entry->value = value;
+  entry->isMutable = isMutable;
+  return true;
 }
 
 bool tableDelete(Table* table, ObjString* key) {
@@ -116,14 +149,14 @@ bool tableDelete(Table* table, ObjString* key) {
   return true;
 }
 
-void tableAddAll(Table* from, Table* to) {
+void tableAddAll(Table* from, Table* to, bool isMutable) {
   ASSERT(from != NULL, "Source table cannot be NULL");
   ASSERT(to != NULL, "Destination table cannot be NULL");
 
   for (int i = 0; i < from->capacity; i++) {
     Entry* entry = &from->entries[i];
     if (entry->key != NULL) {
-      tableSet(to, entry->key, entry->value);
+      tableSet(to, entry->key, entry->value, isMutable);
     }
   }
 }
