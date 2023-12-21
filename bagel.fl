@@ -17,7 +17,7 @@ if True
 
 var x = "global"
 fun outer()
-  val x = "outer"
+  val x = "outer"     # Alternative to problematic line #3 (change val to var)
 
   fun inner()
     x = 5             # Problematic line #3
