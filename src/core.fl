@@ -300,6 +300,8 @@ class List < Sequence
       var p = this.partition(low, high, comparer)
       this.quicksort(low, p - 1, comparer)
       this.quicksort(p + 1, high, comparer)
+  
+  sum() = this.reduce { |acc, item| acc + item }
 
   partition(low, high, comparer)
     var pivot = this[high]
