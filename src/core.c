@@ -368,41 +368,6 @@ DEF_NATIVE(number_fromString) {
   RETURN_NUMBER(number);
 }
 
-DEF_NATIVE(number_gcdOf) {
-  if (!validateNumber(args[1], "Argument")) return false;
-  if (!validateNumber(args[2], "Argument")) return false;
-
-  double a = AS_NUMBER(args[1]);
-  double b = AS_NUMBER(args[2]);
-  while ((a = fmod(a, b))) {
-    double temp = b;
-    b = a;
-    a = temp;
-  }
-
-  RETURN_NUMBER(b);
-}
-
-DEF_NATIVE(number_lcmOf) {
-  if (!validateNumber(args[1], "Argument")) return false;
-  if (!validateNumber(args[2], "Argument")) return false;
-
-  double a = AS_NUMBER(args[1]);
-  double b = AS_NUMBER(args[2]);
-
-  if (b == 0) RETURN_NUMBER(a);
-
-  double newA = a;
-  double newB = b;
-  while ((newA = fmod(newA, newB))) {
-    double temp = newB;
-    newB = newA;
-    newA = temp;
-  }
-
-  RETURN_NUMBER(a * b / newB);
-}
-
 #define DEF_NUM_CONSTANT(name, value) DEF_NATIVE(number_##name) { RETURN_NUMBER(value); }
 
 DEF_NUM_CONSTANT(infinity,   INFINITY)
@@ -531,6 +496,39 @@ DEF_NATIVE(number_clamp) {
   double min = AS_NUMBER(args[1]);
   double max = AS_NUMBER(args[2]);
   RETURN_NUMBER((value < min) ? min : ((value > max) ? max : value));
+}
+
+DEF_NATIVE(number_gcd) {
+  if (!validateNumber(args[1], "Other value")) return false;
+
+  double a = AS_NUMBER(args[0]);
+  double b = AS_NUMBER(args[1]);
+  while ((a = fmod(a, b))) {
+    double temp = b;
+    b = a;
+    a = temp;
+  }
+
+  RETURN_NUMBER(b);
+}
+
+DEF_NATIVE(number_lcm) {
+  if (!validateNumber(args[1], "Other value")) return false;
+
+  double a = AS_NUMBER(args[0]);
+  double b = AS_NUMBER(args[1]);
+
+  if (b == 0) RETURN_NUMBER(a);
+
+  double newA = a;
+  double newB = b;
+  while ((newA = fmod(newA, newB))) {
+    double temp = newB;
+    newB = newA;
+    newA = temp;
+  }
+
+  RETURN_NUMBER(a * b / newB);
 }
 
 DEF_NATIVE(number_pow) {
@@ -1171,8 +1169,6 @@ void initializeCore(VM* vm) {
 
   GET_CORE_CLASS(vm->numberClass, "Number");
   NATIVE(vm->numberClass->obj.cls, "fromString(1)", number_fromString);
-  NATIVE(vm->numberClass->obj.cls, "gcdOf(2)", number_gcdOf);
-  NATIVE(vm->numberClass->obj.cls, "lcmOf(2)", number_lcmOf);
   NATIVE(vm->numberClass->obj.cls, "infinity", number_infinity);
   NATIVE(vm->numberClass->obj.cls, "nan", number_nan);
   NATIVE(vm->numberClass->obj.cls, "pi", number_pi);
@@ -1210,6 +1206,9 @@ void initializeCore(VM* vm) {
   NATIVE(vm->numberClass, "min(1)", number_min);
   NATIVE(vm->numberClass, "max(1)", number_max);
   NATIVE(vm->numberClass, "clamp(2)", number_clamp);
+  NATIVE(vm->numberClass, "gcf(1)", number_gcd);
+  NATIVE(vm->numberClass, "gcd(1)", number_gcd);
+  NATIVE(vm->numberClass, "lcm(1)", number_lcm);
   NATIVE(vm->numberClass, "sin()", number_sin);
   NATIVE(vm->numberClass, "sqrt()", number_sqrt);
   NATIVE(vm->numberClass, "tan()", number_tan);

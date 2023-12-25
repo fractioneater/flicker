@@ -55,6 +55,12 @@ class Sequence
   forEach(function)
     each element in this
       function(element)
+  
+  sumOf(function) = this.reduce(0, { |acc, i| acc + function(i) })
+
+  maxOf(function) = this.reduce { |acc, i| acc.max(function(i)) }
+
+  minOf(function) = this.reduce { |acc, i| acc.min(function(i)) }
 
   map(transformation) = MapSequence(this, transformation)
 
@@ -97,9 +103,18 @@ class Sequence
       result = result + item.toString()
 
     return result
+  
+  joinToString(sep, function)
+    var result = ""
+
+    each item[index] in this
+      if index != 0 do result = result + sep
+      result = result + function(item).toString()
+    
+    return result
 
   toList()
-    var result = List()
+    val result = List()
     each element in this
       result.add(element)
     return result
@@ -169,13 +184,13 @@ class String < Sequence
     if (delimiter is not String) or delimiter.isEmpty
       error "Delimiter must be a string of at least one character"
 
-    var result = []
+    val result = []
 
     var last = 0
     var index = 0
 
-    var delimiterSize = delimiter.byteCount
-    var size = this.byteCount
+    val delimiterSize = delimiter.byteCount
+    val size = this.byteCount
 
     while last < size and (index = this.indexOf(delimiter, last)) != -1
       result.add(this[last..<index])
@@ -199,8 +214,8 @@ class String < Sequence
     var last = 0
     var index = 0
 
-    var fromSize = from.byteCount
-    var size = this.byteCount
+    val fromSize = from.byteCount
+    val size = this.byteCount
 
     while last < size and (index = this.indexOf(from, last)) != -1
       result = result + this[last..<index] + to
@@ -221,7 +236,7 @@ class String < Sequence
     if chars is not String
       error "Character being trimmed must be a string"
 
-    var codePoints = chars.codePoints.toList()
+    val codePoints = chars.codePoints.toList()
 
     var start
     if trimStart
@@ -235,7 +250,7 @@ class String < Sequence
     if trimEnd
       end = this.byteCount - 1
       while end >= start
-        var codePoint = this.codePointAt(end)
+        val codePoint = this.codePointAt(end)
         if codePoint != -1 and not codePoints.contains(codePoint) do break
         end = end - 1
 
@@ -266,7 +281,7 @@ class StringCodePointSequence < Sequence
 
 class List < Sequence
   +(other)
-    var result = this[0..-1]
+    val result = this[0..-1]
     each element in other
       result.add(element)
     return result
@@ -275,7 +290,7 @@ class List < Sequence
     if (count is not Number) or (not count.isInteger) or count < 0
       error "Count must be a positive integer"
 
-    var result = []
+    val result = []
     each i in 0..<count
       result.addAll(this)
     return result
@@ -297,14 +312,14 @@ class List < Sequence
 
   quicksort(low, high, comparer)
     if low < high
-      var p = this.partition(low, high, comparer)
+      val p = this.partition(low, high, comparer)
       this.quicksort(low, p - 1, comparer)
       this.quicksort(p + 1, high, comparer)
   
   sum() = this.reduce { |acc, item| acc + item }
 
   partition(low, high, comparer)
-    var pivot = this[high]
+    val pivot = this[high]
     var i = low - 1
     each j in low..<high
       if comparer(this[j], pivot)
