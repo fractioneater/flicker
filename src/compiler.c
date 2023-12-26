@@ -1173,6 +1173,24 @@ static void binary(bool canAssign) {
     expressionBp((BindingPower)(rule->bp + 1));
   }
 
+  // TODO MAYBE: Allow users to type things like 0 < x < 20
+  
+  // ParseRule* next = getRule(parser.current.type);
+  // if (next->bp == BP_COMPARISON) {
+  //   int jump = emitJump(OP_JUMP_FALSY);
+
+  //   emitByte(OP_POP);
+  //   advance();
+
+  //   expressionBp(BP_AND);
+
+  //   Signature nextSignature = { next->name, (int)strlen(next->name), SIG_METHOD, 1 };
+  //   callSignature(1, &nextSignature);
+
+  //   patchJump(jump);
+  //   return;
+  // }
+
   Signature signature = { rule->name, (int)strlen(rule->name), SIG_METHOD, 1 };
 
   callSignature(1, &signature);
@@ -1607,7 +1625,7 @@ static void varDeclaration() {
     // TODO: If the variable is immutable and not initialized, emit a compiler warning.
 
     if (!isNone) {
-      emitByte(OP_DUP);
+      emitBytes(OP_DUP, 0);
       callMethod(0, "count", 5);
       emitConstant(NUMBER_VAL((uint8_t)vars.count));
       callMethod(1, "==(1)", 5);
@@ -1624,7 +1642,7 @@ static void varDeclaration() {
     }
 
     for (int i = 0; i < vars.count; i++) {
-      emitByte(OP_DUP);
+      emitBytes(OP_DUP, 0);
       if (!isNone) {
         emitConstant(NUMBER_VAL((uint8_t)i));
         callMethod(1, "get(1)", 6);
@@ -2027,71 +2045,55 @@ static void whenStatement() {
   if (check(TOKEN_DEDENT)) errorAtCurrent("When statement must have at least one case");
 
   while (!check(TOKEN_DEDENT) && !check(TOKEN_EOF)) {
-    if (match(TOKEN_IS) || match(TOKEN_ELSE)) {
-      TokenType caseType = parser.previous.type;
+    if (state == 2) {
+      error("Can't have any cases after the default case");
+    }
 
-      if (state == 2) {
-        error("Can't have any cases after the default case");
+    if (state == 1) {
+      if (caseCount == MAX_WHEN_CASES) {
+        error("When statements cannot have more than %d cases", MAX_WHEN_CASES);
       }
 
-      if (state == 1) {
-        if (caseCount == MAX_WHEN_CASES) {
-          error("When statements cannot have more than %d cases", MAX_WHEN_CASES);
-        }
+      caseEnds[caseCount++] = emitJump(OP_JUMP);
 
-        caseEnds[caseCount++] = emitJump(OP_JUMP);
+      patchJump(previousCaseSkip);
+      emitByte(OP_POP);
+    }
 
-        patchJump(previousCaseSkip);
-        emitByte(OP_POP);
-      }
-
-      if (caseType == TOKEN_IS) {
-        state = 1;
-
-        emitByte(OP_DUP);
-        expression();
-
-        // TODO: Add multiple expressions to compare to, like this:
-        //
-        // when var
-        //   is 3 | 4 do print "3 or 4"
-
-        callMethod(1, "==(1)", 5);
-        previousCaseSkip = emitJump(OP_JUMP_FALSY);
-
-        // Pop the comparison result
-        emitByte(OP_POP);
-
-        if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
-          statement();
-          expectLine("Expecting a newline after statement");
-        } else {
-          expectLine("Expecting a linebreak after case");
-          expect(TOKEN_INDENT, "Expecting an indent before body");
-          scopedBlock();
-        }
-      } else {
-        if (state == 0) {
-          error("Can't have a default case first");
-        }
-        state = 2;
-        previousCaseSkip = -1;
-
-        if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
-          statement();
-          expectLine("Expecting a newline after statement");
-        } else {
-          expectLine("Expecting a linebreak after condition");
-          expect(TOKEN_INDENT, "Expecting an indent before body");
-          scopedBlock();
-        }
-      }
-    } else {
+    if (match(TOKEN_ELSE)) {
       if (state == 0) {
-        error("Can't have statements before any case");
+        error("Can't have a default case first");
       }
+
+      state = 2;
+      previousCaseSkip = -1;
+    } else {
+      state = 1;
+
+      emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyStringLength("List", 4)));
+      emitByte(OP_CALL_0);
+      int addConstant = makeConstant(OBJ_VAL(copyStringLength("addCore(1)", 10)));
+
+      do {
+        expression();
+        emitVariableArg(OP_INVOKE_1, addConstant);
+      } while (match(TOKEN_COMMA));
+
+      emitBytes(OP_DUP, 1);
+
+      callMethod(1, "contains(1)", 11);
+      previousCaseSkip = emitJump(OP_JUMP_FALSY);
+
+      emitByte(OP_POP); // Comparison result
+    }
+
+    if (match(TOKEN_DO) && !check(TOKEN_LINE)) {
       statement();
-      if (!check(TOKEN_EOF)) expectStatementEnd("Expecting a newline after statement");
+      if (!check(TOKEN_EOF)) expectLine("Expecting a newline after statement");
+    } else {
+      expectLine("Expecting a linebreak after case condition");
+      expect(TOKEN_INDENT, "Expecting an indent before body");
+      scopedBlock();
     }
   }
 
@@ -2107,7 +2109,7 @@ static void whenStatement() {
     patchJump(caseEnds[i]);
   }
 
-  emitByte(OP_POP); // The switch value
+  emitByte(OP_POP); // The value being compared
 }
 
 static void synchronize() {

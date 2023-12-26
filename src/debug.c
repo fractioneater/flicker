@@ -83,7 +83,7 @@ int disassembleInstruction(Chunk* chunk, int offset) {
     case OP_POP:
       return simpleInstruction("POP", offset);
     case OP_DUP:
-      return simpleInstruction("DUP", offset);
+      return byteInstruction("DUP", chunk, offset);
     case OP_GET_LOCAL:
       return byteInstruction("GET_LOCAL", chunk, offset);
     case OP_SET_LOCAL:

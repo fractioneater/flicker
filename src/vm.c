@@ -211,7 +211,7 @@ static Value peek2() {
   return vm.stackTop[-2];
 }
 
-static Value peekInt(int distance) {
+static Value peekN(int distance) {
   return vm.stackTop[-1 - distance];
 }
 
@@ -308,7 +308,7 @@ static bool invokeFromClass(ObjClass* cls, ObjString* name, int argCount) {
 }
 
 static bool invoke(ObjString* name, int argCount) {
-  Value receiver = peekInt(argCount);
+  Value receiver = peekN(argCount);
 
   ObjClass* cls = getClass(receiver);
   ASSERT(cls != NULL, "Class cannot be NULL");
@@ -429,7 +429,7 @@ static InterpretResult run() {
       case OP_TRUE: push(BOOL_VAL(true)); break;
       case OP_FALSE: push(BOOL_VAL(false)); break;
       case OP_POP: pop(); break;
-      case OP_DUP: push(peek()); break;
+      case OP_DUP: push(peekN(READ_BYTE())); break;
       case OP_GET_LOCAL: {
         uint8_t slot = READ_BYTE();
         push(frame->slots[slot]);
@@ -637,7 +637,7 @@ static InterpretResult run() {
       case OP_CALL_14: case OP_CALL_15: case OP_CALL_16: {
         int argCount = instruction - OP_CALL_0;
         frame->ip = ip;
-        if (!callValue(peekInt(argCount), argCount)) {
+        if (!callValue(peekN(argCount), argCount)) {
           return INTERPRET_RUNTIME_ERROR;
         }
         frame = &vm.frames[vm.frameCount - 1];
