@@ -992,7 +992,7 @@ DEF_NATIVE(sys_clock) {
   RETURN_NUMBER((double)clock() / CLOCKS_PER_SEC);
 }
 
-DEF_NATIVE(sys_fileRead) {
+DEF_NATIVE(sys_readFile) {
   if (!validateString(args[1], "Filename")) return false;
   const char* filename = AS_CSTRING(args[1]);
 
@@ -1300,7 +1300,7 @@ void initializeCore(VM* vm) {
   ObjClass* sysClass;
   GET_CORE_CLASS(sysClass, "Sys");
   NATIVE(sysClass->obj.cls, "clock", sys_clock);
-  NATIVE(sysClass->obj.cls, "fileRead(1)", sys_fileRead);
+  NATIVE(sysClass->obj.cls, "readFile(1)", sys_readFile);
   NATIVE(sysClass->obj.cls, "gc()", sys_gc);
   NATIVE(sysClass->obj.cls, "input(1)", sys_input);
   NATIVE(sysClass->obj.cls, "printString(1)", sys_printString);

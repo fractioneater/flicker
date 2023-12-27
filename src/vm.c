@@ -61,6 +61,8 @@ static inline void printTrace(ObjFunction* function, int line) {
   fprintf(stderr, "  line %d in \033[1m", line);
   if (function->name == NULL) {
     fprintf(stderr, "main\033[0m\n");
+  } else if (function->name->length == 1 && function->name->chars[0] == '\b') {
+    fprintf(stderr, "lambda { }\033[0m\n");
   } else {
     fprintf(stderr, "%s()\033[0m\n", function->name->chars);
   }

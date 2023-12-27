@@ -1026,6 +1026,7 @@ static void if_(bool canAssign) {
   expression();
 
   int endJump = emitJump(OP_JUMP_TRUTHY_POP);
+  emitByte(OP_POP);
 
   expect(TOKEN_ELSE, "Expecting an else clause after condition");
   expression();
