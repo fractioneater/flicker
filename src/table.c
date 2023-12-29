@@ -6,6 +6,7 @@
 #include "memory.h"
 #include "object.h"
 #include "value.h"
+#include "vm.h"
 
 #define TABLE_MAX_LOAD 0.75
 
@@ -98,10 +99,14 @@ static void adjustCapacity(Table* table, int capacity) {
 bool tableSet(Table* table, ObjString* key, Value value, bool isMutable) {
   ASSERT(table != NULL, "Table cannot be NULL");
 
+  if (IS_OBJ(value)) pushRoot(AS_OBJ(value));
+
   if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
     int capacity = GROW_CAPACITY(table->capacity);
     adjustCapacity(table, capacity);
   }
+
+  if (IS_OBJ(value)) popRoot();
 
   Entry* entry = findEntry(table->entries, table->capacity, key);
   bool isNewKey = entry->key == NULL;

@@ -43,6 +43,7 @@ typedef struct {
 } Token;
 
 void initLexer(const char* source);
+void freeLexer();
 Token nextToken();
 
 #endif

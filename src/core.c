@@ -338,8 +338,10 @@ DEF_NATIVE(number_fromString) {
 
   if (string->length == 0) RETURN_NONE();
 
-  char* copy = ALLOCATE(char, string->length);
-  memcpy(copy, string->chars, string->length);
+  size_t len = string->length + 1;
+  char* copy = ALLOCATE(char, len);
+  memcpy(copy, string->chars, len);
+  copy[len - 1] = '\0';
 
   char *read = copy, *write = copy;
   while (*read) {
@@ -355,16 +357,16 @@ DEF_NATIVE(number_fromString) {
   while (*end != '\0' && isspace((unsigned char)*end)) end++;
 
   if (errno == ERANGE) {
-    FREE_ARRAY(char, copy, string->length);
+    FREE_ARRAY(char, copy, len);
     RETURN_ERROR("Number literal is too large");
   }
 
   if (end < copy + strlen(copy)) {
-    FREE_ARRAY(char, copy, string->length);
+    FREE_ARRAY(char, copy, len);
     RETURN_NONE();
   }
 
-  FREE_ARRAY(char, copy, string->length);
+  FREE_ARRAY(char, copy, len);
   RETURN_NUMBER(number);
 }
 

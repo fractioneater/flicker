@@ -413,10 +413,12 @@ static void endLoop() {
     emitByte(OP_POP); // Pop the condition.
   }
 
-  while (current->loop->breakCount > 0) {
-    int breakJump = current->loop->breaks[--current->loop->breakCount];
+  for (int i = current->loop->breakCount - 1; i >= 0; i--) {
+    int breakJump = current->loop->breaks[i];
     patchJump(breakJump);
   }
+
+  FREE_ARRAY(int, current->loop->breaks, current->loop->breakCount);
 
   current->loop = current->loop->enclosing;
 }
@@ -643,7 +645,7 @@ static void signatureParameterList(char name[MAX_METHOD_SIGNATURE], int* length,
 
   if (arity > 0) {
     int digits = ceil(log10(arity + 1));
-    char* chars = ALLOCATE(char, digits);
+    char* chars = ALLOCATE(char, digits + 1);
     sprintf(chars, "%d", arity);
 
     memcpy(name + *length, chars, digits);
@@ -708,9 +710,7 @@ static void finishParameterList(Signature* signature) {
 static void finishArgumentList(Signature* signature, const char* type, TokenType end) {
   if (!check(end)) {
     do {
-      if (matchLine() && match(TOKEN_INDENT)) {
-        parser.ignoreDedents++;
-      }
+      if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
       validateParameterCount(type, ++signature->arity);
       expression();
     } while (match(TOKEN_COMMA));
@@ -821,9 +821,7 @@ static void namedVariable(Token name, bool canAssign) {
     //   modifier = true;
     // }
 
-    if (matchLine() && match(TOKEN_INDENT)) {
-      parser.ignoreDedents++;
-    }
+    if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
 
     // if (modifier) {
     //   advance();
@@ -896,9 +894,7 @@ static void dot(bool canAssign) {
   Signature signature = signatureFromToken(SIG_METHOD);
 
   if (canAssign && match(TOKEN_EQ)) {
-    if (matchLine() && match(TOKEN_INDENT)) {
-      parser.ignoreDedents++;
-    }
+    if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
 
     expression();
     emitVariableArg(OP_SET_PROPERTY, name);
@@ -1106,7 +1102,7 @@ static void collection(bool canAssign) {
       }
     }
 
-    if (check(TOKEN_RIGHT_BRACKET)) break;
+    if (!first && check(TOKEN_RIGHT_BRACKET)) break;
 
     if (first) {
       // Transfer all the code that makes up the first item into the current chunk.
@@ -1146,9 +1142,7 @@ static void subscript(bool canAssign) {
   finishArgumentList(&signature, "Method", TOKEN_RIGHT_BRACKET);
 
   if (canAssign && match(TOKEN_EQ)) {
-    if (matchLine() && match(TOKEN_INDENT)) {
-      parser.ignoreDedents++;
-    }
+    if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
 
     expression();
     validateParameterCount("Method", ++signature.arity);
@@ -1164,9 +1158,7 @@ static void binary(bool canAssign) {
 
   bool negate = (operatorType == TOKEN_IS && match(TOKEN_NOT));
 
-  if (matchLine() && match(TOKEN_INDENT)) {
-    parser.ignoreDedents++;
-  }
+  if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
 
   if (operatorType == TOKEN_STAR_STAR) {
     expressionBp((BindingPower)(rule->bp));
@@ -1204,9 +1196,7 @@ static void unary(bool canAssign) {
   TokenType operatorType = parser.previous.type;
   ParseRule* rule = getRule(operatorType);
 
-  if (matchLine() && match(TOKEN_INDENT)) {
-    parser.ignoreDedents++;
-  }
+  if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
 
   // Compile the operand.
   expressionBp(operatorType == TOKEN_NOT ? BP_NOT : BP_UNARY);
@@ -1603,7 +1593,9 @@ static void varDeclaration() {
     intArrayInit(&vars);
 
     do {
-      intArrayWrite(&vars, parseVariable("Expecting a variable name", isMutable));
+      if (current->scopeDepth > 0) emitByte(OP_NONE);
+      int global = parseVariable("Expecting a variable name", isMutable);
+      intArrayWrite(&vars, (current->scopeDepth == 0) ? global : current->localCount - 1);
     } while (match(TOKEN_COMMA));
 
     if (vars.count > UINT8_MAX) {
@@ -1614,9 +1606,7 @@ static void varDeclaration() {
 
     bool isNone = false;
     if (match(TOKEN_EQ)) {
-      if (matchLine() && match(TOKEN_INDENT)) {
-        parser.ignoreDedents++;
-      }
+      if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
       expression();
     } else {
       isNone = true;
@@ -1624,6 +1614,9 @@ static void varDeclaration() {
     }
 
     // TODO: If the variable is immutable and not initialized, emit a compiler warning.
+    // if (isNone && !isMutable) {
+    //   warning("");
+    // }
 
     if (!isNone) {
       emitBytes(OP_DUP, 0);
@@ -1635,7 +1628,7 @@ static void varDeclaration() {
       if (vars.count == 1) {
         emitConstant(OBJ_VAL(copyStringLength("Must have exactly 1 value to unpack", 35)));
       } else {
-        emitConstant(OBJ_VAL(stringFormat("Must have exactly $ values to unpack", numberToCString(vars.count))));
+        emitConstant(OBJ_VAL(stringFormat("Must have exactly @ values to unpack", numberToString(vars.count))));
       }
       emitByte(OP_ERROR);
 
@@ -1648,7 +1641,14 @@ static void varDeclaration() {
         emitConstant(NUMBER_VAL((uint8_t)i));
         callMethod(1, "get(1)", 6);
       }
-      defineVariable(vars.data[i], isMutable);
+
+      if (current->scopeDepth == 0) {
+        defineVariable(vars.data[i], isMutable);
+      } else {
+        current->locals[vars.data[i]].depth = current->scopeDepth;
+        emitBytes(OP_SET_LOCAL, (uint8_t)vars.data[i]);
+        emitByte(OP_POP);
+      }
     }
 
     intArrayFree(&vars);
@@ -1665,6 +1665,8 @@ static void varDeclaration() {
 
     defineVariable(global, isMutable);
   }
+
+  parser.onExpression = false;
 }
 
 static void useStatement() {
@@ -1750,6 +1752,7 @@ static void breakStatement() {
       loop = loop->enclosing;
       if (loop == NULL) {
         error("Can't find loop with this label");
+        if (label != NULL) FREE(Token, label);
         return;
       }
     }
@@ -1764,7 +1767,7 @@ static void breakStatement() {
 
   loop->breaks[loop->breakCount++] = emitJump(OP_JUMP);
 
-  FREE(Token, label);
+  if (label != NULL) FREE(Token, label);
 }
 
 static void continueStatement() {
@@ -1788,6 +1791,7 @@ static void continueStatement() {
       loop = loop->enclosing;
       if (loop == NULL) {
         error("Can't find loop with this label");
+        if (label != NULL) FREE(Token, label);
         return;
       }
     }
@@ -1798,7 +1802,7 @@ static void continueStatement() {
   // Jump to the top of the loop.
   emitLoop(loop->start);
 
-  FREE(Token, label);
+  if (label != NULL) FREE(Token, label);
 }
 
 static void returnStatement() {
@@ -2228,6 +2232,7 @@ ObjFunction* compile(const char* source, ObjModule* module, bool printResult) {
 
   emitByte(OP_END_MODULE);
 
+  freeLexer();
   ObjFunction* function = endCompiler();
   return parser.hadError ? NULL : function;
 }

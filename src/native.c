@@ -71,7 +71,7 @@ uint32_t calculateRange(ObjRange* range, uint32_t* length, int* step) {
     value += value >= from ? -1 : 1;
   }
 
-  if (value <= 0 || value >= *length) {
+  if (value < 0 || value >= *length) {
     ERROR("Range end out of bounds");
     return UINT32_MAX;
   }

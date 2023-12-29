@@ -44,6 +44,10 @@ void initLexer(const char* source) {
   intArrayWrite(&lexer.indents, 0);
 }
 
+void freeLexer() {
+  intArrayFree(&lexer.indents);
+}
+
 static bool isAlpha(char c) {
   return ('a' <= c && c <= 'z') ||
          ('A' <= c && c <= 'Z') ||
@@ -300,8 +304,10 @@ static Token makeNumber(bool isHex) {
   if (isHex) {
     token.value = NUMBER_VAL((double)strtoll(lexer.start, NULL, 16));
   } else {
-    char* copy = ALLOCATE(char, strlen(lexer.start));
-    memcpy(copy, lexer.start, strlen(lexer.start));
+    size_t len = lexer.current - lexer.start + 1;
+    char* copy = ALLOCATE(char, len);
+    memcpy(copy, lexer.start, len);
+    copy[len - 1] = '\0';
 
     char *read = copy, *write = copy;
     while (*read) {
@@ -310,7 +316,7 @@ static Token makeNumber(bool isHex) {
     }
 
     token.value = NUMBER_VAL(strtod(copy, NULL));
-    FREE_ARRAY(char, copy, strlen(copy));
+    FREE_ARRAY(char, copy, len);
   }
 
   if (errno == ERANGE) {

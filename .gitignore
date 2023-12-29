@@ -1,4 +1,5 @@
-bin/
+flicker
+flicker-debug
 a
 changes.md
 plotTwister.fl

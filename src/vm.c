@@ -47,7 +47,16 @@ void initVM() {
 
 void freeVM() {
   freeTable(&vm.strings);
+
+  for (int i = 0; i < vm.modules.capacity; i++) {
+    if (vm.modules.entries[i].key != NULL) {
+      freeTable(&AS_MODULE(vm.modules.entries[i].value)->variables);
+    }
+  }
+  freeTable(&vm.modules);
+  
   vm.initString = NULL;
+  vm.coreString = NULL;
   freeObjects();
 }
 

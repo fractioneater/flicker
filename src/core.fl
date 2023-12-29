@@ -58,11 +58,23 @@ class Sequence
   
   sumOf(function) = this.reduce(0, { |acc, i| acc + function(i) })
 
-  maxOf(function) = this.reduce { |acc, i| acc.max(function(i)) }
+  maxOf(function)
+    var max = None
+    each element in this
+      val value = function(element)
+      if max == None or value > max do max = value
+    return max
 
-  minOf(function) = this.reduce { |acc, i| acc.min(function(i)) }
+  minOf(function)
+    var min = None
+    each element in this
+      val value = function(element)
+      if min == None or value < min do min = value
+    return min
 
-  map(transformation) = MapSequence(this, transformation)
+  lazyMap(transformation) = MapSequence(this, transformation)
+
+  lazyFilter(predicate) = FilterSequence(this, predicate)
 
   skip(count)
     if (count is not Number) or (not count.isInteger) or count < 0
@@ -75,8 +87,6 @@ class Sequence
       error "Count must be a positive integer"
 
     return TakeSequence(this, count)
-
-  filter(predicate) = FilterSequence(this, predicate)
 
   reduce(acc, function)
     each element in this
@@ -184,7 +194,7 @@ class String < Sequence
     if (delimiter is not String) or delimiter.isEmpty
       error "Delimiter must be a string of at least one character"
 
-    val result = []
+    val result = List()
 
     var last = 0
     var index = 0
@@ -290,7 +300,7 @@ class List < Sequence
     if (count is not Number) or (not count.isInteger) or count < 0
       error "Count must be a positive integer"
 
-    val result = []
+    val result = List()
     each i in 0..<count
       result.addAll(this)
     return result
@@ -300,7 +310,16 @@ class List < Sequence
       this.add(element)
 
   map(transformation)
-    return super.map(transformation).toList()
+    val result = List()
+    each item in this
+      result.add(transformation(item))
+    return result
+
+  filter(predicate)
+    val result = List()
+    each item in this
+      if predicate(item) do result.add(item)
+    return result
 
   sort()
     this.sort { |low, high| low <= high }
