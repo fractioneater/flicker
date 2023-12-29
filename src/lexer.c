@@ -27,7 +27,7 @@ typedef struct {
   // How many dedents are waiting to be scanned.
   int dedentCount;
 
-  // If 0, the lexer isn't looking for indentation, if 1, it is.
+  // All of the past indentation levels (to determine how many dedents are created).
   IntArray indents;
 } Lexer;
 

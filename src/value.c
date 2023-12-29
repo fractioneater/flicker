@@ -35,7 +35,9 @@ void printValue(Value value) {
   } else if (IS_NONE(value)) {
     printf("None");
   } else if (IS_NUMBER(value)) {
-    printf("%s", numberToCString(AS_NUMBER(value)));
+    const char* string = numberToCString(AS_NUMBER(value));
+    printf("%s", string);
+    FREE_ARRAY(char, (char*)string, strlen(string));
   } else if (IS_OBJ(value)) {
     printObject(value);
   } else if (IS_UNDEFINED(value)) {

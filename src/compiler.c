@@ -1287,8 +1287,8 @@ ParseRule rules[] = {
   /* TOKEN_INDENT        */ UNUSED,
   /* TOKEN_DEDENT        */ UNUSED,
   /* TOKEN_LINE          */ UNUSED,
-  /* TOKEN_ERROR         */ UNUSED,
   /* TOKEN_EOF           */ UNUSED,
+  /* TOKEN_ERROR         */ UNUSED,
   /* TOKEN_NULL          */ UNUSED, // The compiler should never see a null token.
 };
 
@@ -1331,6 +1331,11 @@ static void block() {
 
   while (!check(TOKEN_DEDENT) && !check(TOKEN_EOF)) {
     declaration();
+
+    if (current->type == TYPE_LAMBDA && parser.onExpression) {
+      emitByte(OP_POP);
+      parser.onExpression = false;
+    }
 
     if (!check(TOKEN_EOF)) {
       expectStatementEnd("Expecting a newline after statement");
@@ -1870,15 +1875,16 @@ static void forStatement() {
     memcpy(label, &parser.previous, sizeof(Token));
   }
 
-  if (match(TOKEN_SEMICOLON)) {
+  if (check(TOKEN_SEMICOLON)) {
     // No initializer.
   } else if (match(TOKEN_VAR) || match(TOKEN_VAL)) {
     varDeclaration();
-    expectStatementEnd("Expecting ';' after loop initializer");
   } else {
     expressionStatement();
-    expectStatementEnd("Expecting ';' after loop initializer");
   }
+
+  if (match(TOKEN_IN)) error("For loops are C-style for loops; use 'each' for iteration");
+  else expectStatementEnd("Expecting ';' after loop initializer");
 
   Loop loop;
   startLoop(&loop);

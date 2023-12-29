@@ -31,7 +31,7 @@ typedef enum {
   // Whitespace (69 - 71)
   TOKEN_INDENT, TOKEN_DEDENT, TOKEN_LINE,
   // (72 - 74)
-  TOKEN_ERROR, TOKEN_EOF, TOKEN_NULL
+  TOKEN_EOF, TOKEN_ERROR, TOKEN_NULL
 } TokenType;
 
 typedef struct {

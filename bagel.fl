@@ -2,7 +2,7 @@ class Mapping
   init(+source, +dest, +size)
     pass
   
-  mappedValue(value) = (this.dest + value - this.source) if (value >= this.source) and (value < this.source + this.size) else None
+  mappedValue(value) = this.dest + value - this.source if value >= this.source and value < this.source + this.size else None
   
   toString() = "source: =(this.source) | dest: =(this.dest) | size: =(this.size)"
 
@@ -17,7 +17,7 @@ class MappingGroup
         return v
     return value
 
-fun parseInput(sections, reverse)
+fun parseInput(reverse)
   val mappings = []
   each section in sections
     val content = section[(section.indexOf(":") + 1)..-1].split("\n")
@@ -39,20 +39,10 @@ val input = Sys.readFile("day5.input")
 val seeds = input[0..<(input.indexOf("\n"))].split(":")[1].split(" ").filter { |it| it != "" }.map { |it| Number.fromString(it) }
 val sections = input[((input.indexOf("\n") + 2)..-1)].split("\n\n")
 
-var almanac = parseInput(sections, False)
+var almanac = parseInput(False)
 
 val min = seeds.minOf { |seed|
-  # almanac.reduce(seed, { |s, mapping| mapping.mappedValue(s) })
-
-  var s = seed
-  each mapping in almanac do s = mapping.mappedValue(s)
-  s
-
-  # TODO NEXT: For some reason the each loop doesn't work here.
-  # It might be related to ignoring indentation inside of lambdas,
-  # so we'll need to make sure you can at least have a block inside
-  # of a lambda successfully. I don't know what on earth is happening
-  # with the variables, and that's why I am using DEBUG_PRINT_CODE.
+  almanac.reduce(seed, { |s, mapping| mapping.mappedValue(s) })
 }
 
 print "part 1 = =(min)"
