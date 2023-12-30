@@ -712,6 +712,31 @@ DEF_NATIVE(range_isInclusive) {
   RETURN_BOOL(AS_RANGE(args[0])->isInclusive);
 }
 
+DEF_NATIVE(range_contains) {
+  if (!validateNumber(args[1], "Value")) return false;
+
+  ObjRange* range = AS_RANGE(args[0]);
+  double max = fmax(range->from, range->to);
+  double min = fmin(range->from, range->to);
+
+  if (range->isInclusive) RETURN_BOOL(min <= AS_NUMBER(args[1]) && AS_NUMBER(args[1]) <= max);
+  else RETURN_BOOL(min <= AS_NUMBER(args[1]) && AS_NUMBER(args[1]) < max);
+}
+
+DEF_NATIVE(range_includes) {
+  if (!validateNumber(args[1], "Value")) return false;
+
+  double value = AS_NUMBER(args[1]);
+  if (trunc(value) != value) RETURN_FALSE();
+
+  ObjRange* range = AS_RANGE(args[0]);
+  double max = fmax(range->from, range->to);
+  double min = fmin(range->from, range->to);
+
+  if (range->isInclusive) RETURN_BOOL(min <= value && value <= max);
+  else RETURN_BOOL(min <= value && value < max);
+}
+
 DEF_NATIVE(range_iterate) {
   ObjRange* range = AS_RANGE(args[0]);
 
@@ -943,21 +968,6 @@ DEF_NATIVE(string_lowercase) {
   RETURN_OBJ(takeString(copy, length));
 }
 
-DEF_NATIVE(string_rangeColon) {
-  if (!validateString(args[1], "Right hand side of range")) return false;
-  
-  ObjString* from = AS_STRING(args[0]);
-  ObjString* to = AS_STRING(args[1]);
-
-  int fromBytes = utf8DecodeNumBytes(from->chars[0]);
-  int toBytes = utf8DecodeNumBytes(to->chars[0]);
-
-  if (from->length == 0 || from->length > fromBytes) RETURN_ERROR("Left hand side of range must be a single character");
-  if (to->length == 0 || to->length > toBytes) RETURN_ERROR("Right hand side of range must be a single character");
-
-  RETURN_OBJ(newRange(utf8Decode((uint8_t*)from->chars, fromBytes), utf8Decode((uint8_t*)to->chars, toBytes), false));
-}
-
 DEF_NATIVE(string_rangeDotDot) {
   if (!validateString(args[1], "Right hand side of range")) return false;
   
@@ -971,6 +981,21 @@ DEF_NATIVE(string_rangeDotDot) {
   if (to->length == 0 || to->length > toBytes) RETURN_ERROR("Right hand side of range must be a single character");
 
   RETURN_OBJ(newRange(utf8Decode((uint8_t*)from->chars, fromBytes), utf8Decode((uint8_t*)to->chars, toBytes), true));
+}
+
+DEF_NATIVE(string_rangeDotDotLess) {
+  if (!validateString(args[1], "Right hand side of range")) return false;
+  
+  ObjString* from = AS_STRING(args[0]);
+  ObjString* to = AS_STRING(args[1]);
+
+  int fromBytes = utf8DecodeNumBytes(from->chars[0]);
+  int toBytes = utf8DecodeNumBytes(to->chars[0]);
+
+  if (from->length == 0 || from->length > fromBytes) RETURN_ERROR("Left hand side of range must be a single character");
+  if (to->length == 0 || to->length > toBytes) RETURN_ERROR("Right hand side of range must be a single character");
+
+  RETURN_OBJ(newRange(utf8Decode((uint8_t*)from->chars, fromBytes), utf8Decode((uint8_t*)to->chars, toBytes), false));
 }
 
 DEF_NATIVE(string_startsWith) {
@@ -1251,8 +1276,8 @@ void initializeCore(VM* vm) {
   NATIVE(vm->stringClass, "iterateByte(1)", string_iterateByte);
   NATIVE(vm->stringClass, "iteratorValue(1)", string_iteratorValue);
   NATIVE(vm->stringClass, "lowercase()", string_lowercase);
-  NATIVE(vm->stringClass, ":(1)", string_rangeColon);
   NATIVE(vm->stringClass, "..(1)", string_rangeDotDot);
+  NATIVE(vm->stringClass, "..<(1)", string_rangeDotDotLess);
   NATIVE(vm->stringClass, "startsWith(1)", string_startsWith);
   NATIVE(vm->stringClass, "toString()", string_toString);
 
@@ -1295,6 +1320,8 @@ void initializeCore(VM* vm) {
   NATIVE(vm->rangeClass, "min", range_min);
   NATIVE(vm->rangeClass, "max", range_max);
   NATIVE(vm->rangeClass, "isInclusive", range_isInclusive);
+  NATIVE(vm->rangeClass, "contains(1)", range_contains);
+  NATIVE(vm->rangeClass, "includes(1)", range_includes);
   NATIVE(vm->rangeClass, "iterate(1)", range_iterate);
   NATIVE(vm->rangeClass, "iteratorValue(1)", range_iteratorValue);
   NATIVE(vm->rangeClass, "toString()", range_toString);

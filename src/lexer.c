@@ -315,6 +315,8 @@ static Token makeNumber(bool isHex) {
       write += (*write != '_');
     }
 
+    *write = '\0';
+
     token.value = NUMBER_VAL(strtod(copy, NULL));
     FREE_ARRAY(char, copy, len);
   }
