@@ -112,9 +112,8 @@ static inline bool notNullToken(Token token) {
 #define MAX_COMMENT_NEST 16
 
 static Token blockComment() {
-  int nestDepth = 1;
   // Keep consuming until the closing comment or end of file.
-  while (nestDepth > 0) {
+  for (int nestDepth = 1; nestDepth > 0; advance()) {
     if (atEnd()) {
       return errorToken("Unclosed block comment");
     }
@@ -122,22 +121,24 @@ static Token blockComment() {
     if (peek() == '#') {
       if (peekNext() == ':') {
         advance();
-        advance();
         if (nestDepth++ == MAX_COMMENT_NEST) {
           return errorToken("Too many nested comments");
         }
-        continue;
-      } else {
-        advance();
-        nestDepth--;
-        continue;
-      }
+      } else nestDepth--;
     }
-
-    advance();
   }
 
   return nullToken();
+}
+
+static Token comment() {
+  if (peek() == ':') {
+    return blockComment();
+  } else {
+    // Consume until the end of the line.
+    while (peek() != '\n' && !atEnd()) advance();
+    return nullToken();
+  }
 }
 
 static TokenType checkKeyword(int start, int length, const char* rest, TokenType type) {
@@ -447,14 +448,16 @@ Token indentation() {
     c = peek();
   }
 
-  if (c == '\n' || (c == '#' && peekNext() != ':')) {
+  if (c == '\n' || (c == '#')) {
     // This line doesn't count, it's just indentation or a full-line comment.
-    if (c != '\n') {
-      while (peek() != '\n' && !atEnd()) advance();
+    advance();
+
+    if (c == '#') {
+      Token error = comment();
+      if (notNullToken(error)) return error;
     }
 
     // Move on to the next line and try again.
-    advance();
     return indentation();
   }
 
@@ -551,16 +554,11 @@ Token nextToken() {
       case '>': return makeToken(match('=') ? TOKEN_GT_EQ : TOKEN_GT);
       case '"': return string();
       case '`': return forceIdentifier();
-      case '#':
-        advance();
-        if (peek() == ':') {
-          Token error = blockComment();
-          if (notNullToken(error)) return error;
-        } else {
-          // Consume until the end of the line.
-          while (peek() != '\n' && !atEnd()) advance();
-        }
+      case '#':  {
+        Token error = comment();
+        if (notNullToken(error)) return error;
         break;
+      }
       case '\n':
         lexer.checkIndent = true;
         return makeToken(TOKEN_LINE);

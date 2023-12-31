@@ -1,48 +1,6 @@
-class Mapping
-  init(+source, +dest, +size)
-    pass
-  
-  mappedValue(value) = this.dest + value - this.source if value >= this.source and value < this.source + this.size else None
-  
-  toString() = "source: =(this.source) | dest: =(this.dest) | size: =(this.size)"
+# Testing absolutely nothing.
+# Sadly, there are no bagels to be found in this file.
 
-class MappingGroup
-  init(+mappings)
-    pass
-  
-  mappedValue(value)
-    each m in this.mappings
-      val v = m.mappedValue(value)
-      if v != None
-        return v
-    return value
-
-fun parseInput(reverse)
-  val mappings = []
-  each section in sections
-    val content = section[(section.indexOf(":") + 1)..-1].split("\n")
-    val mappingList = []
-    each line in content
-      if line.isEmpty do continue
-      var (dest, source, size) = line.split(" ").map { |arg| Number.fromString(arg) }
-
-      if reverse
-        mappingList.add(Mapping(dest, source, size))
-      else
-        mappingList.add(Mapping(source, dest, size))
-
-    mappings.add(MappingGroup(mappingList))
-  
-  return mappings
-
-val input = Sys.readFile("day5.input")
-val seeds = input[0..<(input.indexOf("\n"))].split(":")[1].split(" ").filter { |it| it != "" }.map { |it| Number.fromString(it) }
-val sections = input[((input.indexOf("\n") + 2)..-1)].split("\n\n")
-
-var almanac = parseInput(False)
-
-val min = seeds.minOf { |seed|
-  almanac.reduce(seed, { |s, mapping| mapping.mappedValue(s) })
-}
-
-print "part 1 = =(min)"
+print 23
+print 23 + 2
+print 23 + 26
