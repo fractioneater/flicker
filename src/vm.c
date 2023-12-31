@@ -347,6 +347,11 @@ static bool bindMethod(ObjClass* cls, ObjString* name) {
     return false;
   }
 
+  if (IS_NATIVE(method)) {
+    runtimeError("Cannot bind native method '%s'", name->chars);
+    return false;
+  }
+
   ObjBoundMethod* bound = newBoundMethod(peek(), AS_CLOSURE(method));
   pop();
   push(OBJ_VAL(bound));
@@ -565,18 +570,16 @@ static InterpretResult run() {
         break;
       }
       case OP_BIND_METHOD: {
-        // TODO: Why did I limit this to instances?
-        // Was it because of native methods?
-        if (!IS_INSTANCE(peek())) {
-          runtimeError("Can only get methods from instances");
+        Value value = peek();
+        ObjClass* cls = getClass(value);
+
+        frame->ip = ip;
+        if (cls == NULL) {
+          runtimeError("Value does not belong to a class");
           return INTERPRET_RUNTIME_ERROR;
         }
 
-        ObjInstance* instance = AS_INSTANCE(peek());
-        ObjString* method = READ_STRING();
-
-        frame->ip = ip;
-        if (!bindMethod(instance->obj.cls, method)) {
+        if (!bindMethod(cls, READ_STRING())) {
           return INTERPRET_RUNTIME_ERROR;
         }
 
