@@ -1265,6 +1265,7 @@ void initializeCore(VM* vm) {
   NATIVE(vm->stringClass->obj.cls, "fromByte(1)", string_fromByte);
   NATIVE(vm->stringClass, "byteAt(1)", string_byteAt);
   NATIVE(vm->stringClass, "byteCount", string_byteCount);
+  NATIVE(vm->stringClass, "length", string_byteCount);
   NATIVE(vm->stringClass, "codePointAt(1)", string_codePointAt);
   NATIVE(vm->stringClass, "concatenate(1)", string_concatenate);
   NATIVE(vm->stringClass, "contains(1)", string_contains);

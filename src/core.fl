@@ -350,7 +350,6 @@ class List < Sequence
   toString() = "[=(this.joinToString())]"
 
 class Map < Sequence
-  attribute count = this.size
   attribute keys = MapKeySequence(this)
   attribute values = MapValueSequence(this)
 

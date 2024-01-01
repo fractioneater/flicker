@@ -352,7 +352,6 @@ static const char* coreSource __attribute__((unused)) =
 "  toString() = \"[=(this.joinToString())]\"\n"
 "\n"
 "class Map < Sequence\n"
-"  attribute count = this.size\n"
 "  attribute keys = MapKeySequence(this)\n"
 "  attribute values = MapValueSequence(this)\n"
 "\n"
