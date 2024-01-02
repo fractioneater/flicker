@@ -58,7 +58,7 @@ static const char* coreSource __attribute__((unused)) =
 "    each element in this\n"
 "      function(element)\n"
 "  \n"
-"  sumOf(function) = this.reduce(0, { |acc, i| acc + function(i) })\n"
+"  sumOf(function) = this.reduce(0) { |acc, i| acc + function(i) }\n"
 "\n"
 "  maxOf(function)\n"
 "    var max = None\n"

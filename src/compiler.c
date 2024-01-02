@@ -688,9 +688,9 @@ static Signature signatureFromToken(SignatureType type) {
   return signature;
 }
 
-static void validateParameterCount(const char* type, int num) {
+static void validateParameterCount(const char* type, int num, bool isArg) {
   if (num == MAX_PARAMETERS + 1) {
-    error("%ss cannot have more than %d parameters", type, MAX_PARAMETERS);
+    error("%ss cannot have more than %d %s", type, MAX_PARAMETERS, isArg ? "arguments" : "parameters");
   }
 }
 
@@ -698,7 +698,7 @@ static void finishParameterList(Signature* signature) {
   signature->asProperty = ALLOCATE(bool, MAX_PARAMETERS);
   do {
     matchLine();
-    validateParameterCount("Method", ++signature->arity);
+    validateParameterCount("Method", ++signature->arity, false);
 
     signature->asProperty[signature->arity - 1] = match(TOKEN_PLUS);
 
@@ -711,7 +711,7 @@ static void finishArgumentList(Signature* signature, const char* type, TokenType
   if (!check(end)) {
     do {
       if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
-      validateParameterCount(type, ++signature->arity);
+      validateParameterCount(type, ++signature->arity, true);
       expression();
     } while (match(TOKEN_COMMA));
 
@@ -851,13 +851,17 @@ static void variable(bool canAssign) {
 
 static void call(bool canAssign) {
   Signature signature = { NULL, 0, SIG_METHOD, 0 };
-  finishArgumentList(&signature, "Function", TOKEN_RIGHT_PAREN);
+  if (parser.previous.type == TOKEN_LEFT_PAREN) {
+    finishArgumentList(&signature, "Function", TOKEN_RIGHT_PAREN);
+    if (match(TOKEN_LEFT_BRACE)) {
+      lambda(false);
+      validateParameterCount("Function", ++signature.arity, true);
+    }
+  } else {
+    lambda(false);
+    signature.arity++;
+  }
   emitByte(OP_CALL_0 + signature.arity);
-}
-
-static void callFunction(bool canAssign) {
-  lambda(false);
-  emitByte(OP_CALL_1);
 }
 
 static void callable(bool canAssign) {
@@ -904,6 +908,10 @@ static void dot(bool canAssign) {
       signature.arity = 1;
     } else {
       finishArgumentList(&signature, "Method", TOKEN_RIGHT_PAREN);
+      if (match(TOKEN_LEFT_BRACE)) {
+        lambda(false);
+        validateParameterCount("Method", ++signature.arity, true);
+      }
     }
 
     callSignature(signature.arity, &signature);
@@ -957,6 +965,10 @@ static void super_(bool canAssign) {
         signature.arity = 1;
       } else {
         finishArgumentList(&signature, "Method", TOKEN_RIGHT_PAREN);
+        if (match(TOKEN_LEFT_BRACE)) {
+          lambda(false);
+          validateParameterCount("Method", ++signature.arity, true);
+        }
       }
     } else {
       signature.type = SIG_ATTRIBUTE;
@@ -1145,7 +1157,7 @@ static void subscript(bool canAssign) {
     if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
 
     expression();
-    validateParameterCount("Method", ++signature.arity);
+    validateParameterCount("Method", ++signature.arity, true);
     signature.name = "set";
   }
 
@@ -1219,7 +1231,7 @@ ParseRule rules[] = {
   /* TOKEN_RIGHT_PAREN   */ UNUSED,
   /* TOKEN_LEFT_BRACKET  */ BOTH(collection, subscript, BP_CALL),
   /* TOKEN_RIGHT_BRACKET */ UNUSED,
-  /* TOKEN_LEFT_BRACE    */ BOTH(lambda, callFunction, BP_CALL),
+  /* TOKEN_LEFT_BRACE    */ BOTH(lambda, call, BP_CALL),
   /* TOKEN_RIGHT_BRACE   */ UNUSED,
   /* TOKEN_SEMICOLON     */ UNUSED,
   /* TOKEN_COMMA         */ UNUSED,
@@ -1383,7 +1395,7 @@ static void function(FunctionType type) {
   if (!check(TOKEN_RIGHT_PAREN)) {
     do {
       matchLine(); // TODO: We almost always want function parameters indented.
-      validateParameterCount("Function", ++current->function->arity);
+      validateParameterCount("Function", ++current->function->arity, false);
 
       int constant = parseVariable("Expecting a parameter name", true);
       defineVariable(constant, true);
@@ -1420,7 +1432,7 @@ static void lambda(bool canAssign) {
     if (!match(TOKEN_PIPE)) {
       do {
         if (matchLine()) ignoreIndentation();
-        validateParameterCount("Lambda", ++current->function->arity);
+        validateParameterCount("Lambda", ++current->function->arity, false);
 
         int constant = parseVariable("Expecting a parameter name", true);
         defineVariable(constant, true);

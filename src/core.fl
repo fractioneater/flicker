@@ -56,7 +56,7 @@ class Sequence
     each element in this
       function(element)
   
-  sumOf(function) = this.reduce(0, { |acc, i| acc + function(i) })
+  sumOf(function) = this.reduce(0) { |acc, i| acc + function(i) }
 
   maxOf(function)
     var max = None

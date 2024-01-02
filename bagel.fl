@@ -1,8 +1,7 @@
 # Testing absolutely nothing.
 # Sadly, there are no bagels to be found in this file.
 
-when 5
-  4 do "four"
-  5 do "five"
-  6 do "six"
-  7 do "seven"
+fun a(arg, func)
+  print func(arg)
+
+a(4) { |it| it + 2 }
