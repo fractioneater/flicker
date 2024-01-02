@@ -477,7 +477,7 @@ ObjUpvalue* newUpvalue(Value* slot) {
 
 static void printFunction(ObjFunction* function) {
   if (function->name == NULL) {
-    printf("main");
+    printf("%s", function->module->name->chars);
     return;
   }
   printf("<fn %s>", function->name->chars);

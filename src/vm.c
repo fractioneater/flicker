@@ -142,9 +142,7 @@ static ObjClosure* compileInModule(const char* source, ObjString* name, bool pri
   }
 
   ObjFunction* function = compile(source, module, printResult);
-  if (function == NULL) {
-    return NULL;
-  }
+  if (function == NULL) return NULL;
 
   pushRoot((Obj*)function);
   ObjClosure* closure = newClosure(function);

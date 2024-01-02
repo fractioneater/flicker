@@ -1,6 +1,8 @@
 # Testing absolutely nothing.
 # Sadly, there are no bagels to be found in this file.
 
-print 23
-print 23 + 2
-print 23 + 26
+when 5
+  4 do "four"
+  5 do "five"
+  6 do "six"
+  7 do "seven"

@@ -798,9 +798,15 @@ static void namedVariable(Token name, bool canAssign) {
   if (arg != -1) {
     getOp = OP_GET_LOCAL;
     setOp = OP_SET_LOCAL;
+    if (!current->locals[arg].isMutable && check(TOKEN_EQ)) {
+      errorAtCurrent("Value cannot be reassigned");
+    }
   } else if ((arg = resolveUpvalue(current, &name)) != -1) {
     getOp = OP_GET_UPVALUE;
     setOp = OP_SET_UPVALUE;
+    if (!current->upvalues[arg].isMutable && check(TOKEN_EQ)) {
+      errorAtCurrent("Value cannot be reassigned");
+    }
   } else {
     arg = identifierConstant(&name);
     getOp = OP_GET_GLOBAL;
@@ -808,11 +814,7 @@ static void namedVariable(Token name, bool canAssign) {
   }
 
   if (canAssign && match(TOKEN_EQ)) {
-    if (setOp == OP_SET_LOCAL && !current->locals[arg].isMutable) {
-      error("Value cannot be reassigned");
-    } else if (setOp == OP_SET_UPVALUE && !current->upvalues[arg].isMutable) {
-      error("Value cannot be reassigned");
-    }
+    if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
 
     // bool modifier = false;
     // if (match(TOKEN_GT)) {
@@ -820,8 +822,6 @@ static void namedVariable(Token name, bool canAssign) {
     //   else emitBytes(getOp, (uint8_t)arg);
     //   modifier = true;
     // }
-
-    if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
 
     // if (modifier) {
     //   advance();
