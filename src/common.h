@@ -73,7 +73,7 @@
 
 // Print the bytecode instructions immediately after compiling.
 // 0 to disable, 1 to print only user code, 2 to print everything.
-#define DEBUG_PRINT_CODE 1
+#define DEBUG_PRINT_CODE 0
 
 // Print the bytecode instructions as they run.
 // 0 to disable, 1 to print only user code, 2 to print everything.

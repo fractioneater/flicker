@@ -1084,6 +1084,49 @@ DEF_NATIVE(sys_writeString) {
 // Tuple          //
 ////////////////////
 
+DEF_NATIVE(tuple_fromList) {
+  if (!IS_LIST(args[1])) RETURN_ERROR("Argument must be a list");
+
+  ObjList* list = AS_LIST(args[1]);
+  uint32_t length = list->count;
+
+  ObjTuple* tuple = newTuple(length);
+
+  for (int i = 0; i < length; i++) {
+    tuple->items[i] = list->items[i];
+  }
+
+  RETURN_OBJ(tuple);
+}
+
+DEF_NATIVE(tuple_blank) { RETURN_OBJ(newTuple(0)); }
+
+#define TUPLE_OF(length)                \
+  DEF_NATIVE(tuple_of##length) {        \
+    ObjTuple* tuple = newTuple(length); \
+    for (int i = 0; i < length; i++) {  \
+      tuple->items[i] = args[i + 1];    \
+    }                                   \
+    RETURN_OBJ(tuple);                  \
+  }
+
+TUPLE_OF(1)
+TUPLE_OF(2)
+TUPLE_OF(3)
+TUPLE_OF(4)
+TUPLE_OF(5)
+TUPLE_OF(6)
+TUPLE_OF(7)
+TUPLE_OF(8)
+TUPLE_OF(9)
+TUPLE_OF(10)
+TUPLE_OF(11)
+TUPLE_OF(12)
+TUPLE_OF(13)
+TUPLE_OF(14)
+TUPLE_OF(15)
+TUPLE_OF(16)
+
 DEF_NATIVE(tuple_get) {
   ObjTuple* tuple = AS_TUPLE(args[0]);
   uint32_t index = validateIndex(args[1], tuple->count, "Index");
@@ -1337,6 +1380,24 @@ void initializeCore(VM* vm) {
   NATIVE(sysClass->obj.cls, "writeString(1)", sys_writeString);
 
   GET_CORE_CLASS(vm->tupleClass, "Tuple");
+  NATIVE(vm->tupleClass->obj.cls, "fromList(1)", tuple_fromList);
+  NATIVE(vm->tupleClass->obj.cls, "blank()", tuple_blank);
+  NATIVE(vm->tupleClass->obj.cls, "of(1)", tuple_of1);
+  NATIVE(vm->tupleClass->obj.cls, "of(2)", tuple_of2);
+  NATIVE(vm->tupleClass->obj.cls, "of(3)", tuple_of3);
+  NATIVE(vm->tupleClass->obj.cls, "of(4)", tuple_of4);
+  NATIVE(vm->tupleClass->obj.cls, "of(5)", tuple_of5);
+  NATIVE(vm->tupleClass->obj.cls, "of(6)", tuple_of6);
+  NATIVE(vm->tupleClass->obj.cls, "of(7)", tuple_of7);
+  NATIVE(vm->tupleClass->obj.cls, "of(8)", tuple_of8);
+  NATIVE(vm->tupleClass->obj.cls, "of(9)", tuple_of9);
+  NATIVE(vm->tupleClass->obj.cls, "of(10)", tuple_of10);
+  NATIVE(vm->tupleClass->obj.cls, "of(11)", tuple_of11);
+  NATIVE(vm->tupleClass->obj.cls, "of(12)", tuple_of12);
+  NATIVE(vm->tupleClass->obj.cls, "of(13)", tuple_of13);
+  NATIVE(vm->tupleClass->obj.cls, "of(14)", tuple_of14);
+  NATIVE(vm->tupleClass->obj.cls, "of(15)", tuple_of15);
+  NATIVE(vm->tupleClass->obj.cls, "of(16)", tuple_of16);
   NATIVE(vm->tupleClass, "get(1)", tuple_get);
   NATIVE(vm->tupleClass, "iterate(1)", tuple_iterate);
   NATIVE(vm->tupleClass, "iteratorValue(1)", tuple_iteratorValue);

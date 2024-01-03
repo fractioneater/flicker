@@ -54,7 +54,7 @@ void freeVM() {
     }
   }
   freeTable(&vm.modules);
-  
+
   vm.initString = NULL;
   vm.coreString = NULL;
   freeObjects();
@@ -191,7 +191,7 @@ static Value importModule(ObjString* name) {
   pushRoot((Obj*)moduleName);
 
   ObjClosure* moduleClosure = compileInModule(buffer, moduleName, false);
-  
+
   popRoot(); // moduleName
   free(buffer);
   popRoot(); // name
@@ -716,7 +716,7 @@ static InterpretResult run() {
         push(result);
         break;
       }
-      case OP_END_MODULE: 
+      case OP_END_MODULE:
         vm.lastModule = frame->closure->function->module;
         break;
       case OP_TUPLE: {
@@ -726,7 +726,7 @@ static InterpretResult run() {
         for (int i = length - 1; i >= 0; i--) {
           tuple->items[i] = pop();
         }
-        
+
         push(OBJ_VAL(tuple));
         break;
       }

@@ -1830,18 +1830,18 @@ static void returnStatement() {
       error("Can't return a value from an initializer");
     }
 
-    int values = 0;
+    int numValues = 0;
     do {
-      values++;
+      numValues++;
       expression();
       if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
     } while (match(TOKEN_COMMA));
 
-    if (values >= UINT8_MAX) {
+    if (numValues >= UINT8_MAX) {
       error("Cannot return more than %d values", UINT8_MAX);
     }
 
-    if (values > 1) emitBytes(OP_TUPLE, (uint8_t)values);
+    if (numValues > 1) emitBytes(OP_TUPLE, (uint8_t)numValues);
     emitByte(OP_RETURN);
   }
 }

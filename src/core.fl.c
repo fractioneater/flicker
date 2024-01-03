@@ -394,7 +394,7 @@ static const char* coreSource __attribute__((unused)) =
 "    error \"Tuple class is not directly callable\"\n"
 "\n"
 "  toString()\n"
-"    result = \"(\"\n"
+"    var result = \"(\"\n"
 "    for var i = 0; i < this.count; i = i + 1\n"
 "      result = result + this[i]\n"
 "      if i != this.count - 1 do result = result + \", \"\n"
