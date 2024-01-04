@@ -39,6 +39,7 @@ typedef struct {
   const char* start;
   int length;
   int line;
+  int startCol;
   Value value;
 } Token;
 

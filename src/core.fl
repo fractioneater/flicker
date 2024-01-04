@@ -76,11 +76,11 @@ class Sequence
 
   lazyFilter(predicate) = FilterSequence(this, predicate)
 
-  skip(count)
+  drop(count)
     if (count is not Number) or (not count.isInteger) or count < 0
       error "Count must be a positive integer"
 
-    return SkipSequence(this, count)
+    return DropSequence(this, count)
 
   take(count)
     if (count is not Number) or (not count.isInteger) or count < 0
@@ -138,7 +138,7 @@ class MapSequence < Sequence
   iteratorValue(iterator)
     return this.function(this.sequence.iteratorValue(iterator))
 
-class SkipSequence < Sequence
+class DropSequence < Sequence
   init(+sequence, +count)
     pass
 

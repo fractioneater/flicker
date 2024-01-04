@@ -191,7 +191,7 @@ static inline Chunk* currentChunk() {
 static void errorAt(Token* token, const char* format, va_list args) {
   if (parser.panicMode) return;
   parser.panicMode = true;
-  fprintf(stderr, "\033[1m%s:%d:\033[0m ", parser.module->name->chars, token->line);
+  fprintf(stderr, "\033[1m%s:%d:%d:\033[0m ", parser.module->name->chars, token->line, token->startCol);
 
   if (token->type == TOKEN_EOF) {
     fprintf(stderr, "error at end");

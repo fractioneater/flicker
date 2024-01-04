@@ -16,6 +16,8 @@ typedef struct {
   const char* start;
   const char* current;
   int line;
+  int startCol;
+  int col;
 
   // The lexer needs some variables to keep track of interpolation.
   int parens[MAX_INTERPOLATION_NESTING];
@@ -37,6 +39,8 @@ void initLexer(const char* source) {
   lexer.start = source;
   lexer.current = source;
   lexer.line = 1;
+  lexer.startCol = 1;
+  lexer.col = 1;
   lexer.parenCount = 0;
   lexer.checkIndent = true;
   lexer.dedentCount = 0;
@@ -60,7 +64,11 @@ static bool atEnd() { return *lexer.current == '\0'; }
 
 static char advance() {
   lexer.current++;
-  if (lexer.current[-1] == '\n') lexer.line++;
+  lexer.col++;
+  if (lexer.current[-1] == '\n') {
+    lexer.line++;
+    lexer.col = 1;
+  }
   return lexer.current[-1];
 }
 
@@ -86,6 +94,7 @@ static Token makeToken(TokenType type) {
 
   if (type == TOKEN_LINE) token.line = lexer.line - 1;
   else token.line = lexer.line;
+  token.startCol = lexer.startCol;
 
   return token;
 }
@@ -96,6 +105,7 @@ static Token errorToken(const char* message) {
   token.start = message;
   token.length = (int)strlen(message);
   token.line = lexer.line;
+  token.startCol = lexer.startCol;
   return token;
 }
 
@@ -507,15 +517,19 @@ Token nextToken() {
   }
 
   if (lexer.checkIndent) {
-    Token indent = indentation();
-    if (notNullToken(indent)) return indent;
+    Token indentOrError = indentation();
+    if (notNullToken(indentOrError)) return indentOrError;
     else lexer.checkIndent = false;
   }
 
-  if (atEnd()) return makeToken(TOKEN_EOF);
+  if (atEnd()) {
+    lexer.startCol = lexer.col;
+    return makeToken(TOKEN_EOF);
+  }
 
   while (!atEnd()) {
     lexer.start = lexer.current;
+    lexer.startCol = lexer.col;
 
     char c = advance();
 
@@ -580,5 +594,6 @@ Token nextToken() {
   }
 
   lexer.start = lexer.current;
+  lexer.startCol = lexer.col;
   return makeToken(TOKEN_EOF);
 }
