@@ -10,6 +10,7 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include "debug.h"
 #include "memory.h"
 #include "native.h"
 #include "shishua.h"
@@ -1019,6 +1020,27 @@ DEF_NATIVE(sys_clock) {
   RETURN_NUMBER((double)clock() / CLOCKS_PER_SEC);
 }
 
+DEF_NATIVE(sys_delay) {
+  if (!validateInt(args[1], "Time value")) return false;
+  uint32_t millis = AS_NUMBER(args[1]);
+
+  struct timespec ts;
+  int res;
+
+  if (millis < 0) {
+    RETURN_ERROR("Time value cannot be negative");
+  }
+
+  ts.tv_sec = millis / 1000;
+  ts.tv_nsec = (millis % 1000) * 1000000;
+
+  // do {
+  res = nanosleep(&ts, &ts);
+  // } while (res && errno == EINTR);
+
+  RETURN_NUMBER(res);
+}
+
 DEF_NATIVE(sys_readFile) {
   if (!validateString(args[1], "Filename")) return false;
   const char* filename = AS_CSTRING(args[1]);
@@ -1050,6 +1072,18 @@ DEF_NATIVE(sys_readFile) {
 
 DEF_NATIVE(sys_gc) {
   collectGarbage();
+  RETURN_NONE();
+}
+
+DEF_NATIVE(sys_printStack) {
+  printStack(&vm);
+  RETURN_NONE();
+}
+
+DEF_NATIVE(sys_disassemble) {
+  if (!validateFunction(args[1], "Argument")) return false;
+  ObjFunction* function = AS_CLOSURE(args[1])->function;
+  disassembleChunk(&function->chunk, function->name->chars);
   RETURN_NONE();
 }
 
@@ -1370,15 +1404,6 @@ void initializeCore(VM* vm) {
   NATIVE(vm->rangeClass, "iteratorValue(1)", range_iteratorValue);
   NATIVE(vm->rangeClass, "toString()", range_toString);
 
-  ObjClass* sysClass;
-  GET_CORE_CLASS(sysClass, "Sys");
-  NATIVE(sysClass->obj.cls, "clock", sys_clock);
-  NATIVE(sysClass->obj.cls, "readFile(1)", sys_readFile);
-  NATIVE(sysClass->obj.cls, "gc()", sys_gc);
-  NATIVE(sysClass->obj.cls, "input(1)", sys_input);
-  NATIVE(sysClass->obj.cls, "printString(1)", sys_printString);
-  NATIVE(sysClass->obj.cls, "writeString(1)", sys_writeString);
-
   GET_CORE_CLASS(vm->tupleClass, "Tuple");
   NATIVE(vm->tupleClass->obj.cls, "fromList(1)", tuple_fromList);
   NATIVE(vm->tupleClass->obj.cls, "blank()", tuple_blank);
@@ -1403,6 +1428,18 @@ void initializeCore(VM* vm) {
   NATIVE(vm->tupleClass, "iteratorValue(1)", tuple_iteratorValue);
   NATIVE(vm->tupleClass, "size", tuple_size);
   NATIVE(vm->tupleClass, "count", tuple_size);
+
+  ObjClass* sysClass;
+  GET_CORE_CLASS(sysClass, "Sys");
+  NATIVE(sysClass->obj.cls, "clock", sys_clock);
+  NATIVE(sysClass->obj.cls, "delay(1)", sys_delay);
+  NATIVE(sysClass->obj.cls, "readFile(1)", sys_readFile);
+  NATIVE(sysClass->obj.cls, "gc()", sys_gc);
+  NATIVE(sysClass->obj.cls, "printStack()", sys_printStack);
+  NATIVE(sysClass->obj.cls, "disassemble(1)", sys_disassemble);
+  NATIVE(sysClass->obj.cls, "input(1)", sys_input);
+  NATIVE(sysClass->obj.cls, "printString(1)", sys_printString);
+  NATIVE(sysClass->obj.cls, "writeString(1)", sys_writeString);
 
   // Some string objects were created before stringClass even existed. Those
   // strings have a NULL classObj, so that needs to be fixed.

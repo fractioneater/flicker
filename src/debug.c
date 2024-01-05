@@ -6,6 +6,15 @@
 #include "object.h"
 #include "value.h"
 
+void printStack(VM* vm) {
+  for (Value* slot = vm->stack; slot < vm->stackTop; slot++) {
+    printf("[ ");
+    printValue(*slot);
+    printf(" ]");
+  }
+  printf("\n");
+}
+
 void disassembleChunk(Chunk* chunk, const char* name) {
   printf("== %s ==\n", name);
   for (int offset = 0; offset < chunk->count;) {
@@ -229,6 +238,8 @@ int disassembleInstruction(Chunk* chunk, int offset) {
       return constantInstruction("IMPORT_MODULE", chunk, offset);
     case OP_IMPORT_VARIABLE:
       return constantInstruction("IMPORT_VARIABLE", chunk, offset);
+    case OP_IMPORT_ALL_VARIABLES:
+      return simpleInstruction("IMPORT_ALL_VARIABLES", offset);
     case OP_END_MODULE:
       return simpleInstruction("END_MODULE", offset);
     case OP_TUPLE:

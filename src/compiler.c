@@ -1687,6 +1687,21 @@ static void varDeclaration() {
 }
 
 static void useStatement() {
+  if (match(TOKEN_DOT)) {
+    expect(TOKEN_IDENTIFIER, "Expecting 'from' after import variables");
+    if (parser.previous.length != 4 || memcmp(parser.previous.start, "from", 4) != 0) {
+      error("Expecting 'from' after import variables");
+    }
+
+    expect(TOKEN_STRING, "Expecting a module to import");
+    emitConstantArg(OP_IMPORT_MODULE, parser.previous.value);
+    // Pop the return value from the module
+    emitByte(OP_POP);
+
+    emitByte(OP_IMPORT_ALL_VARIABLES);
+    return;
+  }
+
   int variableCount = 0;
   IntArray sourceConstants;
   IntArray nameConstants;

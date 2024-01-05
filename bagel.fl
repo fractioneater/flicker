@@ -1,7 +1,6 @@
 # Testing absolutely nothing.
 # Sadly, there are no bagels to be found in this file.
 
-fun a(arg, func)
-  print func(arg)
-
-a(4) { |it| it + 2 }
+print "delay"
+Sys.delay(5125)
+print "done"

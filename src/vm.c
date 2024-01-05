@@ -395,17 +395,6 @@ static void defineMethod(ObjClass* cls, ObjString* name) {
   pop();
 }
 
-#if DEBUG_TRACE_EXECUTION
-static void printStack() {
-  for (Value* slot = vm.stack; slot < vm.stackTop; slot++) {
-    printf("[ ");
-    printValue(*slot);
-    printf(" ]");
-  }
-  printf("\n");
-}
-#endif
-
 static InterpretResult run() {
   CallFrame* frame = &vm.frames[vm.frameCount - 1];
   register uint8_t* ip = frame->ip;
@@ -428,7 +417,7 @@ static InterpretResult run() {
 #   elif DEBUG_TRACE_EXECUTION == 1
     if (vm.coreInitialized) {
       printf("        ");
-      printStack();
+      printStack(&vm);
       disassembleInstruction(&frame->closure->function->chunk, (int)(ip - frame->closure->function->chunk.code));
     }
 #   endif
@@ -715,6 +704,10 @@ static InterpretResult run() {
 
         push(result);
         break;
+      }
+      case OP_IMPORT_ALL_VARIABLES: {
+        ObjModule* current = frame->closure->function->module;
+        tableAddAll(&vm.lastModule->variables, &current->variables, false);
       }
       case OP_END_MODULE:
         vm.lastModule = frame->closure->function->module;
