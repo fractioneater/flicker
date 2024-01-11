@@ -1,5 +1,4 @@
-#ifndef flicker_object_h
-#define flicker_object_h
+#pragma once
 
 #include "chunk.h"
 #include "common.h"
@@ -245,5 +244,3 @@ static inline bool stringEqualsCString(ObjString* a, const char* b, size_t lengt
 static inline bool isObjType(Value value, ObjType type) {
   return IS_OBJ(value) && AS_OBJ(value)->type == type;
 }
-
-#endif

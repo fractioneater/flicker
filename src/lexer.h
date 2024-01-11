@@ -1,17 +1,17 @@
-#ifndef flicker_lexer_h
-#define flicker_lexer_h
+#pragma once
 
 #include "value.h"
 
 typedef enum {
-  // Single-character tokens (0 - 14)
+  // Single-character tokens (0 - 15)
   TOKEN_LEFT_PAREN, TOKEN_RIGHT_PAREN,
   TOKEN_LEFT_BRACKET, TOKEN_RIGHT_BRACKET,
   TOKEN_LEFT_BRACE, TOKEN_RIGHT_BRACE,
   TOKEN_SEMICOLON, TOKEN_COMMA, TOKEN_PLUS,
-  TOKEN_SLASH, TOKEN_PERCENT, TOKEN_PIPE,
-  TOKEN_CARET, TOKEN_AMPERSAND, TOKEN_TILDE,
-  // One or two (or three) character tokens (15 - 31)
+  TOKEN_SLASH, TOKEN_PERCENT, TOKEN_QUESTION,
+  TOKEN_PIPE, TOKEN_CARET, TOKEN_AMPERSAND,
+  TOKEN_TILDE,
+  // One or two (or three) character tokens (16 - 32)
   TOKEN_DOT, TOKEN_DOT_DOT, TOKEN_DOT_DOT_LT,
   TOKEN_COLON, TOKEN_COLON_COLON,
   TOKEN_STAR, TOKEN_STAR_STAR,
@@ -20,17 +20,17 @@ typedef enum {
   TOKEN_EQ, TOKEN_EQ_EQ,
   TOKEN_GT, TOKEN_GT_EQ,
   TOKEN_LT, TOKEN_LT_EQ,
-  // Literals (32 - 35)
+  // Literals (33 - 36)
   TOKEN_IDENTIFIER, TOKEN_STRING, TOKEN_INTERPOLATION, TOKEN_NUMBER,
-  // Keywords (36 - 68)
+  // Keywords (37 - 69)
   TOKEN_AND, TOKEN_ATTRIBUTE, TOKEN_BREAK, TOKEN_CLASS, TOKEN_CONTINUE, TOKEN_DO,
   TOKEN_EACH, TOKEN_ELIF, TOKEN_ELSE, TOKEN_FALSE, TOKEN_FOR, TOKEN_FUN, TOKEN_IF,
   TOKEN_IN, TOKEN_IS, TOKEN_NONE, TOKEN_NOT, TOKEN_OR, TOKEN_PASS, TOKEN_PRINT,
   TOKEN_PRINT_ERROR, TOKEN_RETURN, TOKEN_SHL, TOKEN_SHR, TOKEN_STATIC, TOKEN_SUPER,
   TOKEN_THIS, TOKEN_TRUE, TOKEN_USE, TOKEN_VAL, TOKEN_VAR, TOKEN_WHEN, TOKEN_WHILE,
-  // Whitespace (69 - 71)
+  // Whitespace (70 - 72)
   TOKEN_INDENT, TOKEN_DEDENT, TOKEN_LINE,
-  // (72 - 74)
+  // (73 - 75)
   TOKEN_EOF, TOKEN_ERROR, TOKEN_NULL
 } TokenType;
 
@@ -46,5 +46,3 @@ typedef struct {
 void initLexer(const char* source);
 void freeLexer();
 Token nextToken();
-
-#endif

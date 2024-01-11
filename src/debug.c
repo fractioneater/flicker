@@ -6,8 +6,8 @@
 #include "object.h"
 #include "value.h"
 
-void printStack(VM* vm) {
-  for (Value* slot = vm->stack; slot < vm->stackTop; slot++) {
+void printStack(VM* vm, Value* stackTop) {
+  for (Value* slot = vm->stack; slot < stackTop; slot++) {
     printf("[ ");
     printValue(*slot);
     printf(" ]");

@@ -1,5 +1,4 @@
-#ifndef flicker_memory_h
-#define flicker_memory_h
+#pragma once
 
 #include "common.h"
 #include "value.h"
@@ -22,5 +21,3 @@ void markObject(Obj* object);
 void markValue(Value value);
 void collectGarbage();
 void freeObjects();
-
-#endif

@@ -10,20 +10,8 @@
 
 #define TABLE_MAX_LOAD 0.75
 
-void initTable(Table* table) {
-  ASSERT(table != NULL, "Table cannot be NULL");
-
-  table->count = 0;
-  table->capacity = 0;
-  table->entries = NULL;
-}
-
-void freeTable(Table* table) {
-  ASSERT(table != NULL, "Table cannot be NULL");
-
-  FREE_ARRAY(Entry, table->entries, table->capacity);
-  initTable(table);
-}
+DEFINE_BASIC_TABLE(Table, Entry)
+DEFINE_BASIC_TABLE(TypeTable, Type)
 
 static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
   uint32_t index = key->hash & (capacity - 1);
@@ -48,6 +36,29 @@ static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
   }
 }
 
+static Type* findType(Type* entries, int capacity, ObjString* key) {
+  uint32_t index = key->hash & (capacity - 1);
+  Type* tombstone = NULL;
+
+  for (;;) {
+    Type* entry = &entries[index];
+    if (entry->name == NULL) {
+      if (entry->tombstone == false) {
+        // Empty entry.
+        return tombstone != NULL ? tombstone : entry;
+      } else {
+        // Tombstone.
+        if (tombstone == NULL) tombstone = entry;
+      }
+    } else if (entry->name == key) {
+      // Found it!
+      return entry;
+    }
+
+    index = (index + 1) & (capacity - 1);
+  }
+}
+
 bool tableGet(Table* table, ObjString* key, Value* value) {
   ASSERT(table != NULL, "Table cannot be NULL");
 
@@ -58,6 +69,17 @@ bool tableGet(Table* table, ObjString* key, Value* value) {
 
   *value = entry->value;
   return true;
+}
+
+Type* typeTableGet(TypeTable* table, ObjString* key) {
+  ASSERT(table != NULL, "TypeTable cannot be NULL");
+
+  if (table->count == 0) return NULL;
+
+  Type* entry = findType(table->entries, table->capacity, key);
+  if (entry->name == NULL) return NULL;
+
+  return entry;
 }
 
 bool tableContains(Table* table, ObjString* key) {
@@ -96,6 +118,16 @@ static void adjustCapacity(Table* table, int capacity) {
   table->capacity = capacity;
 }
 
+static void adjustTypeTableCapacity(TypeTable* table, int capacity) {
+  Type* entries = ALLOCATE(Type, capacity);
+  for (int i = 0; i < capacity; i++) {
+    entries[i].name = NULL;
+    // entries[i].methods
+    entries[i].tombstone = false;
+    clearSupertypes(&entries[i]);
+  }
+}
+
 bool tableSet(Table* table, ObjString* key, Value value, bool isMutable) {
   ASSERT(table != NULL, "Table cannot be NULL");
 
@@ -116,6 +148,15 @@ bool tableSet(Table* table, ObjString* key, Value value, bool isMutable) {
   entry->value = value;
   entry->isMutable = isMutable;
   return isNewKey;
+}
+
+bool typeTableAdd(TypeTable* table, Type* type) {
+  ASSERT(table != NULL, "Table cannot be NULL");
+
+  if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
+    int capacity = GROW_CAPACITY(table->capacity);
+    adjustTypeTableCapacity(table, capacity);
+  }
 }
 
 bool tableSetMutable(Table* table, ObjString* key, Value value, bool isMutable) {

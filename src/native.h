@@ -1,5 +1,4 @@
-#ifndef flicker_native_h
-#define flicker_native_h
+#pragma once
 
 #include <stdarg.h>
 
@@ -50,5 +49,3 @@ bool validateFunction(Value arg, const char* argName);
 bool validateString(Value arg, const char* argName);
 
 uint32_t calculateRange(ObjRange* range, uint32_t* length, int* step);
-
-#endif

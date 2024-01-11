@@ -7,8 +7,10 @@
 #include <string.h>
 
 #include "common.h"
+#include "core.h"
 #include "lexer.h"
 #include "memory.h"
+#include "type.h"
 #include "utils.h"
 
 #if DEBUG_PRINT_CODE
@@ -31,8 +33,9 @@ typedef struct {
   // Print the value returned by the code.
   bool printResult;
 
-  // If an expression was parsed most recently.
+  // If an expression was parsed most recently, and what type it had.
   bool onExpression;
+  Type* expressionType;
 
   // If a compiler error has appeared.
   bool hadError;
@@ -63,18 +66,30 @@ typedef enum {
   BP_PRIMARY
 } BindingPower;
 
-typedef enum {
-  SIG_METHOD,
-  SIG_ATTRIBUTE
-} SignatureType;
+#if STATIC_TYPING()
+
+typedef struct {
+  Type* type;
+  bool storeProperty;
+} Parameter;
 
 typedef struct {
   const char* name;
   int length;
-  SignatureType type;
+  int arity;
+  Parameter* args;
+} Signature;
+
+#else
+
+typedef struct {
+  const char* name;
+  int length;
   int arity;
   bool* asProperty;
 } Signature;
+
+#endif
 
 typedef void (*ParseFn)(bool canAssign);
 
@@ -156,6 +171,9 @@ typedef struct Compiler {
   // The function being compiled.
   ObjFunction* function;
   FunctionType type;
+
+  // A hash table of all the types the compiler uses.
+  TypeTable types;
 
   // The local variables in scope.
   Local locals[UINT8_COUNT];
@@ -663,22 +681,26 @@ static void signatureToString(Signature* signature, char name[MAX_METHOD_SIGNATU
   memcpy(name, signature->name, signature->length);
   *length += signature->length;
 
-  if (signature->type != SIG_ATTRIBUTE) {
+  if (signature->arity != -1) {
     signatureParameterList(name, length, signature->arity);
   }
 
   name[*length] = '\0';
 }
 
-static Signature signatureFromToken(SignatureType type) {
+static Signature signatureFromToken(bool isAttribute) {
   Signature signature;
 
   Token* token = &parser.previous;
   signature.name = token->start;
   signature.length = token->length;
-  signature.type = type;
-  signature.arity = 0;
+  signature.arity = isAttribute ? -1 : 0;
+
+# if STATIC_TYPING()
+  signature.args = NULL;
+# else
   signature.asProperty = NULL;
+# endif
 
   if (signature.length > MAX_METHOD_NAME) {
     error("Method names cannot be longer than %d characters", MAX_METHOD_NAME);
@@ -694,18 +716,69 @@ static void validateParameterCount(const char* type, int num, bool isArg) {
   }
 }
 
+static Type* parameterType() {
+  if (!check(TOKEN_COLON)) return NULL; //- REMOVE
+  expect(TOKEN_COLON, "Expecting a type annotation");
+  expect(TOKEN_IDENTIFIER, "Expecting a type identifier");
+  const char* start = parser.previous.start;
+  size_t length = parser.previous.length;
+  // TODO: See changes.md
+  if (match(TOKEN_QUESTION)) length++;
+  Type* type = typeTableGet(&current->types, copyStringLength(start, length));
+  if (type == NULL) error("Type does not exist");
+  return type;
+}
+
 static void finishParameterList(Signature* signature) {
+# if STATIC_TYPING()
+  bool asProperty[MAX_PARAMETERS];
+  Type* types[MAX_PARAMETERS];
+# else
   signature->asProperty = ALLOCATE(bool, MAX_PARAMETERS);
+# endif
+
   do {
     matchLine();
     validateParameterCount("Method", ++signature->arity, false);
 
+#   if STATIC_TYPING()
+    asProperty[signature->arity - 1] = match(TOKEN_PLUS);
+#   else
     signature->asProperty[signature->arity - 1] = match(TOKEN_PLUS);
+#   endif
 
     int constant = parseVariable("Expecting a parameter name", true);
     defineVariable(constant, true);
+
+#   if STATIC_TYPING()
+    Type* type = parameterType();
+    if (type != NULL) types[signature->arity - 1] = type;
+#   endif
   } while (match(TOKEN_COMMA));
+
+# if STATIC_TYPING()
+  signature->args = ALLOCATE(Parameter, signature->arity);
+  for (int i = 0; i < signature->arity; i++) {
+    Parameter* parameter = signature->args + i;
+    parameter->type = types[i];
+    parameter->storeProperty = asProperty[i];
+  }
+# endif
 }
+
+#if STATIC_TYPING()
+static void singleParameter(Signature* signature) {
+  signature->arity = 1;
+  signature->args = ALLOCATE(Parameter, 1);
+
+  signature->args[0].storeProperty = match(TOKEN_PLUS);
+  int constant = parseVariable("Expecting a parameter name", true);
+  defineVariable(constant, true);
+
+  Type* type = parameterType();
+  if (type != NULL) signature->args[0].type = type;
+}
+#endif
 
 static void finishArgumentList(Signature* signature, const char* type, TokenType end) {
   if (!check(end)) {
@@ -739,32 +812,41 @@ static inline void callSignature(int argCount, Signature* signature) {
 }
 
 void binarySignature(Signature* signature) {
-  signature->type = SIG_METHOD;
   signature->arity = 1;
+# if STATIC_TYPING()
+  signature->args = ALLOCATE(Parameter, 1);
+# else
   signature->asProperty = NULL;
+# endif
 
   expect(TOKEN_LEFT_PAREN, "Expecting '(' after operator name");
+# if STATIC_TYPING()
+  singleParameter(signature);
+# else
   int constant = parseVariable("Expecting a parameter name", true);
   defineVariable(constant, true);
+# endif
   expect(TOKEN_RIGHT_PAREN, "Expecting ')' after parameter name");
 }
 
 void unarySignature(Signature* signature) {
-  signature->type = SIG_METHOD;
+  signature->arity = 0;
   expect(TOKEN_LEFT_PAREN, "Expecting '(' after method name");
   expect(TOKEN_RIGHT_PAREN, "Expecting ')' after opening parenthesis");
 }
 
 void mixedSignature(Signature* signature) {
-  signature->type = SIG_METHOD;
+  signature->arity = 0;
 
   if (match(TOKEN_LEFT_PAREN)) {
-    signature->type = SIG_METHOD;
-    signature->arity = 1;
+#   if STATIC_TYPING()
+    singleParameter(signature);
+#   else
     signature->asProperty = NULL;
-
     int constant = parseVariable("Expecting a parameter name", true);
     defineVariable(constant, true);
+#   endif
+
     expect(TOKEN_RIGHT_PAREN, "Expecting ')' after parameter name");
   }
 }
@@ -772,7 +854,7 @@ void mixedSignature(Signature* signature) {
 void namedSignature(Signature* signature) {
   expect(TOKEN_LEFT_PAREN, "Expecting '(' after method name");
 
-  signature->type = SIG_METHOD;
+  signature->arity = 0;
 
   matchLine();
   if (match(TOKEN_RIGHT_PAREN)) return;
@@ -782,7 +864,7 @@ void namedSignature(Signature* signature) {
 }
 
 void attributeSignature(Signature* signature) {
-  signature->type = SIG_ATTRIBUTE;
+  signature->arity = -1;
 }
 
 static Token syntheticToken(const char* text) {
@@ -850,7 +932,7 @@ static void variable(bool canAssign) {
 }
 
 static void call(bool canAssign) {
-  Signature signature = { NULL, 0, SIG_METHOD, 0 };
+  Signature signature = { NULL, 0, 0 };
   if (parser.previous.type == TOKEN_LEFT_PAREN) {
     finishArgumentList(&signature, "Function", TOKEN_RIGHT_PAREN);
     if (match(TOKEN_LEFT_BRACE)) {
@@ -871,7 +953,7 @@ static void callable(bool canAssign) {
     error("Expecting a method name after '::'");
   }
 
-  Signature signature = signatureFromToken(SIG_METHOD);
+  Signature signature = signatureFromToken(false);
   if (match(TOKEN_LEFT_PAREN)) {
     if (match(TOKEN_RIGHT_PAREN)) {
       signature.arity = 0;
@@ -885,7 +967,7 @@ static void callable(bool canAssign) {
       expect(TOKEN_RIGHT_PAREN, "Expecting ')' after parameter count");
     }
   } else {
-    signature.type = SIG_ATTRIBUTE;
+    signature.arity = -1;
   }
 
   emitSignatureArg(OP_BIND_METHOD, &signature);
@@ -895,7 +977,7 @@ static void dot(bool canAssign) {
   expect(TOKEN_IDENTIFIER, "Expecting a property name after '.'");
 
   int name = identifierConstant(&parser.previous);
-  Signature signature = signatureFromToken(SIG_METHOD);
+  Signature signature = signatureFromToken(false);
 
   if (canAssign && match(TOKEN_EQ)) {
     if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
@@ -934,7 +1016,7 @@ static void super_(bool canAssign) {
       error("Expecting a method name after '::'");
     }
 
-    signature = signatureFromToken(SIG_METHOD);
+    signature = signatureFromToken(false);
 
     if (match(TOKEN_LEFT_PAREN)) {
       if (match(TOKEN_RIGHT_PAREN)) {
@@ -949,14 +1031,14 @@ static void super_(bool canAssign) {
         expect(TOKEN_RIGHT_PAREN, "Expecting ')' after parameter count");
       }
     } else {
-      signature.type = SIG_ATTRIBUTE;
+      signature.arity = -1;
     }
 
     instruction = OP_BIND_SUPER;
   } else {
     expect(TOKEN_DOT, "Expecting '.' after 'super'");
     expect(TOKEN_IDENTIFIER, "Expecting a superclass method name");
-    signature = signatureFromToken(SIG_METHOD);
+    signature = signatureFromToken(false);
 
     namedVariable(syntheticToken("this"), false);
     if (match(TOKEN_LEFT_PAREN) || match(TOKEN_LEFT_BRACE)) {
@@ -971,7 +1053,7 @@ static void super_(bool canAssign) {
         }
       }
     } else {
-      signature.type = SIG_ATTRIBUTE;
+      signature.arity = -1;
     }
 
     namedVariable(syntheticToken("super"), false);
@@ -1150,7 +1232,7 @@ static void collection(bool canAssign) {
 }
 
 static void subscript(bool canAssign) {
-  Signature signature = { "get", 3, SIG_METHOD, 0, NULL };
+  Signature signature = { "get", 3, 0, NULL };
   finishArgumentList(&signature, "Method", TOKEN_RIGHT_BRACKET);
 
   if (canAssign && match(TOKEN_EQ)) {
@@ -1196,7 +1278,7 @@ static void binary(bool canAssign) {
   //   return;
   // }
 
-  Signature signature = { rule->name, (int)strlen(rule->name), SIG_METHOD, 1 };
+  Signature signature = { rule->name, (int)strlen(rule->name), 1 };
 
   callSignature(1, &signature);
   if (negate) {
@@ -1213,7 +1295,7 @@ static void unary(bool canAssign) {
   // Compile the operand.
   expressionBp(operatorType == TOKEN_NOT ? BP_NOT : BP_UNARY);
 
-  Signature signature = { rule->name, (int)strlen(rule->name), SIG_METHOD, 0 };
+  Signature signature = { rule->name, (int)strlen(rule->name), 0 };
 
   callSignature(0, &signature);
 }
@@ -1238,6 +1320,7 @@ ParseRule rules[] = {
   /* TOKEN_PLUS          */ INFIX_OPERATOR(BP_TERM, "+"),
   /* TOKEN_SLASH         */ INFIX_OPERATOR(BP_FACTOR, "/"),
   /* TOKEN_PERCENT       */ INFIX_OPERATOR(BP_FACTOR, "%"),
+  /* TOKEN_QUESTION      */ UNUSED,
   /* TOKEN_PIPE          */ INFIX_OPERATOR(BP_BIT_OR, "|"),
   /* TOKEN_CARET         */ INFIX_OPERATOR(BP_BIT_XOR, "^"),
   /* TOKEN_AMPERSAND     */ INFIX_OPERATOR(BP_BIT_AND, "&"),
@@ -1478,7 +1561,7 @@ static void method() {
     return;
   }
 
-  Signature signature = signatureFromToken(SIG_METHOD);
+  Signature signature = signatureFromToken(false);
 
   FunctionType type = isStatic ? TYPE_STATIC_METHOD : TYPE_METHOD;
   if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
@@ -1497,6 +1580,23 @@ static void method() {
 
   current->function->arity = signature.arity;
 
+# if STATIC_TYPING()
+  if (signature.args != NULL) {
+    for (int i = 0; i < current->function->arity; i++) {
+      if (signature.args[i].storeProperty) {
+        if (isStatic) {
+          error("Can only store fields through non-static methods");
+          break;
+        }
+        emitBytes(OP_GET_LOCAL, 0);
+        emitBytes(OP_GET_LOCAL, i + 1);
+        Local local = current->locals[i + 1];
+        emitVariableArg(OP_SET_PROPERTY, identifierConstant(&local.name));
+        emitByte(OP_POP);
+      }
+    }
+  }
+# else
   if (signature.asProperty != NULL) {
     for (int i = 0; i < current->function->arity; i++) {
       if (signature.asProperty[i]) {
@@ -1513,6 +1613,7 @@ static void method() {
     }
     FREE_ARRAY(bool, signature.asProperty, MAX_PARAMETERS);
   }
+# endif
 
   if (match(TOKEN_EQ)) {
     if (current->type == TYPE_INITIALIZER) {
@@ -1557,7 +1658,7 @@ static void classDeclaration() {
       error("A class can't inherit from itself");
     }
   } else {
-    emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyString("Object")));
+    emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyString("Any")));
   }
 
   emitVariableArg(OP_CLASS, nameConstant);
@@ -1574,20 +1675,18 @@ static void classDeclaration() {
 
   namedVariable(className, false);
 
-  bool empty = match(TOKEN_LEFT_BRACKET) && match(TOKEN_RIGHT_BRACKET);
-  empty = empty || match(TOKEN_SEMICOLON);
-  if (!empty) {
-    expectLine("Expecting a linebreak before class body");
-    expect(TOKEN_INDENT, "Expecting an indent before class body");
-
-    matchLine();
-
-    while (!check(TOKEN_DEDENT) && !check(TOKEN_EOF)) {
-      method();
+  if (!match(TOKEN_SEMICOLON)) {
+    expectLine("Expecting a linebreak after class name");
+    if (match(TOKEN_INDENT)) {
       matchLine();
-    }
 
-    if (!check(TOKEN_EOF)) expect(TOKEN_DEDENT, "Expecting indentation to decrease after class body");
+      while (!check(TOKEN_DEDENT) && !check(TOKEN_EOF)) {
+        method();
+        matchLine();
+      }
+
+      if (!check(TOKEN_EOF)) expect(TOKEN_DEDENT, "Expecting indentation to decrease after class body");
+    }
   }
 
   emitByte(OP_POP); // Class
@@ -2222,6 +2321,8 @@ ObjFunction* compile(const char* source, ObjModule* module, bool printResult) {
   Compiler compiler;
   initCompiler(&compiler, TYPE_SCRIPT);
 
+  initializeCoreTypes(&compiler.types);
+
   advance();
 
 # if DEBUG_PRINT_TOKENS == 1
@@ -2252,7 +2353,7 @@ ObjFunction* compile(const char* source, ObjModule* module, bool printResult) {
     }
     declaration();
 
-    if (parser.previous.type != TOKEN_DEDENT) {
+    if (parser.previous.type != TOKEN_DEDENT && parser.previous.type != TOKEN_LINE) {
       if (!match(TOKEN_SEMICOLON) && !matchLine()) {
         matchLine();
         expect(TOKEN_EOF, "Expecting end of file");

@@ -1,5 +1,4 @@
-#ifndef flicker_random_h
-#define flicker_random_h
+#pragma once
 
 // This file implements the Shishua PRNG, created by espadrine.
 // (https://github.com/espadrine/shishua)
@@ -177,5 +176,3 @@ static inline void prngGen(PrngState* SHISHUA_RESTRICT state, uint8_t* SHISHUA_R
 #undef SHISHUA_RESTRICT
 
 void prngInit(PrngState* s, uint64_t seed[4]);
-
-#endif

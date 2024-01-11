@@ -1,8 +1,7 @@
-#ifndef flicker_core_h
-#define flicker_core_h
+#pragma once
 
+// #include "table.h"
 #include "vm.h"
 
+void initializeCoreTypes(TypeTable* types);
 void initializeCore(VM* vm);
-
-#endif

@@ -14,6 +14,7 @@
 #include "memory.h"
 #include "native.h"
 #include "shishua.h"
+#include "type.h"
 #include "utils.h"
 #include "value.h"
 
@@ -578,25 +579,25 @@ DEF_NATIVE(number_truncate) {
   RETURN_NUMBER(integer);
 }
 
-/////////////////////
-// Object          //
-/////////////////////
+//////////////////
+// Any          //
+//////////////////
 
-DEF_NATIVE(object_same) {
+DEF_NATIVE(any_same) {
   RETURN_BOOL(valuesEqual(args[1], args[2]));
 }
 
-DEF_NATIVE(object_not) { RETURN_FALSE(); }
+DEF_NATIVE(any_not) { RETURN_FALSE(); }
 
-DEF_NATIVE(object_equals) {
+DEF_NATIVE(any_equals) {
   RETURN_BOOL(valuesEqual(args[0], args[1]));
 }
 
-DEF_NATIVE(object_notEquals) {
+DEF_NATIVE(any_notEquals) {
   RETURN_BOOL(!valuesEqual(args[0], args[1]));
 }
 
-DEF_NATIVE(object_is) {
+DEF_NATIVE(any_is) {
   if (!IS_CLASS(args[1])) {
     ERROR("Right operand must be a class");
     return false;
@@ -613,13 +614,13 @@ DEF_NATIVE(object_is) {
   RETURN_BOOL(false);
 }
 
-DEF_NATIVE(object_toString) {
+DEF_NATIVE(any_toString) {
   Obj* obj = AS_OBJ(args[0]);
   ObjString* name = obj->cls->name;
   RETURN_OBJ(stringFormat("# instance", name));
 }
 
-DEF_NATIVE(object_type) { RETURN_OBJ(getClass(args[0])); }
+DEF_NATIVE(any_type) { RETURN_OBJ(getClass(args[0])); }
 
 /////////////////////
 // Random          //
@@ -1076,7 +1077,8 @@ DEF_NATIVE(sys_gc) {
 }
 
 DEF_NATIVE(sys_printStack) {
-  printStack(&vm);
+  // -1 to prevent 'Sys' from showing up.
+  printStack(&vm, vm.stackTop - 1);
   RETURN_NONE();
 }
 
@@ -1226,27 +1228,27 @@ void initializeCore(VM* vm) {
   tableSet(&vm->modules, vm->coreString, OBJ_VAL(coreModule), true);
   popRoot();
 
-  vm->objectClass = defineClass(vm, coreModule, "Object");
-  NATIVE(vm->objectClass, "not()", object_not);
-  NATIVE(vm->objectClass, "==(1)", object_equals);
-  NATIVE(vm->objectClass, "!=(1)", object_notEquals);
-  NATIVE(vm->objectClass, "is(1)", object_is);
-  NATIVE(vm->objectClass, "toString()", object_toString);
-  NATIVE(vm->objectClass, "type", object_type);
+  vm->anyClass = defineClass(vm, coreModule, "Any");
+  NATIVE(vm->anyClass, "not()", any_not);
+  NATIVE(vm->anyClass, "==(1)", any_equals);
+  NATIVE(vm->anyClass, "!=(1)", any_notEquals);
+  NATIVE(vm->anyClass, "is(1)", any_is);
+  NATIVE(vm->anyClass, "toString()", any_toString);
+  NATIVE(vm->anyClass, "type", any_type);
 
   vm->classClass = defineClass(vm, coreModule, "Class");
-  bindSuperclass(vm->classClass, vm->objectClass);
+  bindSuperclass(vm->classClass, vm->anyClass);
   NATIVE(vm->classClass, "name", class_name);
   NATIVE(vm->classClass, "supertype", class_supertype);
   NATIVE(vm->classClass, "toString()", class_toString);
 
-  ObjClass* objectMetaclass = defineClass(vm, coreModule, "Object metaclass");
+  ObjClass* anyMetaclass = defineClass(vm, coreModule, "Any metaclass");
 
-  vm->objectClass->obj.cls = objectMetaclass;
-  objectMetaclass->obj.cls = vm->classClass;
+  vm->anyClass->obj.cls = anyMetaclass;
+  anyMetaclass->obj.cls = vm->classClass;
   vm->classClass->obj.cls = vm->classClass;
 
-  NATIVE(vm->objectClass->obj.cls, "same(2)", object_same);
+  NATIVE(vm->anyClass->obj.cls, "same(2)", any_same);
 
   InterpretResult coreResult = interpret(coreSource, "core", false);
   if (coreResult != INTERPRET_OK) {
@@ -1446,4 +1448,13 @@ void initializeCore(VM* vm) {
   for (Obj* obj = vm->objects; obj != NULL; obj = obj->next) {
     if (obj->type == OBJ_STRING) obj->cls = vm->stringClass;
   }
+}
+
+void initializeCoreTypes(TypeTable* types) {
+  printf("Initializing core types\n");
+
+  Type* rangeType = (Type*)reallocate(NULL, 0, sizeof(Type));
+  // initTable(&rangeType->methods);
+  
+  typeTableAdd(types, rangeType);
 }

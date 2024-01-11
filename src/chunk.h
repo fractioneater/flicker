@@ -1,5 +1,4 @@
-#ifndef flicker_chunk_h
-#define flicker_chunk_h
+#pragma once
 
 #include "common.h"
 #include "value.h"
@@ -117,5 +116,3 @@ void initChunk(Chunk* chunk);
 void freeChunk(Chunk* chunk);
 void writeChunk(Chunk* chunk, uint8_t byte, int line);
 int addConstant(Chunk* chunk, Value value);
-
-#endif

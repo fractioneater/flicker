@@ -36,7 +36,7 @@ void initVM() {
   vm.coreString = NULL;
   vm.coreString = copyStringLength("core", 4);
 
-# if DEBUG_REMOVE_CORE
+# if DEBUG_DISABLE_CORE
   vm.coreInitialized = true;
 # else
   vm.coreInitialized = false;
@@ -412,12 +412,12 @@ static InterpretResult run() {
   for (;;) {
 #   if DEBUG_TRACE_EXECUTION == 2
     printf("        ");
-    printStack();
+    printStack(&vm, vm.stackTop);
     disassembleInstruction(&frame->closure->function->chunk, (int)(ip - frame->closure->function->chunk.code));
 #   elif DEBUG_TRACE_EXECUTION == 1
     if (vm.coreInitialized) {
       printf("        ");
-      printStack(&vm);
+      printStack(&vm, vm.stackTop);
       disassembleInstruction(&frame->closure->function->chunk, (int)(ip - frame->closure->function->chunk.code));
     }
 #   endif

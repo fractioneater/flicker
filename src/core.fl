@@ -291,9 +291,8 @@ class StringCodePointSequence < Sequence
 
 class List < Sequence
   +(other)
-    val result = this[0..-1]
-    each element in other
-      result.add(element)
+    var result = this[0..-1]
+    result.addAll(other)
     return result
 
   *(count)
@@ -320,6 +319,8 @@ class List < Sequence
     each item in this
       if predicate(item) do result.add(item)
     return result
+  
+  sum() = this.reduce { |acc, item| acc + item }
 
   sort()
     this.sort { |low, high| low <= high }
@@ -335,8 +336,6 @@ class List < Sequence
       this.quicksort(low, p - 1, comparer)
       this.quicksort(p + 1, high, comparer)
   
-  sum() = this.reduce { |acc, item| acc + item }
-
   partition(low, high, comparer)
     val pivot = this[high]
     var i = low - 1
@@ -386,7 +385,7 @@ class MapValueSequence < Sequence
   iterate(n) = this.map.iterate(n)
   iteratorValue(iterator) = this.map.valueIteratorValue(iterator)
 
-class Range < Sequence []
+class Range < Sequence
 class Tuple < Sequence
   init()
     error "Tuple class is not directly callable"

@@ -1,5 +1,4 @@
-#ifndef flicker_vm_h
-#define flicker_vm_h
+#pragma once
 
 #include "object.h"
 #include "table.h"
@@ -17,7 +16,7 @@ typedef struct {
 } CallFrame;
 
 typedef struct {
-  ObjClass* objectClass;
+  ObjClass* anyClass;
   ObjClass* classClass;
   ObjClass* boolClass;
   ObjClass* boundMethodClass;
@@ -104,5 +103,3 @@ static inline void popRoot() {
   ASSERT(vm.rootCount > 0, "No roots to release");
   vm.rootCount--;
 }
-
-#endif

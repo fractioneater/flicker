@@ -1,5 +1,4 @@
-#ifndef flicker_common_h
-#define flicker_common_h
+#pragma once
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -63,7 +62,7 @@
 // CURRENT MAINTENANCE FLAGS
 // These will be removed after I know the new change works.
 
-// There aren't any at the moment.
+#define STATIC_TYPING() 1
 
 // DEBUG FLAGS
 
@@ -90,7 +89,7 @@
 #define DEBUG_LOG_GC 0
 
 // Prevents the VM from initializing the core library. (Why would you do this?)
-#define DEBUG_REMOVE_CORE 0
+#define DEBUG_DISABLE_CORE 0
 
 // COMPILER AND VM VALUES
 
@@ -122,4 +121,3 @@
 #  define ASSERT(condition, message) do {} while (false)
 
 #endif // DEBUG_ENABLE_ASSERTIONS
-#endif // flicker_common_h

@@ -1,5 +1,4 @@
-#ifndef flicker_utils_h
-#define flicker_utils_h
+#pragma once
 
 #include "object.h"
 #include "value.h"
@@ -15,7 +14,7 @@
   void lower##ArrayClear(name##Array* array);                      \
   void lower##ArrayFill(name##Array* array, type data, int count); \
   void lower##ArrayWrite(name##Array* array, type data);           \
-  void lower##ArrayFree(name##Array* array)
+  void lower##ArrayFree(name##Array* array);
 
 #define DEFINE_ARRAY(name, lower, type)                                \
   void lower##ArrayInit(name##Array* array) {                          \
@@ -46,8 +45,8 @@
     lower##ArrayInit(array);                                           \
   }
 
-DECLARE_ARRAY(Byte, byte, uint8_t);
-DECLARE_ARRAY(Int, int, int);
+DECLARE_ARRAY(Byte, byte, uint8_t)
+DECLARE_ARRAY(Int, int, int)
 
 char* simplifyPath(const char* path);
 
@@ -55,5 +54,3 @@ int utf8EncodeNumBytes(int value);
 int utf8Encode(int value, uint8_t* bytes);
 int utf8DecodeNumBytes(uint8_t byte);
 int utf8Decode(const uint8_t* bytes, uint32_t length);
-
-#endif
