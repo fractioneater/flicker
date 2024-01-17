@@ -33,6 +33,9 @@ typedef struct {
   // Print the value returned by the code.
   bool printResult;
 
+  // A hash table of all the types the compiler uses.
+  TypeTable types;
+
   // If an expression was parsed most recently, and what type it had.
   bool onExpression;
   Type* expressionType;
@@ -171,9 +174,6 @@ typedef struct Compiler {
   // The function being compiled.
   ObjFunction* function;
   FunctionType type;
-
-  // A hash table of all the types the compiler uses.
-  TypeTable types;
 
   // The local variables in scope.
   Local locals[UINT8_COUNT];
@@ -724,7 +724,7 @@ static Type* parameterType() {
   size_t length = parser.previous.length;
   // TODO: See changes.md
   if (match(TOKEN_QUESTION)) length++;
-  Type* type = typeTableGet(&current->types, copyStringLength(start, length));
+  Type* type = typeTableGet(&parser.types, copyStringLength(start, length));
   if (type == NULL) error("Type does not exist");
   return type;
 }
@@ -757,11 +757,13 @@ static void finishParameterList(Signature* signature) {
   } while (match(TOKEN_COMMA));
 
 # if STATIC_TYPING()
-  signature->args = ALLOCATE(Parameter, signature->arity);
-  for (int i = 0; i < signature->arity; i++) {
-    Parameter* parameter = signature->args + i;
-    parameter->type = types[i];
-    parameter->storeProperty = asProperty[i];
+  signature->args = NULL;
+  if (signature->arity > 0) {
+    signature->args = ALLOCATE(Parameter, signature->arity);
+    for (int i = 0; i < signature->arity; i++) {
+      signature->args[i].type = types[i];
+      signature->args[i].storeProperty = asProperty[i];
+    }
   }
 # endif
 }
@@ -813,9 +815,7 @@ static inline void callSignature(int argCount, Signature* signature) {
 
 void binarySignature(Signature* signature) {
   signature->arity = 1;
-# if STATIC_TYPING()
-  signature->args = ALLOCATE(Parameter, 1);
-# else
+# if !STATIC_TYPING()
   signature->asProperty = NULL;
 # endif
 
@@ -831,12 +831,14 @@ void binarySignature(Signature* signature) {
 
 void unarySignature(Signature* signature) {
   signature->arity = 0;
+  signature->args = NULL;
   expect(TOKEN_LEFT_PAREN, "Expecting '(' after method name");
   expect(TOKEN_RIGHT_PAREN, "Expecting ')' after opening parenthesis");
 }
 
 void mixedSignature(Signature* signature) {
   signature->arity = 0;
+  signature->args = NULL;
 
   if (match(TOKEN_LEFT_PAREN)) {
 #   if STATIC_TYPING()
@@ -865,6 +867,7 @@ void namedSignature(Signature* signature) {
 
 void attributeSignature(Signature* signature) {
   signature->arity = -1;
+  signature->args = NULL;
 }
 
 static Token syntheticToken(const char* text) {
@@ -1582,7 +1585,7 @@ static void method() {
 
 # if STATIC_TYPING()
   if (signature.args != NULL) {
-    for (int i = 0; i < current->function->arity; i++) {
+    for (int i = 0; i < signature.arity; i++) {
       if (signature.args[i].storeProperty) {
         if (isStatic) {
           error("Can only store fields through non-static methods");
@@ -1642,6 +1645,9 @@ static void method() {
   } else {
     emitSignatureArg(OP_METHOD_INSTANCE + isStatic, &signature);
   }
+
+  // TODO: When do I need to do this?
+  FREE_ARRAY(Parameter, signature.args, signature.arity);
 }
 
 static void classDeclaration() {
@@ -1658,7 +1664,7 @@ static void classDeclaration() {
       error("A class can't inherit from itself");
     }
   } else {
-    emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyString("Any")));
+    emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyString("Object")));
   }
 
   emitVariableArg(OP_CLASS, nameConstant);
@@ -2314,14 +2320,16 @@ ObjFunction* compile(const char* source, ObjModule* module, bool printResult) {
   parser.hadError = false;
   parser.panicMode = false;
   parser.onExpression = false;
+  parser.expressionType = NULL;
 
   parser.ignoreDedents = 0;
+
+  initTable((Table*)&parser.types);
+  initializeCoreTypes(&parser.types);
 
   initLexer(source);
   Compiler compiler;
   initCompiler(&compiler, TYPE_SCRIPT);
-
-  initializeCoreTypes(&compiler.types);
 
   advance();
 
@@ -2367,6 +2375,7 @@ ObjFunction* compile(const char* source, ObjModule* module, bool printResult) {
   emitByte(OP_END_MODULE);
 
   freeLexer();
+  freeTypeTable(&parser.types);
   ObjFunction* function = endCompiler();
   return parser.hadError ? NULL : function;
 }

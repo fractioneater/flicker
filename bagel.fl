@@ -2,4 +2,6 @@
 # Sadly, there are no bagels to be found in this file.
 
 class Test
-  method(arg: Number) = 5
+  method(arg: Range) = 5
+
+print Test().method(3)

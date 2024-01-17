@@ -34,7 +34,7 @@ class Sequence
       if not result do return False
     return True
 
-  any(function)
+  object(function)
     var result = False
     each element in this
       result = function(element)

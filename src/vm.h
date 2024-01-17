@@ -16,7 +16,7 @@ typedef struct {
 } CallFrame;
 
 typedef struct {
-  ObjClass* anyClass;
+  ObjClass* objectClass;
   ObjClass* classClass;
   ObjClass* boolClass;
   ObjClass* boundMethodClass;
