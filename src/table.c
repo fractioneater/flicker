@@ -5,9 +5,12 @@
 
 #include "memory.h"
 #include "object.h"
-#include "type.h"
 #include "value.h"
 #include "vm.h"
+
+#if STATIC_TYPING()
+#  include "type.h"
+#endif
 
 #define TABLE_MAX_LOAD 0.75
 
@@ -17,10 +20,11 @@ void initTable(Table* table) {
   table->entries = NULL;
 }
 
-void freeTable(Table* table) {
-  FREE_ARRAY(Entry, table->entries, table->capacity);
-  initTable(table);
-}
+////////////////////////
+// TypeTable          //
+////////////////////////
+
+#if STATIC_TYPING()
 
 void freeTypeTable(TypeTable* table) {
   for (int i = 0; i < table->capacity; i++) {
@@ -34,6 +38,168 @@ void freeTypeTable(TypeTable* table) {
 
   FREE_ARRAY(TypePtr, table->entries, table->capacity);
   initTable((Table*)table);
+}
+
+static TypePtr* findType(TypePtr* entries, int capacity, ObjString* key) {
+  uint32_t index = key->hash & (capacity - 1);
+  TypePtr* tombstone = NULL;
+
+  for (;;) {
+    TypePtr* entry = entries + index;
+    if (entry->type == NULL) {
+      if (entry->isTombstone == false) {
+        // Empty entry.
+        return tombstone != NULL ? tombstone : entry;
+      } else {
+        // Tombstone.
+        if (tombstone == NULL) tombstone = entry;
+      }
+    } else if (entry->type->name == key) {
+      // Found it!
+      return entry;
+    }
+
+    index = (index + 1) & (capacity - 1);
+  }
+}
+
+Type* typeTableGet(TypeTable* table, ObjString* key) {
+  ASSERT(table != NULL, "TypeTable cannot be NULL");
+
+  if (table->count == 0) return NULL;
+
+  TypePtr* entry = findType(table->entries, table->capacity, key);
+  if (entry->type == NULL) return NULL;
+
+  return entry->type;
+}
+
+static void adjustTypeTableCapacity(TypeTable* table, int capacity) {
+  TypePtr* entries = ALLOCATE(TypePtr, capacity);
+  for (int i = 0; i < capacity; i++) {
+    entries[i].type = NULL;
+    entries[i].isTombstone = false;
+  }
+
+  table->count = 0;
+  for (int i = 0; i < table->capacity; i++) {
+    Type* entry = table->entries[i].type;
+    if (entry == NULL) continue;
+
+    TypePtr* dest = findType(entries, capacity, entry->name);
+    dest->type = entry;
+    table->count++;
+  }
+
+  FREE_ARRAY(TypePtr, table->entries, table->capacity);
+  table->entries = entries;
+  table->capacity = capacity;
+}
+
+void typeTableAdd(TypeTable* table, Type* type) {
+  ASSERT(table != NULL, "Table cannot be NULL");
+
+  if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
+    int capacity = GROW_CAPACITY(table->capacity);
+    adjustTypeTableCapacity(table, capacity);
+  }
+
+  ASSERT(table->entries != NULL, "Table entries can't be NULL");
+
+  TypePtr* entry = findType(table->entries, table->capacity, type->name);
+  if (entry->type == NULL && entry->isTombstone == false) table->count++;
+
+  entry->type = type;
+  entry->isTombstone = false;
+}
+
+#endif
+
+//////////////////////////
+// MethodTable          //
+//////////////////////////
+
+#if STATIC_TYPING()
+
+void freeMethodTable(MethodTable* table) {
+  FREE_ARRAY(Method, table->entries, table->capacity);
+  initTable((Table*)table);
+}
+
+static Method* findMethod(Method* entries, int capacity, ObjString* key) {
+  uint32_t index = key->hash & (capacity - 1);
+  Method* tombstone;
+
+  for (;;) {
+    Method* entry = entries + index;
+    if (entry->name == NULL) {
+      if (entry->isTombstone == false) return tombstone != NULL ? tombstone : entry; // Empty entry.
+      else if (tombstone == NULL) tombstone = entry; // Tombstone.
+    } else if (entry->name == key) return entry;
+
+    index = (index + 1) & (capacity - 1);
+  }
+}
+
+bool methodTableGet(MethodTable* table, ObjString* name, Method* out) {
+  ASSERT(table != NULL, "Method table shouldn't be NULL");
+
+  if (table->count == 0) return false;
+
+  Method* entry = findMethod(table->entries, table->capacity, name);
+  if (entry->name == NULL) return false;
+
+  out = entry;
+  return true;
+}
+
+static void adjustMethodTableCapacity(MethodTable* table, int capacity) {
+  Method* entries = ALLOCATE(Method, capacity);
+  for (int i = 0; i < capacity; i++) {
+    entries[i].name = NULL;
+    entries[i].isTombstone = false;
+  }
+
+  table->count = 0;
+  for (int i = 0; i < table->capacity; i++) {
+    Method* entry = &table->entries[i];
+    if (entry->name == NULL) continue;
+
+    Method* dest = findMethod(entries, capacity, entry->name);
+    *dest = *entry;
+    table->count++;
+  }
+
+  FREE_ARRAY(Method, table->entries, table->capacity);
+  table->entries = entries;
+  table->capacity = capacity;
+}
+
+void methodTableAdd(MethodTable* table, Method method) {
+  ASSERT(table != NULL, "Table cannot be NULL");
+
+  if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
+    int capacity = GROW_CAPACITY(table->capacity);
+    adjustMethodTableCapacity(table, capacity);
+  }
+
+  Method* entry = findMethod(table->entries, table->capacity, method.name);
+  if (entry->name == NULL && entry->isTombstone == false) table->count++;
+
+  entry = &method;
+  entry->isTombstone = false;
+}
+
+#endif
+
+////////////////////
+// Table          //
+////////////////////
+
+
+void freeTable(Table* table) {
+  FREE_ARRAY(Entry, table->entries, table->capacity);
+  initTable(table);
 }
 
 static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
@@ -59,33 +225,6 @@ static Entry* findEntry(Entry* entries, int capacity, ObjString* key) {
   }
 }
 
-static TypePtr* findType(TypePtr* entries, int capacity, ObjString* key) {
-  uint32_t index = key->hash & (capacity - 1);
-  TypePtr* tombstone;
-  bool foundTombstone = false;
-
-  for (;;) {
-    TypePtr* entry = entries + index;
-    if (entry->type == NULL) {
-      if (entry->isTombstone == false) {
-        // Empty entry.
-        return foundTombstone ? tombstone : entry;
-      } else {
-        // Tombstone.
-        if (tombstone->type != NULL) {
-          tombstone = entry;
-          foundTombstone = true;
-        }
-      }
-    } else if (entry->type->name == key) {
-      // Found it!
-      return entry;
-    }
-
-    index = (index + 1) & (capacity - 1);
-  }
-}
-
 bool tableGet(Table* table, ObjString* key, Value* value) {
   ASSERT(table != NULL, "Table cannot be NULL");
 
@@ -96,17 +235,6 @@ bool tableGet(Table* table, ObjString* key, Value* value) {
 
   *value = entry->value;
   return true;
-}
-
-Type* typeTableGet(TypeTable* table, ObjString* key) {
-  ASSERT(table != NULL, "TypeTable cannot be NULL");
-
-  if (table->count == 0) return NULL;
-
-  TypePtr* entry = findType(table->entries, table->capacity, key);
-  if (entry->type == NULL) return NULL;
-
-  return entry->type;
 }
 
 bool tableContains(Table* table, ObjString* key) {
@@ -145,28 +273,6 @@ static void adjustCapacity(Table* table, int capacity) {
   table->capacity = capacity;
 }
 
-static void adjustTypeTableCapacity(TypeTable* table, int capacity) {
-  TypePtr* entries = ALLOCATE(TypePtr, capacity);
-  for (int i = 0; i < capacity; i++) {
-    entries[i].type = NULL;
-    entries[i].isTombstone = false;
-  }
-
-  table->count = 0;
-  for (int i = 0; i < table->capacity; i++) {
-    Type* entry = table->entries[i].type;
-    if (entry == NULL) continue;
-
-    TypePtr* dest = findType(entries, capacity, entry->name);
-    dest->type = entry;
-    table->count++;
-  }
-
-  FREE_ARRAY(TypePtr, table->entries, table->capacity);
-  table->entries = entries;
-  table->capacity = capacity;
-}
-
 bool tableSet(Table* table, ObjString* key, Value value, bool isMutable) {
   ASSERT(table != NULL, "Table cannot be NULL");
 
@@ -187,23 +293,6 @@ bool tableSet(Table* table, ObjString* key, Value value, bool isMutable) {
   entry->value = value;
   entry->isMutable = isMutable;
   return isNewKey;
-}
-
-void typeTableAdd(TypeTable* table, Type* type) {
-  ASSERT(table != NULL, "Table cannot be NULL");
-
-  if (table->count + 1 > table->capacity * TABLE_MAX_LOAD) {
-    int capacity = GROW_CAPACITY(table->capacity);
-    adjustTypeTableCapacity(table, capacity);
-  }
-
-  ASSERT(table->entries != NULL, "Table entries can't be NULL");
-
-  TypePtr* entry = findType(table->entries, table->capacity, type->name);
-  if (entry->type == NULL && entry->isTombstone == false) table->count++;
-
-  entry->type = type;
-  entry->isTombstone = false;
 }
 
 bool tableSetMutable(Table* table, ObjString* key, Value value, bool isMutable) {

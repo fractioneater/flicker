@@ -33,12 +33,17 @@ typedef struct {
   // Print the value returned by the code.
   bool printResult;
 
+# if STATIC_TYPING()
   // A hash table of all the types the compiler uses.
   TypeTable types;
+# endif
 
   // If an expression was parsed most recently, and what type it had.
+  // TODO: Use compiler.onExpression, it works better with scoping.
   bool onExpression;
+# if STATIC_TYPING()
   Type* expressionType;
+# endif
 
   // If a compiler error has appeared.
   bool hadError;
@@ -69,31 +74,6 @@ typedef enum {
   BP_PRIMARY
 } BindingPower;
 
-#if STATIC_TYPING()
-
-typedef struct {
-  Type* type;
-  bool storeProperty;
-} Parameter;
-
-typedef struct {
-  const char* name;
-  int length;
-  int arity;
-  Parameter* args;
-} Signature;
-
-#else
-
-typedef struct {
-  const char* name;
-  int length;
-  int arity;
-  bool* asProperty;
-} Signature;
-
-#endif
-
 typedef void (*ParseFn)(bool canAssign);
 
 typedef void (*SignatureFn)(Signature* signature);
@@ -113,6 +93,11 @@ typedef struct {
   // The scope depth that this variable was declared in.
   int depth;
 
+# if STATIC_TYPING()
+  // The type of the variable.
+  Type* type;
+# endif
+
   // Whether or not this local can be reassigned.
   bool isMutable;
 
@@ -126,6 +111,11 @@ typedef struct {
 
   // If the upvalue is capturing a local variable from the enclosing function.
   bool isLocal;
+
+# if STATIC_TYPING()
+  // The type of the upvalue.
+  Type* type;
+# endif
 
   // Whether or not the upvalue can be reassigned.
   bool isMutable;
@@ -195,6 +185,9 @@ typedef struct Compiler {
 
 typedef struct ClassCompiler {
   bool hasInitializer;
+# if STATIC_TYPING()
+  Type* type;
+# endif
   struct ClassCompiler* enclosing;
 } ClassCompiler;
 
@@ -467,6 +460,9 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   if (type != TYPE_FUNCTION) {
     local->name.start = "this";
     local->name.length = 4;
+#   if STATIC_TYPING()
+    local->type = currentClass->type;
+#   endif
   } else {
     local->name.start = "";
     local->name.length = 0;
@@ -534,12 +530,20 @@ static void popScope() {
   current->scopeDepth--;
 }
 
+#if STATIC_TYPING()
+static Type* expression();
+#else
 static void expression();
+#endif
 static void statement();
 static void declaration();
 static void lambda(bool canAssign);
 static ParseRule* getRule(TokenType type);
+#if STATIC_TYPING()
+static Type* expressionBp(BindingPower bp);
+#else
 static void expressionBp(BindingPower bp);
+#endif
 
 static int identifierConstant(Token* name) {
   return makeConstant(OBJ_VAL(copyStringLength(name->start, name->length)));
@@ -581,6 +585,9 @@ static int addUpvalue(Compiler* compiler, uint8_t index, bool isLocal, bool isMu
 
   compiler->upvalues[upvalueCount].isLocal = isLocal;
   compiler->upvalues[upvalueCount].index = index;
+# if STATIC_TYPING()
+  compiler->upvalues[upvalueCount].type = NULL;
+# endif
   compiler->upvalues[upvalueCount].isMutable = isMutable;
   return compiler->function->upvalueCount++;
 }
@@ -658,6 +665,13 @@ static void defineVariable(int global, bool isMutable) {
   emitVariableArg(OP_DEFINE_IMMUTABLE_GLOBAL - isMutable, global);
 }
 
+#if STATIC_TYPING()
+static void setType(ObjString* name) {
+  parser.expressionType = typeTableGet(&parser.types, name);
+  if (parser.expressionType == NULL) error("Type does not exist");
+}
+#endif
+
 static void signatureParameterList(char name[MAX_METHOD_SIGNATURE], int* length, int arity) {
   name[(*length)++] = '(';
 
@@ -697,7 +711,7 @@ static Signature signatureFromToken(bool isAttribute) {
   signature.arity = isAttribute ? -1 : 0;
 
 # if STATIC_TYPING()
-  signature.args = NULL;
+  signature.parameters = NULL;
 # else
   signature.asProperty = NULL;
 # endif
@@ -716,6 +730,7 @@ static void validateParameterCount(const char* type, int num, bool isArg) {
   }
 }
 
+#if STATIC_TYPING()
 static Type* parameterType() {
   if (!check(TOKEN_COLON)) return NULL; //- REMOVE
   expect(TOKEN_COLON, "Expecting a type annotation");
@@ -728,6 +743,7 @@ static Type* parameterType() {
   if (type == NULL) error("Type does not exist");
   return type;
 }
+#endif
 
 static void finishParameterList(Signature* signature) {
 # if STATIC_TYPING()
@@ -757,12 +773,12 @@ static void finishParameterList(Signature* signature) {
   } while (match(TOKEN_COMMA));
 
 # if STATIC_TYPING()
-  signature->args = NULL;
+  signature->parameters = NULL;
   if (signature->arity > 0) {
-    signature->args = ALLOCATE(Parameter, signature->arity);
+    signature->parameters = ALLOCATE(Parameter, signature->arity);
     for (int i = 0; i < signature->arity; i++) {
-      signature->args[i].type = types[i];
-      signature->args[i].storeProperty = asProperty[i];
+      signature->parameters[i].type = types[i];
+      signature->parameters[i].storeProperty = asProperty[i];
     }
   }
 # endif
@@ -771,14 +787,14 @@ static void finishParameterList(Signature* signature) {
 #if STATIC_TYPING()
 static void singleParameter(Signature* signature) {
   signature->arity = 1;
-  signature->args = ALLOCATE(Parameter, 1);
+  signature->parameters = ALLOCATE(Parameter, 1);
 
-  signature->args[0].storeProperty = match(TOKEN_PLUS);
+  signature->parameters[0].storeProperty = match(TOKEN_PLUS);
   int constant = parseVariable("Expecting a parameter name", true);
   defineVariable(constant, true);
 
   Type* type = parameterType();
-  if (type != NULL) signature->args[0].type = type;
+  if (type != NULL) signature->parameters[0].type = type;
 }
 #endif
 
@@ -831,14 +847,18 @@ void binarySignature(Signature* signature) {
 
 void unarySignature(Signature* signature) {
   signature->arity = 0;
-  signature->args = NULL;
+# if STATIC_TYPING()
+  signature->parameters = NULL;
+# endif
   expect(TOKEN_LEFT_PAREN, "Expecting '(' after method name");
   expect(TOKEN_RIGHT_PAREN, "Expecting ')' after opening parenthesis");
 }
 
 void mixedSignature(Signature* signature) {
   signature->arity = 0;
-  signature->args = NULL;
+# if STATIC_TYPING()
+  signature->parameters = NULL;
+# endif
 
   if (match(TOKEN_LEFT_PAREN)) {
 #   if STATIC_TYPING()
@@ -867,7 +887,9 @@ void namedSignature(Signature* signature) {
 
 void attributeSignature(Signature* signature) {
   signature->arity = -1;
-  signature->args = NULL;
+# if STATIC_TYPING()
+  signature->parameters = NULL;
+# endif
 }
 
 static Token syntheticToken(const char* text) {
@@ -901,28 +923,27 @@ static void namedVariable(Token name, bool canAssign) {
   if (canAssign && match(TOKEN_EQ)) {
     if (matchLine() && match(TOKEN_INDENT)) parser.ignoreDedents++;
 
-    // bool modifier = false;
-    // if (match(TOKEN_GT)) {
-    //   if (getOp == OP_GET_GLOBAL) emitVariableArg(getOp, arg);
-    //   else emitBytes(getOp, (uint8_t)arg);
-    //   modifier = true;
-    // }
-
-    // if (modifier) {
-    //   advance();
-    //   ParseFn infixRule = getRule(parser.previous.type)->infix;
-    //   if (infixRule == NULL) {
-    //     error("Expecting an infix operator to modify variable");
-    //   } else {
-    //     infixRule(false);
-    //   }
-    // } else ...
+#   if STATIC_TYPING()
+    Type* expressionType = expression();
+#   else
     expression();
+#   endif
 
-    if (setOp == OP_SET_GLOBAL) {
-      emitVariableArg(setOp, arg);
-    } else {
-      emitBytes(setOp, (uint8_t)arg);
+    switch (setOp) {
+      case OP_SET_LOCAL:
+#       if STATIC_TYPING()
+        current->locals[arg].type = expressionType;
+#       endif
+        emitBytes(setOp, (uint8_t)arg);
+        break;
+      case OP_SET_UPVALUE:
+#       if STATIC_TYPING()
+        current->upvalues[arg].type = expressionType;
+#       endif
+        emitBytes(setOp, (uint8_t)arg);
+        break;
+      case OP_SET_GLOBAL:
+        emitVariableArg(setOp, arg);
     }
   } else {
     if (getOp == OP_GET_GLOBAL) emitVariableArg(getOp, arg);
@@ -935,7 +956,12 @@ static void variable(bool canAssign) {
 }
 
 static void call(bool canAssign) {
-  Signature signature = { NULL, 0, 0 };
+# if STATIC_TYPING()
+  Signature signature = { NULL, 0, 0, NULL, NULL };
+# else
+  Signature signature = { NULL, 0, 0, NULL };
+# endif
+
   if (parser.previous.type == TOKEN_LEFT_PAREN) {
     finishArgumentList(&signature, "Function", TOKEN_RIGHT_PAREN);
     if (match(TOKEN_LEFT_BRACE)) {
@@ -947,9 +973,16 @@ static void call(bool canAssign) {
     signature.arity++;
   }
   emitByte(OP_CALL_0 + signature.arity);
+  // TODO: I don't have the name to use here.
+  // TODO TODO TODO: Signatures for functions.
+# if STATIC_TYPING()
+  parser.expressionType = signature.returnType;
+# endif
 }
 
 static void callable(bool canAssign) {
+  // TODO: Compile-time checking for callables
+  
   advance();
   ParseRule* rule = getRule(parser.previous.type);
   if (rule->signatureFn == NULL) {
@@ -973,6 +1006,11 @@ static void callable(bool canAssign) {
     signature.arity = -1;
   }
 
+# if STATIC_TYPING()
+  // TODO: Functions...
+  setType(copyStringLength("Function", 8));
+# endif
+
   emitSignatureArg(OP_BIND_METHOD, &signature);
 }
 
@@ -987,6 +1025,9 @@ static void dot(bool canAssign) {
 
     expression();
     emitVariableArg(OP_SET_PROPERTY, name);
+#   if STATIC_TYPING()
+    setType(copyStringLength("Unit", 4));
+#   endif
   } else if (match(TOKEN_LEFT_PAREN) || match(TOKEN_LEFT_BRACE)) {
     if (parser.previous.type == TOKEN_LEFT_BRACE) {
       lambda(false);
@@ -999,9 +1040,36 @@ static void dot(bool canAssign) {
       }
     }
 
+#   if STATIC_TYPING()
+    if (parser.expressionType == NULL) {
+      error("Type does not implement method");
+      return;
+    }
+
+    Method signatures;
+    if (!methodTableGet(parser.expressionType->methods, copyStringLength(signature.name, 3), &signatures))
+      error("%s does not implement method '%.*s'", parser.expressionType->name->chars, signature.length, signature.name);
+
+    Signature newSignature;
+
+    if (signatures.isSingle) {
+      newSignature = *signatures.as.one;
+    } else {
+      getSignature(
+        signatures.as.list,
+        signature.arity,
+        signature.parameters,
+        &signature
+      );
+    }
+
+    parser.expressionType = newSignature.returnType;
+#   endif
+
     callSignature(signature.arity, &signature);
   } else {
     emitVariableArg(OP_GET_PROPERTY, name);
+    // TODO: I'll need to store all the properties' types. That'll be hard.
   }
 }
 
@@ -1013,6 +1081,9 @@ static void super_(bool canAssign) {
   Signature signature;
   uint8_t instruction;
   if (match(TOKEN_COLON_COLON)) {
+#   if STATIC_TYPING()
+    setType(copyStringLength("Function", 8));
+#   endif
     advance();
     ParseRule* rule = getRule(parser.previous.type);
     if (rule->signatureFn == NULL) {
@@ -1061,6 +1132,35 @@ static void super_(bool canAssign) {
 
     namedVariable(syntheticToken("super"), false);
     instruction = OP_SUPER_0 + signature.arity;
+
+#   if STATIC_TYPING()
+    if (parser.expressionType == NULL) {
+      error("Type is NULL");
+      return;
+    }
+
+    // TODO: Classes...
+    printf("=== GOOD (other place) ===\n"); //- REMOVE
+
+    Method signatures;
+    if (!methodTableGet(parser.expressionType->methods, copyStringLength(signature.name, 3), &signatures))
+      error("Type does not implement method");
+
+    Signature newSignature;
+
+    if (signatures.isSingle) {
+      newSignature = *signatures.as.one;
+    } else {
+      getSignature(
+        signatures.as.list,
+        signature.arity,
+        signature.parameters,
+        &signature
+      );
+    }
+
+    parser.expressionType = newSignature.returnType;
+#   endif
   }
 
   emitSignatureArg(instruction, &signature);
@@ -1076,22 +1176,56 @@ static void this_(bool canAssign) {
     return;
   }
 
-  namedVariable(parser.previous, false);
+  // TODO: Why don't I just make 'this' variable have the type of the class?
+  // Being tested by the commented out lines down there.
+  variable(false);
+// # if STATIC_TYPING()
+//   parser.expressionType = currentClass->type;
+// # endif
 }
 
 static void literal(bool canAssign) {
   switch (parser.previous.type) {
-    case TOKEN_FALSE: emitByte(OP_FALSE); break;
-    case TOKEN_NONE: emitByte(OP_NONE); break;
-    case TOKEN_TRUE: emitByte(OP_TRUE); break;
+    case TOKEN_TRUE:
+#     if STATIC_TYPING()
+      setType(copyStringLength("Bool", 4));
+#     endif
+      emitByte(OP_TRUE);
+      break;
+    case TOKEN_FALSE:
+#     if STATIC_TYPING()
+      setType(copyStringLength("Bool", 4));
+#     endif
+      emitByte(OP_FALSE);
+      break;
+    case TOKEN_NONE:
+#     if STATIC_TYPING()
+      setType(copyStringLength("Nothing?", 8));
+#     endif
+      emitByte(OP_NONE);
+      break;
     case TOKEN_NUMBER:
-    case TOKEN_STRING: emitConstant(parser.previous.value);
+#     if STATIC_TYPING()
+      setType(copyStringLength("Number", 6));
+#     endif
+      emitConstant(parser.previous.value);
+      break;
+    case TOKEN_STRING:
+#     if STATIC_TYPING()
+      setType(copyStringLength("String", 6));
+#     endif
+      emitConstant(parser.previous.value);
+      break;
     default: return; // Unreachable
   }
 }
 
 static void grouping(bool canAssign) {
+# if STATIC_TYPING()
+  parser.expressionType = expression();
+# else
   expression();
+# endif
   expect(TOKEN_RIGHT_PAREN, "Expecting ')' after expressions");
 }
 
@@ -1103,6 +1237,10 @@ static void or_(bool canAssign) {
   emitByte(OP_POP);
   expressionBp(BP_OR);
   patchJump(jump);
+
+# if STATIC_TYPING()
+  setType(copyStringLength("Object?", 7));
+# endif
 }
 
 static void and_(bool canAssign) {
@@ -1113,6 +1251,10 @@ static void and_(bool canAssign) {
   emitByte(OP_POP);
   expressionBp(BP_AND);
   patchJump(jump);
+
+# if STATIC_TYPING()
+  setType(copyStringLength("Object?", 7));
+# endif
 }
 
 static void if_(bool canAssign) {
@@ -1125,6 +1267,10 @@ static void if_(bool canAssign) {
   expression();
 
   patchJump(endJump);
+
+# if STATIC_TYPING()
+  setType(copyStringLength("Object?", 7));
+# endif
 }
 
 static void stringInterpolation(bool canAssign) {
@@ -1149,16 +1295,28 @@ static void stringInterpolation(bool canAssign) {
 
   emitConstant(OBJ_VAL(copyStringLength("", 0)));
   callMethod(1, "joinToString(1)", 15);
+
+# if STATIC_TYPING()
+  setType(copyStringLength("String", 6));
+# endif
 }
 
 static void collection(bool canAssign) {
   if (match(TOKEN_RIGHT_BRACKET)) {
-    emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyStringLength("List", 4)));
+    ObjString* listString = copyStringLength("List", 4);
+#   if STATIC_TYPING()
+    setType(listString);
+#   endif
+    emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(listString));
     emitByte(OP_CALL_0);
     return;
   } else if (match(TOKEN_RIGHT_ARROW)) {
     expect(TOKEN_RIGHT_BRACKET, "Expecting ']' to end empty map");
-    emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyStringLength("Map", 3)));
+    ObjString* mapString = copyStringLength("Map", 3);
+#   if STATIC_TYPING()
+    setType(mapString);
+#   endif
+    emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(mapString));
     emitByte(OP_CALL_0);
     return;
   }
@@ -1185,8 +1343,12 @@ static void collection(bool canAssign) {
   bool isMap = match(TOKEN_RIGHT_ARROW);
   bool first = true;
 
-  emitConstantArg(OP_GET_GLOBAL, isMap ? OBJ_VAL(copyStringLength("Map", 3))
-                                       : OBJ_VAL(copyStringLength("List", 4)));
+  ObjString* typeString = isMap ? copyStringLength("Map", 3)
+                                : copyStringLength("List", 4);
+# if STATIC_TYPING()
+  setType(typeString);
+# endif
+  emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(typeString));
   emitByte(OP_CALL_0);
 
   do {
@@ -1235,7 +1397,12 @@ static void collection(bool canAssign) {
 }
 
 static void subscript(bool canAssign) {
+# if STATIC_TYPING()
+  Signature signature = { "get", 3, 0, NULL, NULL };
+# else
   Signature signature = { "get", 3, 0, NULL };
+# endif
+
   finishArgumentList(&signature, "Method", TOKEN_RIGHT_BRACKET);
 
   if (canAssign && match(TOKEN_EQ)) {
@@ -1245,6 +1412,32 @@ static void subscript(bool canAssign) {
     validateParameterCount("Method", ++signature.arity, true);
     signature.name = "set";
   }
+
+# if STATIC_TYPING()
+  if (parser.expressionType == NULL) {
+    error("Type is NULL");
+    return;
+  }
+
+  Method signatures;
+  if (!methodTableGet(parser.expressionType->methods, copyStringLength(signature.name, 3), &signatures))
+    error("%s is not subscriptable", parser.expressionType->name->chars);
+
+  Signature newSignature;
+
+  if (signatures.isSingle) {
+    newSignature = *signatures.as.one;
+  } else {
+    getSignature(
+      signatures.as.list,
+      signature.arity,
+      signature.parameters,
+      &signature
+    );
+  }
+
+  parser.expressionType = newSignature.returnType;
+# endif
 
   callSignature(signature.arity, &signature);
 }
@@ -1281,7 +1474,11 @@ static void binary(bool canAssign) {
   //   return;
   // }
 
+# if STATIC_TYPING()
+  Signature signature = { rule->name, (int)strlen(rule->name), 1, NULL };
+# else
   Signature signature = { rule->name, (int)strlen(rule->name), 1 };
+# endif
 
   callSignature(1, &signature);
   if (negate) {
@@ -1390,12 +1587,20 @@ ParseRule rules[] = {
   /* TOKEN_NULL          */ UNUSED, // The compiler should never see a null token.
 };
 
+#if STATIC_TYPING()
+static Type* expressionBp(BindingPower bp) {
+#else
 static void expressionBp(BindingPower bp) {
+#endif
   advance();
   ParseFn prefixRule = getRule(parser.previous.type)->prefix;
   if (prefixRule == NULL) {
     error("Expecting an expression");
+#   if STATIC_TYPING()
+    return typeTableGet(&parser.types, copyStringLength("Nothing?", 8));
+#   else
     return;
+#   endif
   }
 
   bool canAssign = bp <= BP_ASSIGNMENT;
@@ -1411,11 +1616,21 @@ static void expressionBp(BindingPower bp) {
   if (canAssign && match(TOKEN_EQ)) {
     error("Invalid assignment target");
   }
+
+# if STATIC_TYPING()
+  Type* type = parser.expressionType;
+  setType(copyStringLength("Unit", 4));
+  return type;
+# endif
 }
 
 static inline ParseRule* getRule(TokenType type) { return &rules[type]; }
 
+#if STATIC_TYPING()
+static Type* expression() { return expressionBp(BP_ASSIGNMENT); }
+#else
 static void expression() { expressionBp(BP_ASSIGNMENT); }
+#endif
 
 // indentationBased is to help with this weird case:
 //
@@ -1547,6 +1762,10 @@ static void lambda(bool canAssign) {
   if ((parser.printResult && current->scopeDepth == 0) || current->type == TYPE_LAMBDA) {
     parser.onExpression = true;
   }
+
+# if STATIC_TYPING()
+  setType(copyStringLength("Function", 8));
+# endif
 }
 
 static void method() {
@@ -1584,9 +1803,9 @@ static void method() {
   current->function->arity = signature.arity;
 
 # if STATIC_TYPING()
-  if (signature.args != NULL) {
+  if (signature.parameters != NULL) {
     for (int i = 0; i < signature.arity; i++) {
-      if (signature.args[i].storeProperty) {
+      if (signature.parameters[i].storeProperty) {
         if (isStatic) {
           error("Can only store fields through non-static methods");
           break;
@@ -1646,8 +1865,10 @@ static void method() {
     emitSignatureArg(OP_METHOD_INSTANCE + isStatic, &signature);
   }
 
-  // TODO: When do I need to do this?
-  FREE_ARRAY(Parameter, signature.args, signature.arity);
+# if STATIC_TYPING()
+  // TODO: When do I need to free this?
+  FREE_ARRAY(Parameter, signature.parameters, signature.arity);
+# endif
 }
 
 static void classDeclaration() {
@@ -1671,6 +1892,9 @@ static void classDeclaration() {
   defineVariable(nameConstant, false);
 
   ClassCompiler classCompiler;
+# if STATIC_TYPING()
+  classCompiler.type = newType(&parser.types, copyStringLength(className.start, className.length));
+# endif
   classCompiler.hasInitializer = false;
   classCompiler.enclosing = currentClass;
   currentClass = &classCompiler;
@@ -2320,12 +2544,15 @@ ObjFunction* compile(const char* source, ObjModule* module, bool printResult) {
   parser.hadError = false;
   parser.panicMode = false;
   parser.onExpression = false;
-  parser.expressionType = NULL;
 
   parser.ignoreDedents = 0;
 
+# if STATIC_TYPING()
   initTable((Table*)&parser.types);
   initializeCoreTypes(&parser.types);
+
+  setType(copyStringLength("Unit", 4));
+# endif
 
   initLexer(source);
   Compiler compiler;
@@ -2375,7 +2602,9 @@ ObjFunction* compile(const char* source, ObjModule* module, bool printResult) {
   emitByte(OP_END_MODULE);
 
   freeLexer();
+# if STATIC_TYPING()
   freeTypeTable(&parser.types);
+# endif
   ObjFunction* function = endCompiler();
   return parser.hadError ? NULL : function;
 }

@@ -1,11 +1,16 @@
 #include "type.h"
 
+#if STATIC_TYPING()
+
+#include "compiler.h"
 #include "memory.h"
+#include "table.h"
 
 Type* newType(TypeTable* table, ObjString* name) {
   Type* type = (Type*)reallocate(NULL, 0, sizeof(Type));
   type->name = name;
-  type->methods = (MethodList){};
+  type->methods = (MethodTable*)reallocate(NULL, 0, sizeof(MethodTable));
+  initTable((Table*)type->methods);
   clearSupertypes(type);
   typeTableAdd(table, type);
   return type;
@@ -43,6 +48,31 @@ void addSupertype(Type* type, Type* supertype) {
 bool hasSupertype(Type* type, Type* match) {
   for (int i = 0; i < type->supertypeCount; i++) {
     if (type->supertypes[i]->name == match->name) return true;
+    // TODO: Recursion is probably not the best way to do this.
+    if (hasSupertype(type->supertypes[i], match)) return true;
   }
   return false;
 }
+
+static bool parameterListsMatch(int arity, Parameter* expected, Parameter* actual) {
+  for (int p = 0; p < arity; p++) {
+    if (actual[p].type == expected[p].type) continue;
+    if (!hasSupertype(actual[p].type, expected[p].type)) return false;
+  }
+  return true;
+}
+
+// TODO NEXT: Get this new type of signatures working in the compiler (methods only for now).
+
+bool getSignature(SignatureList* methods, int arity, Parameter* parameters, Signature* out) {
+  for (int s = 0; s < methods->signatureCount; s++) {
+    Signature signature = methods->signatures[s];
+    if (signature.arity != arity) continue;
+    if (!parameterListsMatch(arity, signature.parameters, parameters)) continue;
+    out = &signature;
+    return true;
+  }
+  return false;
+}
+
+#endif

@@ -1450,7 +1450,9 @@ void initializeCore(VM* vm) {
   }
 }
 
-static ObjString* createNullableName(const char* typeName, int length) {
+#if STATIC_TYPING()
+
+static ObjString* createOptionalName(const char* typeName, int length) {
   char* name = ALLOCATE(char, length + 2);
   memcpy(name, typeName, length);
   name[length] = '?';
@@ -1460,60 +1462,87 @@ static ObjString* createNullableName(const char* typeName, int length) {
 
 #define CREATE_TYPE(typeName, varName, length)                                    \
   Type* varName = newType(types, copyStringLength(typeName, length));             \
-  Type* varName##Nullable = newType(types, createNullableName(typeName, length)); \
-  addSupertype(varName, varName##Nullable);                                       \
+  Type* varName##Optional = newType(types, createOptionalName(typeName, length)); \
+  addSupertype(varName, varName##Optional);                                       \
   addSupertype(varName, object);                                                  \
-  addSupertype(varName, objectNullable);                                          \
-  addSupertype(none, varName##Nullable);                                          \
-  addSupertype(varName##Nullable, objectNullable);
+  addSupertype(varName, objectOptional);                                          \
+  addSupertype(varName##Optional, objectOptional);
+
+#define ADD_SUPERTYPE(type, supertype) \
+  addSupertype(type, supertype);       \
+  addSupertype(type##Optional, supertype##Optional)
 
 void initializeCoreTypes(TypeTable* types) {
   Type* object = newType(types, copyStringLength("Object", 3));
-  Type* objectNullable = newType(types, createNullableName("Object", 3));
-  addSupertype(object, objectNullable);
+  Type* objectOptional = newType(types, createOptionalName("Object", 3));
+  addSupertype(object, objectOptional);
 
-  Type* none = newType(types, copyStringLength("None", 4));
-  addSupertype(none, objectNullable);
+  Type* unit __attribute__((unused)) = newType(types, copyStringLength("Unit", 4));
 
   // Make sure all the pointers are pointing to the same address:
-  // printf("%p (returned from newType)\n", objectNullable);
+  // printf("%p (returned from newType)\n", objectOptional);
   // printf("%p (from hash table)\n", typeTableGet(types, copyStringLength("Object?", 4)));
   // printf("%p (from Object supertypes)\n", object->supertypes[0]);
 
   CREATE_TYPE("Class", class, 5);
 
-  CREATE_TYPE("Bool", _bool, 4);
+  CREATE_TYPE("Bool", bool_, 4);
   CREATE_TYPE("BoundMethod", boundMethod, 11);
   CREATE_TYPE("Function", function, 8);
   CREATE_TYPE("Number", number, 6);
   CREATE_TYPE("Random", random, 6);
   CREATE_TYPE("Sequence", sequence, 8);
   CREATE_TYPE("MapSequence", mapSequence, 11);
-  addSupertype(mapSequence, sequence);
+  ADD_SUPERTYPE(mapSequence, sequence);
   CREATE_TYPE("DropSequence", dropSequence, 12);
-  addSupertype(mapSequence, sequence);
+  ADD_SUPERTYPE(mapSequence, sequence);
   CREATE_TYPE("TakeSequence", takeSequence, 12);
-  addSupertype(takeSequence, sequence);
+  ADD_SUPERTYPE(takeSequence, sequence);
   CREATE_TYPE("FilterSequence", filterSequence, 14);
-  addSupertype(filterSequence, sequence);
+  ADD_SUPERTYPE(filterSequence, sequence);
   CREATE_TYPE("String", string, 6);
-  addSupertype(string, object);
-  addSupertype(string, sequence);
+  ADD_SUPERTYPE(string, sequence);
   CREATE_TYPE("StringByteSequence", stringByteSequence, 18);
-  addSupertype(stringByteSequence, sequence);
+  ADD_SUPERTYPE(stringByteSequence, sequence);
   CREATE_TYPE("StringCodePointSequence", stringCodePointSequence, 23);
-  addSupertype(stringCodePointSequence, sequence);
+  ADD_SUPERTYPE(stringCodePointSequence, sequence);
   CREATE_TYPE("List", list, 4);
-  addSupertype(list, sequence);
+  ADD_SUPERTYPE(list, sequence);
   CREATE_TYPE("Map", map, 3);
-  addSupertype(map, sequence);
+  ADD_SUPERTYPE(map, sequence);
   CREATE_TYPE("MapEntry", mapEntry, 8);
   CREATE_TYPE("MapKeySequence", mapKeySequence, 14);
-  addSupertype(mapKeySequence, sequence);
+  ADD_SUPERTYPE(mapKeySequence, sequence);
   CREATE_TYPE("MapValueSequence", mapValueSequence, 16);
-  addSupertype(mapValueSequence, sequence);
+  ADD_SUPERTYPE(mapValueSequence, sequence);
   CREATE_TYPE("Range", range, 5);
-  addSupertype(range, sequence);
+  ADD_SUPERTYPE(range, sequence);
   CREATE_TYPE("Tuple", tuple, 5);
-  addSupertype(tuple, sequence);
+  ADD_SUPERTYPE(tuple, sequence);
+
+  CREATE_TYPE("Nothing", nothing, 7);
+  ADD_SUPERTYPE(nothing, class);
+  ADD_SUPERTYPE(nothing, bool_);
+  ADD_SUPERTYPE(nothing, boundMethod);
+  ADD_SUPERTYPE(nothing, function);
+  ADD_SUPERTYPE(nothing, number);
+  ADD_SUPERTYPE(nothing, random);
+  ADD_SUPERTYPE(nothing, sequence);
+  ADD_SUPERTYPE(nothing, mapSequence);
+  ADD_SUPERTYPE(nothing, dropSequence);
+  ADD_SUPERTYPE(nothing, takeSequence);
+  ADD_SUPERTYPE(nothing, filterSequence);
+  ADD_SUPERTYPE(nothing, string);
+  ADD_SUPERTYPE(nothing, stringByteSequence);
+  ADD_SUPERTYPE(nothing, stringCodePointSequence);
+  ADD_SUPERTYPE(nothing, list);
+  ADD_SUPERTYPE(nothing, map);
+  ADD_SUPERTYPE(nothing, mapEntry);
+  ADD_SUPERTYPE(nothing, mapKeySequence);
+  ADD_SUPERTYPE(nothing, mapValueSequence);
+  ADD_SUPERTYPE(nothing, range);
+  ADD_SUPERTYPE(nothing, tuple);
+  ADD_SUPERTYPE(nothing, nothing);
 }
+
+#endif
