@@ -46,8 +46,8 @@ void addSupertype(Type* type, Type* supertype) {
 }
 
 bool hasSupertype(Type* type, Type* match) {
+  if (type == match) return true;
   for (int i = 0; i < type->supertypeCount; i++) {
-    if (type->supertypes[i]->name == match->name) return true;
     // TODO: Recursion is probably not the best way to do this.
     if (hasSupertype(type->supertypes[i], match)) return true;
   }
@@ -64,12 +64,13 @@ static bool parameterListsMatch(int arity, Parameter* expected, Parameter* actua
 
 // TODO NEXT: Get this new type of signatures working in the compiler (methods only for now).
 
+// TODO NEXT NEXT: Fix the uninitialized value errors (valgrind flicker)
 bool getSignature(SignatureList* methods, int arity, Parameter* parameters, Signature* out) {
   for (int s = 0; s < methods->signatureCount; s++) {
     Signature signature = methods->signatures[s];
     if (signature.arity != arity) continue;
     if (!parameterListsMatch(arity, signature.parameters, parameters)) continue;
-    out = &signature;
+    *out = signature;
     return true;
   }
   return false;

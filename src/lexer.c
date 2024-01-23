@@ -162,9 +162,10 @@ static TokenType checkKeyword(int start, int length, const char* rest, TokenType
 static TokenType identifierType() {
   switch (lexer.start[0]) {
     case 'a':
-      if (lexer.current - lexer.start > 2) {
+      if (lexer.current - lexer.start >= 2) {
         switch (lexer.start[1]) {
           case 'n': return checkKeyword(2, 1, "d", TOKEN_AND);
+          case 's': return checkKeyword(2, 0, "", TOKEN_AS);
           case 't': return checkKeyword(2, 7, "tribute", TOKEN_ATTRIBUTE);
         }
       }
@@ -228,14 +229,6 @@ static TokenType identifierType() {
         switch (lexer.start[1]) {
           case 't': return checkKeyword(2, 4, "atic", TOKEN_STATIC);
           case 'u': return checkKeyword(2, 3, "per", TOKEN_SUPER);
-          case 'h':
-            if (lexer.current - lexer.start > 1) {
-              switch (lexer.start[2]) {
-                case 'l': return checkKeyword(3, 0, "", TOKEN_SHL);
-                case 'r': return checkKeyword(3, 0, "", TOKEN_SHR);
-              }
-            }
-            break;
         }
       }
       break;
@@ -565,8 +558,8 @@ Token nextToken() {
       case '-': return makeToken(match('>') ? TOKEN_RIGHT_ARROW : TOKEN_MINUS);
       case '!': return makeToken(match('=') ? TOKEN_BANG_EQ : TOKEN_BANG);
       case '=': return makeToken(match('=') ? TOKEN_EQ_EQ : TOKEN_EQ);
-      case '<': return makeToken(match('=') ? TOKEN_LT_EQ : TOKEN_LT);
-      case '>': return makeToken(match('=') ? TOKEN_GT_EQ : TOKEN_GT);
+      case '<': return makeToken(match('<') ? TOKEN_SHIFT_LEFT : (match('=') ? TOKEN_LT_EQ : TOKEN_LT));
+      case '>': return makeToken(match('>') ? TOKEN_SHIFT_RIGHT : (match('=') ? TOKEN_GT_EQ : TOKEN_GT));
       case '"': return string();
       case '`': return forceIdentifier();
       case '#':  {

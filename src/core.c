@@ -1297,8 +1297,8 @@ void initializeCore(VM* vm) {
   NATIVE(vm->numberClass, "&(1)", number_bitwiseAnd);
   NATIVE(vm->numberClass, "|(1)", number_bitwiseOr);
   NATIVE(vm->numberClass, "^(1)", number_bitwiseXor);
-  NATIVE(vm->numberClass, "shl(1)", number_bitwiseLeftShift);
-  NATIVE(vm->numberClass, "shr(1)", number_bitwiseRightShift);
+  NATIVE(vm->numberClass, "<<(1)", number_bitwiseLeftShift);
+  NATIVE(vm->numberClass, ">>(1)", number_bitwiseRightShift);
   NATIVE(vm->numberClass, "abs()", number_abs);
   NATIVE(vm->numberClass, "acos()", number_acos);
   NATIVE(vm->numberClass, "asin()", number_asin);
@@ -1473,8 +1473,8 @@ static ObjString* createOptionalName(const char* typeName, int length) {
   addSupertype(type##Optional, supertype##Optional)
 
 void initializeCoreTypes(TypeTable* types) {
-  Type* object = newType(types, copyStringLength("Object", 3));
-  Type* objectOptional = newType(types, createOptionalName("Object", 3));
+  Type* object = newType(types, copyStringLength("Object", 6));
+  Type* objectOptional = newType(types, copyStringLength("Object?", 7));
   addSupertype(object, objectOptional);
 
   Type* unit __attribute__((unused)) = newType(types, copyStringLength("Unit", 4));

@@ -60,15 +60,15 @@ typedef enum {
   BP_EQUALITY,    // == !=
   BP_COMPARISON,  // < > <= >=
   BP_IS,          // is
-  BP_IN,          // in
   BP_BIT_OR,      // |
   BP_BIT_XOR,     // ^
   BP_BIT_AND,     // &
-  BP_BIT_SHIFT,   // shl shr
+  BP_BIT_SHIFT,   // << >>
   BP_RANGE,       // .. :
   BP_TERM,        // + -
   BP_FACTOR,      // * / %
   BP_EXPONENT,    // **
+  BP_CAST,        // as
   BP_UNARY,       // -
   BP_CALL,        // . ()
   BP_PRIMARY
@@ -457,7 +457,7 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
   local->depth = 0;
   local->isMutable = false;
   local->isCaptured = false;
-  if (type != TYPE_FUNCTION) {
+  if (type == TYPE_METHOD) {
     local->name.start = "this";
     local->name.length = 4;
 #   if STATIC_TYPING()
@@ -668,7 +668,11 @@ static void defineVariable(int global, bool isMutable) {
 #if STATIC_TYPING()
 static void setType(ObjString* name) {
   parser.expressionType = typeTableGet(&parser.types, name);
-  if (parser.expressionType == NULL) error("Type does not exist");
+  if (parser.expressionType == NULL) {
+    error("Type '%s' does not exist", name->chars);
+    parser.expressionType = typeTableGet(&parser.types, copyStringLength("Nothing?", 8));
+    ASSERT(parser.expressionType != NULL, "Nothing? type is NULL");
+  }
 }
 #endif
 
@@ -740,7 +744,7 @@ static Type* parameterType() {
   // TODO: See changes.md
   if (match(TOKEN_QUESTION)) length++;
   Type* type = typeTableGet(&parser.types, copyStringLength(start, length));
-  if (type == NULL) error("Type does not exist");
+  if (type == NULL) error("Type '%.*s' does not exist", length, start);
   return type;
 }
 #endif
@@ -973,10 +977,12 @@ static void call(bool canAssign) {
     signature.arity++;
   }
   emitByte(OP_CALL_0 + signature.arity);
+
   // TODO: I don't have the name to use here.
   // TODO TODO TODO: Signatures for functions.
 # if STATIC_TYPING()
-  parser.expressionType = signature.returnType;
+  setType(copyStringLength("Nothing?", 8)); //- REMOVE
+  // parser.expressionType = signature.returnType;
 # endif
 }
 
@@ -1041,17 +1047,16 @@ static void dot(bool canAssign) {
     }
 
 #   if STATIC_TYPING()
-    if (parser.expressionType == NULL) {
-      error("Type does not implement method");
+    ASSERT(parser.expressionType != NULL, "Type is NULL");
+
+    Method signatures;
+    if (!methodTableGet(parser.expressionType->methods, copyStringLength(signature.name, 3), &signatures)) {
+      error("%s does not implement method '%.*s'", parser.expressionType->name->chars, signature.length, signature.name);
+      setType(copyStringLength("Nothing?", 8));
       return;
     }
 
-    Method signatures;
-    if (!methodTableGet(parser.expressionType->methods, copyStringLength(signature.name, 3), &signatures))
-      error("%s does not implement method '%.*s'", parser.expressionType->name->chars, signature.length, signature.name);
-
     Signature newSignature;
-
     if (signatures.isSingle) {
       newSignature = *signatures.as.one;
     } else {
@@ -1059,11 +1064,17 @@ static void dot(bool canAssign) {
         signatures.as.list,
         signature.arity,
         signature.parameters,
-        &signature
+        &newSignature
       );
     }
 
-    parser.expressionType = newSignature.returnType;
+    // TODO: Eventually I will want this commented out code instead of the below workaround.
+    // ASSERT(newSignature.returnType != NULL, "Signatures can't have a NULL return type");
+    if (newSignature.returnType == NULL) {
+      setType(copyStringLength("Nothing?", 8));
+    } else {
+      parser.expressionType = newSignature.returnType;
+    }
 #   endif
 
     callSignature(signature.arity, &signature);
@@ -1134,20 +1145,18 @@ static void super_(bool canAssign) {
     instruction = OP_SUPER_0 + signature.arity;
 
 #   if STATIC_TYPING()
-    if (parser.expressionType == NULL) {
-      error("Type is NULL");
+    ASSERT(parser.expressionType != NULL, "Type is NULL");
+
+    // TODO: Classes...
+
+    Method signatures;
+    if (!methodTableGet(parser.expressionType->methods, copyStringLength(signature.name, 3), &signatures)) {
+      error("Supertype '%s' does not implement method '%.*s'", parser.expressionType->name->chars, signature.length, signature.name);
+      setType(copyStringLength("Nothing?", 8));
       return;
     }
 
-    // TODO: Classes...
-    printf("=== GOOD (other place) ===\n"); //- REMOVE
-
-    Method signatures;
-    if (!methodTableGet(parser.expressionType->methods, copyStringLength(signature.name, 3), &signatures))
-      error("Type does not implement method");
-
     Signature newSignature;
-
     if (signatures.isSingle) {
       newSignature = *signatures.as.one;
     } else {
@@ -1155,11 +1164,17 @@ static void super_(bool canAssign) {
         signatures.as.list,
         signature.arity,
         signature.parameters,
-        &signature
+        &newSignature
       );
     }
 
-    parser.expressionType = newSignature.returnType;
+    // TODO: Eventually I will want this commented out code instead of the below workaround.
+    // ASSERT(newSignature.returnType != NULL, "Signatures can't have a NULL return type");
+    if (newSignature.returnType == NULL) {
+      setType(copyStringLength("Nothing?", 8));
+    } else {
+      parser.expressionType = newSignature.returnType;
+    }
 #   endif
   }
 
@@ -1227,6 +1242,17 @@ static void grouping(bool canAssign) {
   expression();
 # endif
   expect(TOKEN_RIGHT_PAREN, "Expecting ')' after expressions");
+}
+
+static void cast(bool canAssign) {
+# if STATIC_TYPING()
+  expect(TOKEN_IDENTIFIER, "Expecting a type identifier");
+  const char* start = parser.previous.start;
+  size_t length = parser.previous.length;
+  // TODO: See changes.md
+  if (match(TOKEN_QUESTION)) length++;
+  setType(copyStringLength(start, length));
+# endif
 }
 
 static void or_(bool canAssign) {
@@ -1414,17 +1440,16 @@ static void subscript(bool canAssign) {
   }
 
 # if STATIC_TYPING()
-  if (parser.expressionType == NULL) {
-    error("Type is NULL");
+  ASSERT(parser.expressionType != NULL, "Type is NULL");
+
+  Method signatures;
+  if (!methodTableGet(parser.expressionType->methods, copyStringLength(signature.name, 3), &signatures)) {
+    error("%s is not subscriptable", parser.expressionType->name->chars);
+    setType(copyStringLength("Nothing?", 8));
     return;
   }
 
-  Method signatures;
-  if (!methodTableGet(parser.expressionType->methods, copyStringLength(signature.name, 3), &signatures))
-    error("%s is not subscriptable", parser.expressionType->name->chars);
-
   Signature newSignature;
-
   if (signatures.isSingle) {
     newSignature = *signatures.as.one;
   } else {
@@ -1432,11 +1457,17 @@ static void subscript(bool canAssign) {
       signatures.as.list,
       signature.arity,
       signature.parameters,
-      &signature
+      &newSignature
     );
   }
 
-  parser.expressionType = newSignature.returnType;
+  // TODO: Eventually I will want this commented out code instead of the below workaround.
+  // ASSERT(newSignature.returnType != NULL, "Signatures can't have a NULL return type");
+  if (newSignature.returnType == NULL) {
+    setType(copyStringLength("Nothing?", 8));
+  } else {
+    parser.expressionType = newSignature.returnType;
+  }
 # endif
 
   callSignature(signature.arity, &signature);
@@ -1540,13 +1571,16 @@ ParseRule rules[] = {
   /* TOKEN_EQ_EQ         */ INFIX_OPERATOR(BP_EQUALITY, "=="),
   /* TOKEN_GT            */ INFIX_OPERATOR(BP_COMPARISON, ">"),
   /* TOKEN_GT_EQ         */ INFIX_OPERATOR(BP_COMPARISON, ">="),
+  /* TOKEN_SHIFT_RIGHT   */ INFIX_OPERATOR(BP_BIT_SHIFT, ">>"),
   /* TOKEN_LT            */ INFIX_OPERATOR(BP_COMPARISON, "<"),
   /* TOKEN_LT_EQ         */ INFIX_OPERATOR(BP_COMPARISON, "<="),
+  /* TOKEN_SHIFT_LEFT    */ INFIX_OPERATOR(BP_BIT_SHIFT, "<<"),
   /* TOKEN_IDENTIFIER    */ { variable, NULL, BP_NONE, NULL, namedSignature },
   /* TOKEN_STRING        */ PREFIX(literal, BP_NONE),
   /* TOKEN_INTERPOLATION */ PREFIX(stringInterpolation, BP_NONE),
   /* TOKEN_NUMBER        */ PREFIX(literal, BP_NONE),
   /* TOKEN_AND           */ INFIX(and_, BP_AND),
+  /* TOKEN_AS            */ INFIX(cast, BP_CAST),
   /* TOKEN_ATTRIBUTE     */ UNUSED,
   /* TOKEN_BREAK         */ UNUSED,
   /* TOKEN_CLASS         */ UNUSED,
@@ -1568,8 +1602,6 @@ ParseRule rules[] = {
   /* TOKEN_PRINT         */ UNUSED,
   /* TOKEN_PRINT_ERROR   */ UNUSED,
   /* TOKEN_RETURN        */ UNUSED,
-  /* TOKEN_SHL           */ INFIX_OPERATOR(BP_BIT_SHIFT, "shl"),
-  /* TOKEN_SHR           */ INFIX_OPERATOR(BP_BIT_SHIFT, "shr"),
   /* TOKEN_STATIC        */ UNUSED,
   /* TOKEN_SUPER         */ PREFIX(super_, BP_NONE),
   /* TOKEN_THIS          */ PREFIX(this_, BP_NONE),
@@ -1631,13 +1663,6 @@ static Type* expression() { return expressionBp(BP_ASSIGNMENT); }
 #else
 static void expression() { expressionBp(BP_ASSIGNMENT); }
 #endif
-
-// indentationBased is to help with this weird case:
-//
-// if (variable == 2) {
-// if (otherVar == 4)
-//   print "yes"
-// }
 
 static void block() {
   matchLine();
