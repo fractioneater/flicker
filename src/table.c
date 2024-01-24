@@ -45,15 +45,10 @@ static TypePtr* findType(TypePtr* entries, int capacity, ObjString* key) {
   TypePtr* tombstone = NULL;
 
   for (;;) {
-    TypePtr* entry = entries + index;
+    TypePtr* entry = &entries[index];
     if (entry->type == NULL) {
-      if (entry->isTombstone == false) {
-        // Empty entry.
-        return tombstone != NULL ? tombstone : entry;
-      } else {
-        // Tombstone.
-        if (tombstone == NULL) tombstone = entry;
-      }
+      if (entry->isTombstone == false) return tombstone != NULL ? tombstone : entry; // Empty entry.
+      else if (tombstone == NULL) tombstone = entry; // Tombstone
     } else if (entry->type->name == key) {
       // Found it!
       return entry;
@@ -119,6 +114,8 @@ void typeTableAdd(TypeTable* table, Type* type) {
 // MethodTable          //
 //////////////////////////
 
+// TODO: Do I ever need to delete methods from a MethodTable?
+
 #if STATIC_TYPING()
 
 void freeMethodTable(MethodTable* table) {
@@ -128,10 +125,10 @@ void freeMethodTable(MethodTable* table) {
 
 static Method* findMethod(Method* entries, int capacity, ObjString* key) {
   uint32_t index = key->hash & (capacity - 1);
-  Method* tombstone;
+  Method* tombstone = NULL;
 
   for (;;) {
-    Method* entry = entries + index;
+    Method* entry = &entries[index];
     if (entry->name == NULL) {
       if (entry->isTombstone == false) return tombstone != NULL ? tombstone : entry; // Empty entry.
       else if (tombstone == NULL) tombstone = entry; // Tombstone.
@@ -147,7 +144,7 @@ bool methodTableGet(MethodTable* table, ObjString* name, Method* out) {
   if (table->count == 0) return false;
 
   Method* entry = findMethod(table->entries, table->capacity, name);
-  if (entry->name == NULL) return false;
+  if (entry->name == NULL || entry->isTombstone) return false;
 
   out = entry;
   return true;
@@ -184,9 +181,13 @@ void methodTableAdd(MethodTable* table, Method method) {
   }
 
   Method* entry = findMethod(table->entries, table->capacity, method.name);
-  if (entry->name == NULL && entry->isTombstone == false) table->count++;
+  if (entry->name == NULL) table->count++;
 
-  entry = &method;
+  entry->name = method.name;
+  entry->isSingle = method.isSingle;
+  if (method.isSingle)
+    entry->as.one = method.as.one;
+  else entry->as.list = method.as.list;
   entry->isTombstone = false;
 }
 

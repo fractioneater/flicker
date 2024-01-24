@@ -10,6 +10,7 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include "compiler.h"
 #include "debug.h"
 #include "memory.h"
 #include "native.h"
@@ -1477,7 +1478,7 @@ void initializeCoreTypes(TypeTable* types) {
   Type* objectOptional = newType(types, copyStringLength("Object?", 7));
   addSupertype(object, objectOptional);
 
-  Type* unit __attribute__((unused)) = newType(types, copyStringLength("Unit", 4));
+  Type* unit = newType(types, copyStringLength("Unit", 4));
 
   // Make sure all the pointers are pointing to the same address:
   // printf("%p (returned from newType)\n", objectOptional);
@@ -1543,6 +1544,14 @@ void initializeCoreTypes(TypeTable* types) {
   ADD_SUPERTYPE(nothing, range);
   ADD_SUPERTYPE(nothing, tuple);
   ADD_SUPERTYPE(nothing, nothing);
+
+  unit->methods = (MethodTable*)reallocate(NULL, 0, sizeof(MethodTable));
+  initTable((Table*)unit->methods);
+  Method m;
+  m.isSingle = true;
+  m.name = copyStringLength("randBytes", 9);
+  m.as.one = &(Signature) { "randBytes", 9, -1, NULL, number };
+  methodTableAdd(unit->methods, m);
 }
 
 #endif

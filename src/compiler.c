@@ -1050,7 +1050,7 @@ static void dot(bool canAssign) {
     ASSERT(parser.expressionType != NULL, "Type is NULL");
 
     Method signatures;
-    if (!methodTableGet(parser.expressionType->methods, copyStringLength(signature.name, 3), &signatures)) {
+    if (!methodTableGet(parser.expressionType->methods, copyStringLength(signature.name, signature.length), &signatures)) {
       error("%s does not implement method '%.*s'", parser.expressionType->name->chars, signature.length, signature.name);
       setType(copyStringLength("Nothing?", 8));
       return;
@@ -1150,7 +1150,7 @@ static void super_(bool canAssign) {
     // TODO: Classes...
 
     Method signatures;
-    if (!methodTableGet(parser.expressionType->methods, copyStringLength(signature.name, 3), &signatures)) {
+    if (!methodTableGet(parser.expressionType->methods, copyStringLength(signature.name, signature.length), &signatures)) {
       error("Supertype '%s' does not implement method '%.*s'", parser.expressionType->name->chars, signature.length, signature.name);
       setType(copyStringLength("Nothing?", 8));
       return;

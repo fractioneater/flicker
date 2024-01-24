@@ -62,9 +62,6 @@ static bool parameterListsMatch(int arity, Parameter* expected, Parameter* actua
   return true;
 }
 
-// TODO NEXT: Get this new type of signatures working in the compiler (methods only for now).
-
-// TODO NEXT NEXT: Fix the uninitialized value errors (valgrind flicker)
 bool getSignature(SignatureList* methods, int arity, Parameter* parameters, Signature* out) {
   for (int s = 0; s < methods->signatureCount; s++) {
     Signature signature = methods->signatures[s];
