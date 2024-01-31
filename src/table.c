@@ -33,6 +33,8 @@ void freeTypeTable(TypeTable* table) {
     Type* type = table->entries[i].type;
     FREE_ARRAY(Type, type->supertypes, type->supertypeCapacity);
     clearSupertypes(type);
+    freeMethodTable(type->methods);
+    FREE(MethodTable, type->methods);
     FREE(Type, type);
   }
 
@@ -144,9 +146,18 @@ bool methodTableGet(MethodTable* table, ObjString* name, Method* out) {
   if (table->count == 0) return false;
 
   Method* entry = findMethod(table->entries, table->capacity, name);
-  if (entry->name == NULL || entry->isTombstone) return false;
+  if (entry->name == NULL) return false;
 
-  out = entry;
+  *out = *entry;
+  if (entry->isSingle) {
+    out->as = entry->as;
+    out->as.one = entry->as.one;
+    printf("1: %p\n", out->as.one); //- REMOVE
+    printf("2: %p\n", entry->as.one); //- REMOVE
+  } else {
+    out->as = entry->as;
+    out->as.list = entry->as.list;
+  }
   return true;
 }
 

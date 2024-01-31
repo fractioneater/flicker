@@ -1551,6 +1551,7 @@ void initializeCoreTypes(TypeTable* types) {
   m.isSingle = true;
   m.name = copyStringLength("randBytes", 9);
   m.as.one = &(Signature) { "randBytes", 9, -1, NULL, number };
+  printf("return type %p\n", m.as.one->returnType);
   methodTableAdd(unit->methods, m);
 }
 

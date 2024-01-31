@@ -592,7 +592,8 @@ static InterpretResult run() {
         } else {
           printf("%s\n", "[invalid toString() method]");
         }
-        pop(); // The string
+        // TODO: To pop or not to pop?
+        pop();
         break;
       }
       case OP_ERROR: {

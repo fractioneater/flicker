@@ -62,7 +62,7 @@
 // CURRENT MAINTENANCE FLAGS
 // These will be removed after I know the new change works.
 
-#define STATIC_TYPING() 1
+#define STATIC_TYPING() 0
 
 // DEBUG FLAGS
 
