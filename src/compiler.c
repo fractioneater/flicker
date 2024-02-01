@@ -1639,7 +1639,6 @@ static void expression() { expressionBp(BP_ASSIGNMENT); }
 #endif
 
 static void block() {
-  if (parser.onExpression) printf("Bad\n"); //- REMOVE
   matchLine();
 
   while (!check(TOKEN_DEDENT) && !check(TOKEN_EOF)) {
