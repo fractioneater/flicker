@@ -284,15 +284,6 @@ static void expectLine(const char* message) {
   }
 }
 
-// TODO: Remove if possible.
-// static bool ignoreIndentation() {
-//   if (!match(TOKEN_INDENT)) {
-//     if (!match(TOKEN_DEDENT)) return false;
-//     while (match(TOKEN_DEDENT));
-//   }
-//   return true;
-// }
-
 static void expectStatementEnd(const char* message) {
   // If the parser has just synchronized after an error, it might have
   // already consumed a newline token. That's why we check for it here.
@@ -1053,7 +1044,6 @@ static void dot(bool canAssign) {
         signature.parameters,
         &newSignature
       )) {
-        // TODO: More descriptive
         error("Signature type mismatch (no method for '%s' exists that can be called with the given arguments)",
               method.name->chars);
         setType(copyStringLength("Nothing?", 8));
@@ -1333,7 +1323,7 @@ static void collection(bool canAssign) {
 
   bool indented = false;
   if (matchLine()) {
-    expect(TOKEN_INDENT, "Expecting indentation to increase before collection body");
+    expect(TOKEN_INDENT, "Expecting an indent before collection body");
     indented = true;
   }
 
@@ -1364,7 +1354,7 @@ static void collection(bool canAssign) {
   do {
     if (matchLine()) {
       if (!indented) {
-        expect(TOKEN_INDENT, "Expecting indentation to increase before collection body");
+        expect(TOKEN_INDENT, "Expecting an indent before collection body");
         indented = true;
       } else {
         if (match(TOKEN_DEDENT)) indented = false;
@@ -1649,15 +1639,16 @@ static void expression() { expressionBp(BP_ASSIGNMENT); }
 #endif
 
 static void block() {
+  if (parser.onExpression) printf("Bad\n"); //- REMOVE
   matchLine();
 
   while (!check(TOKEN_DEDENT) && !check(TOKEN_EOF)) {
-    declaration();
-
     if (current->type == TYPE_LAMBDA && parser.onExpression) {
       emitByte(OP_POP);
       parser.onExpression = false;
     }
+
+    declaration();
 
     if (!check(TOKEN_EOF)) {
       expectStatementEnd("Expecting a newline after statement");
@@ -1728,9 +1719,13 @@ static void lambda(bool canAssign) {
 
   if (match(TOKEN_EQ)) {
     expression();
+    parser.onExpression = true;
   } else {
     expect(TOKEN_RIGHT_ARROW, "Expecting '->' before lambda body");
-    if (matchLine()) block(); else statement();
+    if (matchLine()) {
+      expect(TOKEN_INDENT, "Expecting an indent before lambda body");
+      block();
+    } else statement();
   }
 
   // The return based on parser.onExpression is handled in endCompiler().
@@ -2512,8 +2507,8 @@ static void statement() {
   else if (match(TOKEN_WHEN)) whenStatement();
   else if (!match(TOKEN_PASS)) {
     if ((parser.printResult && current->scopeDepth == 0) || current->type == TYPE_LAMBDA) {
-      parser.onExpression = true;
       expression();
+      parser.onExpression = true;
       return;
     } else expressionStatement();
   }
