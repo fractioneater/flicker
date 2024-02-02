@@ -56,7 +56,7 @@ class Sequence
     each element in this
       function(element)
   
-  sumOf(function) = this.reduce(0) { |acc, i| acc + function(i) }
+  sumOf(function) = this.reduce(0, fun acc, i = acc + function(i) )
 
   maxOf(function)
     var max = None
@@ -322,7 +322,7 @@ class List < Sequence
     return result
 
   sort()
-    this.sort { |low, high| low <= high }
+    this.sort( fun low, high = low <= high )
 
   sort(comparer)
     if comparer is not Function
@@ -335,7 +335,7 @@ class List < Sequence
       this.quicksort(low, p - 1, comparer)
       this.quicksort(p + 1, high, comparer)
   
-  sum() = this.reduce { |acc, item| acc + item }
+  sum() = this.reduce( fun acc, item = acc + item )
 
   partition(low, high, comparer)
     val pivot = this[high]

@@ -273,14 +273,6 @@ static void expectLine(const char* message) {
   }
 }
 
-static bool ignoreIndentation() {
-  if (!match(TOKEN_INDENT)) {
-    if (!match(TOKEN_DEDENT)) return false;
-    while (match(TOKEN_DEDENT));
-  }
-  return true;
-}
-
 static void expectStatementEnd(const char* message) {
   // If the parser has just synchronized after an error, it might have
   // already consumed a newline token. That's why we check for it here.
@@ -456,9 +448,12 @@ static void initCompiler(Compiler* compiler, FunctionType type) {
 }
 
 static ObjFunction* endCompiler() {
-  if (current->scopeDepth == 0 && parser.onExpression && parser.printResult) {
-    emitByte(OP_RETURN_OUTPUT);
+  if (parser.onExpression) {
+    if (current->scopeDepth == 0 && parser.printResult) {
+      emitByte(OP_RETURN_OUTPUT);
+    }
     emitByte(OP_RETURN);
+    parser.onExpression = false;
   } else {
     emitReturn();
   }
@@ -851,16 +846,7 @@ static void variable(bool canAssign) {
 
 static void call(bool canAssign) {
   Signature signature = { NULL, 0, SIG_METHOD, 0 };
-  if (parser.previous.type == TOKEN_LEFT_PAREN) {
-    finishArgumentList(&signature, "Function", TOKEN_RIGHT_PAREN);
-    if (match(TOKEN_LEFT_BRACE)) {
-      lambda(false);
-      validateParameterCount("Function", ++signature.arity, true);
-    }
-  } else {
-    lambda(false);
-    signature.arity++;
-  }
+  finishArgumentList(&signature, "Function", TOKEN_RIGHT_PAREN);
   emitByte(OP_CALL_0 + signature.arity);
 }
 
@@ -902,18 +888,8 @@ static void dot(bool canAssign) {
 
     expression();
     emitVariableArg(OP_SET_PROPERTY, name);
-  } else if (match(TOKEN_LEFT_PAREN) || match(TOKEN_LEFT_BRACE)) {
-    if (parser.previous.type == TOKEN_LEFT_BRACE) {
-      lambda(false);
-      signature.arity = 1;
-    } else {
-      finishArgumentList(&signature, "Method", TOKEN_RIGHT_PAREN);
-      if (match(TOKEN_LEFT_BRACE)) {
-        lambda(false);
-        validateParameterCount("Method", ++signature.arity, true);
-      }
-    }
-
+  } else if (match(TOKEN_LEFT_PAREN)) {
+    finishArgumentList(&signature, "Method", TOKEN_RIGHT_PAREN);
     callSignature(signature.arity, &signature);
   } else {
     emitVariableArg(OP_GET_PROPERTY, name);
@@ -959,17 +935,8 @@ static void super_(bool canAssign) {
     signature = signatureFromToken(SIG_METHOD);
 
     namedVariable(syntheticToken("this"), false);
-    if (match(TOKEN_LEFT_PAREN) || match(TOKEN_LEFT_BRACE)) {
-      if (parser.previous.type == TOKEN_LEFT_BRACE) {
-        lambda(false);
-        signature.arity = 1;
-      } else {
-        finishArgumentList(&signature, "Method", TOKEN_RIGHT_PAREN);
-        if (match(TOKEN_LEFT_BRACE)) {
-          lambda(false);
-          validateParameterCount("Method", ++signature.arity, true);
-        }
-      }
+    if (match(TOKEN_LEFT_PAREN)) {
+      finishArgumentList(&signature, "Method", TOKEN_RIGHT_PAREN);
     } else {
       signature.type = SIG_ATTRIBUTE;
     }
@@ -1080,7 +1047,7 @@ static void collection(bool canAssign) {
 
   bool indented = false;
   if (matchLine()) {
-    expect(TOKEN_INDENT, "Expecting indentation to increase before collection body");
+    expect(TOKEN_INDENT, "Expecting an indent before collection body");
     indented = true;
   }
 
@@ -1107,7 +1074,7 @@ static void collection(bool canAssign) {
   do {
     if (matchLine()) {
       if (!indented) {
-        expect(TOKEN_INDENT, "Expecting indentation to increase before collection body");
+        expect(TOKEN_INDENT, "Expecting an indent before collection body");
         indented = true;
       } else {
         if (match(TOKEN_DEDENT)) indented = false;
@@ -1231,7 +1198,7 @@ ParseRule rules[] = {
   /* TOKEN_RIGHT_PAREN   */ UNUSED,
   /* TOKEN_LEFT_BRACKET  */ BOTH(collection, subscript, BP_CALL),
   /* TOKEN_RIGHT_BRACKET */ UNUSED,
-  /* TOKEN_LEFT_BRACE    */ BOTH(lambda, call, BP_CALL),
+  /* TOKEN_LEFT_BRACE    */ UNUSED,
   /* TOKEN_RIGHT_BRACE   */ UNUSED,
   /* TOKEN_SEMICOLON     */ UNUSED,
   /* TOKEN_COMMA         */ UNUSED,
@@ -1274,7 +1241,7 @@ ParseRule rules[] = {
   /* TOKEN_ELSE          */ UNUSED,
   /* TOKEN_FALSE         */ PREFIX(literal, BP_NONE),
   /* TOKEN_FOR           */ UNUSED,
-  /* TOKEN_FUN           */ UNUSED,
+  /* TOKEN_FUN           */ PREFIX(lambda, BP_NONE),
   /* TOKEN_IF            */ INFIX(if_, BP_IF),
   /* TOKEN_IN            */ UNUSED,
   /* TOKEN_IS            */ INFIX_OPERATOR(BP_IS, "is"),
@@ -1342,12 +1309,12 @@ static void block() {
   matchLine();
 
   while (!check(TOKEN_DEDENT) && !check(TOKEN_EOF)) {
-    declaration();
-
     if (current->type == TYPE_LAMBDA && parser.onExpression) {
       emitByte(OP_POP);
       parser.onExpression = false;
     }
+
+    declaration();
 
     if (!check(TOKEN_EOF)) {
       expectStatementEnd("Expecting a newline after statement");
@@ -1357,27 +1324,6 @@ static void block() {
   }
 
   if (!check(TOKEN_EOF)) expect(TOKEN_DEDENT, "Expecting indentation to decrease after block");
-}
-
-static void lambdaBlock() {
-  if (matchLine()) ignoreIndentation();
-  parser.onExpression = false;
-
-  while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
-    if (parser.onExpression) {
-      emitByte(OP_POP);
-      parser.onExpression = false;
-    }
-
-    declaration();
-
-    if (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF)) {
-      expectStatementEnd("Expecting a newline after statement");
-      ignoreIndentation();
-    }
-  }
-
-  expect(TOKEN_RIGHT_BRACE, "Expecting '}' after lambda");
 }
 
 static void scopedBlock() {
@@ -1426,30 +1372,29 @@ static void lambda(bool canAssign) {
   initCompiler(&compiler, TYPE_LAMBDA);
   pushScope();
 
-  if (matchLine()) ignoreIndentation();
+  if (match(TOKEN_LEFT_PAREN)) {
+    expect(TOKEN_RIGHT_PAREN, "Expecting ')' for empty parameters");
+  } else {
+    do {
+      validateParameterCount("Lambda", ++current->function->arity, false);
 
-  if (match(TOKEN_PIPE)) {
-    if (!match(TOKEN_PIPE)) {
-      do {
-        if (matchLine()) ignoreIndentation();
-        validateParameterCount("Lambda", ++current->function->arity, false);
-
-        int constant = parseVariable("Expecting a parameter name", true);
-        defineVariable(constant, true);
-      } while (match(TOKEN_COMMA));
-      expect(TOKEN_PIPE, "Expecting '|' after parameters");
-      if (matchLine()) ignoreIndentation();
-    }
+      int constant = parseVariable("Expecting a parameter name", true);
+      defineVariable(constant, true);
+    } while (match(TOKEN_COMMA));
   }
 
-  lambdaBlock();
-
-  // If the lambda is just an expression, return its value.
-  if (parser.onExpression) {
-    emitByte(OP_RETURN);
-    parser.onExpression = false;
+  if (match(TOKEN_EQ)) {
+    expression();
+    parser.onExpression = true;
+  } else {
+    expect(TOKEN_RIGHT_ARROW, "Expecting '->' before lambda body");
+    if (matchLine()) {
+      expect(TOKEN_INDENT, "Expecting an indent before lambda body");
+      block();
+    } else statement();
   }
 
+  // endCompiler handles the expression return.
   ObjFunction* function = endCompiler();
   emitConstantArg(OP_CLOSURE, OBJ_VAL(function));
 
@@ -1458,9 +1403,7 @@ static void lambda(bool canAssign) {
     emitByte(compiler.upvalues[i].index);
   }
 
-  if ((parser.printResult && current->scopeDepth == 0) || current->type == TYPE_LAMBDA) {
-    parser.onExpression = true;
-  }
+  parser.onExpression = (parser.printResult && current->scopeDepth == 0) || current->type == TYPE_LAMBDA;
 }
 
 static void method() {
@@ -2192,7 +2135,6 @@ static void declaration() {
 static void statement() {
   if (match(TOKEN_PRINT)) printStatement();
   else if (match(TOKEN_PRINT_ERROR)) errorStatement();
-  else if (match(TOKEN_PASS)) return;
   else if (match(TOKEN_BREAK)) breakStatement();
   else if (match(TOKEN_CONTINUE)) continueStatement();
   else if (match(TOKEN_RETURN)) returnStatement();
@@ -2201,12 +2143,14 @@ static void statement() {
   else if (match(TOKEN_EACH)) eachStatement();
   else if (match(TOKEN_IF)) ifStatement();
   else if (match(TOKEN_WHEN)) whenStatement();
-  else {
+  else if (!match(TOKEN_PASS)) {
     if ((parser.printResult && current->scopeDepth == 0) || current->type == TYPE_LAMBDA) {
-      parser.onExpression = true;
       expression();
+      parser.onExpression = true;
+      return;
     } else expressionStatement();
   }
+  parser.onExpression = false;
 }
 
 ObjFunction* compile(const char* source, ObjModule* module, bool printResult) {
