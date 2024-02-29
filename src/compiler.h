@@ -18,6 +18,27 @@ struct Signature {
   Type* returnType;
 };
 
+#if STATIC_TYPING()
+typedef struct {
+  // A hash table of all the types the compiler uses.
+  TypeTable types;
+
+  // The type of the current expression.
+  Type* expressionType;
+
+  // Types that the compiler should be able to access easily.
+  Type* objectOptionalType;
+  Type* unitType;
+  Type* boolType;
+  Type* functionType;
+  Type* numberType;
+  Type* stringType;
+  Type* listType;
+  Type* mapType;
+  Type* nothingOptionalType;
+} TypeChecker;
+#endif
+
 typedef struct Parameter Parameter;
 typedef struct Signature Signature;
 

@@ -33,17 +33,9 @@ typedef struct {
   // Print the value returned by the code.
   bool printResult;
 
-# if STATIC_TYPING()
-  // A hash table of all the types the compiler uses.
-  TypeTable types;
-# endif
-
   // If an expression was parsed most recently, and what type it had.
   // TODO: Use compiler.onExpression, it works better with scoping.
   bool onExpression;
-# if STATIC_TYPING()
-  Type* expressionType;
-# endif
 
   // If a compiler error has appeared.
   bool hadError;
@@ -194,6 +186,8 @@ typedef struct ClassCompiler {
 Parser parser;
 Compiler* current = NULL;
 ClassCompiler* currentClass = NULL;
+
+TypeChecker typeChecker;
 
 static inline Chunk* currentChunk() {
   return &current->function->chunk;
@@ -661,11 +655,11 @@ static void defineVariable(int global, bool isMutable) {
 
 #if STATIC_TYPING()
 static void setType(ObjString* name) {
-  parser.expressionType = typeTableGet(&parser.types, name);
-  if (parser.expressionType == NULL) {
+  typeChecker.expressionType = typeTableGet(&typeChecker.types, name);
+  if (typeChecker.expressionType == NULL) {
     error("Type '%s' does not exist", name->chars);
-    parser.expressionType = typeTableGet(&parser.types, copyStringLength("Nothing?", 8));
-    ASSERT(parser.expressionType != NULL, "Nothing? type is NULL");
+    typeChecker.expressionType = typeTableGet(&typeChecker.types, copyStringLength("Nothing?", 8));
+    ASSERT(typeChecker.expressionType != NULL, "Nothing? type is NULL");
   }
 }
 #endif
@@ -737,7 +731,7 @@ static Type* parameterType() {
   size_t length = parser.previous.length;
   // TODO: See changes.md
   if (match(TOKEN_QUESTION)) length++;
-  Type* type = typeTableGet(&parser.types, copyStringLength(start, length));
+  Type* type = typeTableGet(&typeChecker.types, copyStringLength(start, length));
   if (type == NULL) error("Type '%.*s' does not exist", length, start);
   return type;
 }
@@ -966,14 +960,14 @@ static void call(bool canAssign) {
   // TODO: I don't have the name to use here.
   // TODO TODO TODO: Signatures for functions.
 # if STATIC_TYPING()
-  setType(copyStringLength("Nothing?", 8)); //- REMOVE
-  // parser.expressionType = signature.returnType;
+  typeChecker.expressionType = typeChecker.nothingOptionalType; //- REMOVE
+  // typeChecker.expressionType = signature.returnType;
 # endif
 }
 
 static void callable(bool canAssign) {
   // TODO: Compile-time checking for callables
-  
+
   advance();
   ParseRule* rule = getRule(parser.previous.type);
   if (rule->signatureFn == NULL) {
@@ -999,7 +993,7 @@ static void callable(bool canAssign) {
 
 # if STATIC_TYPING()
   // TODO: Functions...
-  setType(copyStringLength("Function", 8));
+  typeChecker.expressionType = typeChecker.functionType;
 # endif
 
   emitSignatureArg(OP_BIND_METHOD, &signature);
@@ -1017,18 +1011,18 @@ static void dot(bool canAssign) {
     expression();
     emitVariableArg(OP_SET_PROPERTY, name);
 #   if STATIC_TYPING()
-    setType(copyStringLength("Unit", 4));
+    typeChecker.expressionType = typeChecker.unitType;
 #   endif
   } else if (match(TOKEN_LEFT_PAREN)) {
     finishArgumentList(&signature, "Method", TOKEN_RIGHT_PAREN);
 
 #   if STATIC_TYPING()
-    ASSERT(parser.expressionType != NULL, "Type is NULL");
+    ASSERT(typeChecker.expressionType != NULL, "Type is NULL");
 
     Method method;
-    if (!methodTableGet(parser.expressionType->methods, copyStringLength(signature.name, signature.length), &method)) {
-      error("%s does not implement method '%.*s'", parser.expressionType->name->chars, signature.length, signature.name);
-      setType(copyStringLength("Nothing?", 8));
+    if (!methodTableGet(typeChecker.expressionType->methods, copyStringLength(signature.name, signature.length), &method)) {
+      error("%s does not implement method '%.*s'", typeChecker.expressionType->name->chars, signature.length, signature.name);
+      typeChecker.expressionType = typeChecker.nothingOptionalType;
       return;
     }
 
@@ -1046,7 +1040,7 @@ static void dot(bool canAssign) {
       )) {
         error("Signature type mismatch (no method for '%s' exists that can be called with the given arguments)",
               method.name->chars);
-        setType(copyStringLength("Nothing?", 8));
+        typeChecker.expressionType = typeChecker.nothingOptionalType;
         return;
       }
     }
@@ -1054,9 +1048,9 @@ static void dot(bool canAssign) {
     // TODO: Eventually I will want this commented out code instead of the below workaround.
     // ASSERT(newSignature.returnType != NULL, "Signatures can't have a NULL return type");
     if (newSignature.returnType == NULL) {
-      setType(copyStringLength("Nothing?", 8));
+      typeChecker.expressionType = typeChecker.nothingOptionalType;
     } else {
-      parser.expressionType = newSignature.returnType;
+      typeChecker.expressionType = newSignature.returnType;
     }
 #   endif
 
@@ -1076,7 +1070,7 @@ static void super_(bool canAssign) {
   uint8_t instruction;
   if (match(TOKEN_COLON_COLON)) {
 #   if STATIC_TYPING()
-    setType(copyStringLength("Function", 8));
+    typeChecker.expressionType = typeChecker.functionType;
 #   endif
     advance();
     ParseRule* rule = getRule(parser.previous.type);
@@ -1119,14 +1113,14 @@ static void super_(bool canAssign) {
     instruction = OP_SUPER_0 + signature.arity;
 
 #   if STATIC_TYPING()
-    ASSERT(parser.expressionType != NULL, "Type is NULL");
+    ASSERT(typeChecker.expressionType != NULL, "Type is NULL");
 
     // TODO: Classes...
 
     Method signatures;
-    if (!methodTableGet(parser.expressionType->methods, copyStringLength(signature.name, signature.length), &signatures)) {
-      error("Supertype '%s' does not implement method '%.*s'", parser.expressionType->name->chars, signature.length, signature.name);
-      setType(copyStringLength("Nothing?", 8));
+    if (!methodTableGet(typeChecker.expressionType->methods, copyStringLength(signature.name, signature.length), &signatures)) {
+      error("Supertype '%s' does not implement method '%.*s'", typeChecker.expressionType->name->chars, signature.length, signature.name);
+      typeChecker.expressionType = typeChecker.nothingOptionalType;
       return;
     }
 
@@ -1145,9 +1139,9 @@ static void super_(bool canAssign) {
     // TODO: Eventually I will want this commented out code instead of the below workaround.
     // ASSERT(newSignature.returnType != NULL, "Signatures can't have a NULL return type");
     if (newSignature.returnType == NULL) {
-      setType(copyStringLength("Nothing?", 8));
+      typeChecker.expressionType = typeChecker.nothingOptionalType;
     } else {
-      parser.expressionType = newSignature.returnType;
+      typeChecker.expressionType = newSignature.returnType;
     }
 #   endif
   }
@@ -1169,7 +1163,7 @@ static void this_(bool canAssign) {
   // Being tested by the commented out lines down there.
   variable(false);
 // # if STATIC_TYPING()
-//   parser.expressionType = currentClass->type;
+//   typeChecker.expressionType = currentClass->type;
 // # endif
 }
 
@@ -1177,31 +1171,31 @@ static void literal(bool canAssign) {
   switch (parser.previous.type) {
     case TOKEN_TRUE:
 #     if STATIC_TYPING()
-      setType(copyStringLength("Bool", 4));
+      typeChecker.expressionType = typeChecker.boolType;
 #     endif
       emitByte(OP_TRUE);
       break;
     case TOKEN_FALSE:
 #     if STATIC_TYPING()
-      setType(copyStringLength("Bool", 4));
+      typeChecker.expressionType = typeChecker.boolType;
 #     endif
       emitByte(OP_FALSE);
       break;
     case TOKEN_NONE:
 #     if STATIC_TYPING()
-      setType(copyStringLength("Nothing?", 8));
+      typeChecker.expressionType = typeChecker.nothingOptionalType;
 #     endif
       emitByte(OP_NONE);
       break;
     case TOKEN_NUMBER:
 #     if STATIC_TYPING()
-      setType(copyStringLength("Number", 6));
+      typeChecker.expressionType = typeChecker.numberType;
 #     endif
       emitConstant(parser.previous.value);
       break;
     case TOKEN_STRING:
 #     if STATIC_TYPING()
-      setType(copyStringLength("String", 6));
+      typeChecker.expressionType = typeChecker.stringType;
 #     endif
       emitConstant(parser.previous.value);
       break;
@@ -1211,7 +1205,7 @@ static void literal(bool canAssign) {
 
 static void grouping(bool canAssign) {
 # if STATIC_TYPING()
-  parser.expressionType = expression();
+  typeChecker.expressionType = expression();
 # else
   expression();
 # endif
@@ -1239,7 +1233,7 @@ static void or_(bool canAssign) {
   patchJump(jump);
 
 # if STATIC_TYPING()
-  setType(copyStringLength("Object?", 7));
+  typeChecker.expressionType = typeChecker.objectOptionalType;
 # endif
 }
 
@@ -1253,7 +1247,7 @@ static void and_(bool canAssign) {
   patchJump(jump);
 
 # if STATIC_TYPING()
-  setType(copyStringLength("Object?", 7));
+  typeChecker.expressionType = typeChecker.objectOptionalType;
 # endif
 }
 
@@ -1269,7 +1263,7 @@ static void if_(bool canAssign) {
   patchJump(endJump);
 
 # if STATIC_TYPING()
-  setType(copyStringLength("Object?", 7));
+  typeChecker.expressionType = typeChecker.objectOptionalType;
 # endif
 }
 
@@ -1297,26 +1291,24 @@ static void stringInterpolation(bool canAssign) {
   callMethod(1, "joinToString(1)", 15);
 
 # if STATIC_TYPING()
-  setType(copyStringLength("String", 6));
+  typeChecker.expressionType = typeChecker.stringType;
 # endif
 }
 
 static void collection(bool canAssign) {
   if (match(TOKEN_RIGHT_BRACKET)) {
-    ObjString* listString = copyStringLength("List", 4);
 #   if STATIC_TYPING()
-    setType(listString);
+    typeChecker.expressionType = typeChecker.listType;
 #   endif
-    emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(listString));
+    emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyStringLength("List", 4)));
     emitByte(OP_CALL_0);
     return;
   } else if (match(TOKEN_RIGHT_ARROW)) {
     expect(TOKEN_RIGHT_BRACKET, "Expecting ']' to end empty map");
-    ObjString* mapString = copyStringLength("Map", 3);
 #   if STATIC_TYPING()
-    setType(mapString);
+    typeChecker.expressionType = typeChecker.mapType;
 #   endif
-    emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(mapString));
+    emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyStringLength("Map", 3)));
     emitByte(OP_CALL_0);
     return;
   }
@@ -1343,12 +1335,13 @@ static void collection(bool canAssign) {
   bool isMap = match(TOKEN_RIGHT_ARROW);
   bool first = true;
 
-  ObjString* typeString = isMap ? copyStringLength("Map", 3)
-                                : copyStringLength("List", 4);
-# if STATIC_TYPING()
-  setType(typeString);
-# endif
-  emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(typeString));
+  if (isMap) {
+    typeChecker.expressionType = typeChecker.mapType;
+    emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyStringLength("Map", 3)));
+  } else {
+    typeChecker.expressionType = typeChecker.listType;
+    emitConstantArg(OP_GET_GLOBAL, OBJ_VAL(copyStringLength("List", 4)));
+  }
   emitByte(OP_CALL_0);
 
   do {
@@ -1414,12 +1407,12 @@ static void subscript(bool canAssign) {
   }
 
 # if STATIC_TYPING()
-  ASSERT(parser.expressionType != NULL, "Type is NULL");
+  ASSERT(typeChecker.expressionType != NULL, "Type is NULL");
 
   Method signatures;
-  if (!methodTableGet(parser.expressionType->methods, copyStringLength(signature.name, 3), &signatures)) {
-    error("%s is not subscriptable", parser.expressionType->name->chars);
-    setType(copyStringLength("Nothing?", 8));
+  if (!methodTableGet(typeChecker.expressionType->methods, copyStringLength(signature.name, 3), &signatures)) {
+    error("%s is not subscriptable", typeChecker.expressionType->name->chars);
+    typeChecker.expressionType = typeChecker.nothingOptionalType;
     return;
   }
 
@@ -1438,9 +1431,9 @@ static void subscript(bool canAssign) {
   // TODO: Eventually I will want this commented out code instead of the below workaround.
   // ASSERT(newSignature.returnType != NULL, "Signatures can't have a NULL return type");
   if (newSignature.returnType == NULL) {
-    setType(copyStringLength("Nothing?", 8));
+    typeChecker.expressionType = typeChecker.nothingOptionalType;
   } else {
-    parser.expressionType = newSignature.returnType;
+    typeChecker.expressionType = newSignature.returnType;
   }
 # endif
 
@@ -1462,7 +1455,7 @@ static void binary(bool canAssign) {
   }
 
   // TODO MAYBE: Allow users to type things like 0 < x < 20
-  
+
   // ParseRule* next = getRule(parser.current.type);
   // if (next->bp == BP_COMPARISON) {
   //   int jump = emitJump(OP_JUMP_FALSY);
@@ -1603,7 +1596,7 @@ static void expressionBp(BindingPower bp) {
   if (prefixRule == NULL) {
     error("Expecting an expression");
 #   if STATIC_TYPING()
-    return typeTableGet(&parser.types, copyStringLength("Nothing?", 8));
+    return typeTableGet(&typeChecker.types, copyStringLength("Nothing?", 8));
 #   else
     return;
 #   endif
@@ -1624,8 +1617,8 @@ static void expressionBp(BindingPower bp) {
   }
 
 # if STATIC_TYPING()
-  Type* type = parser.expressionType;
-  setType(copyStringLength("Unit", 4));
+  Type* type = typeChecker.expressionType;
+  typeChecker.expressionType = typeChecker.unitType;
   return type;
 # endif
 }
@@ -1739,7 +1732,7 @@ static void lambda(bool canAssign) {
   parser.onExpression = (parser.printResult && current->scopeDepth == 0) || current->type == TYPE_LAMBDA;
 
 # if STATIC_TYPING()
-  setType(copyStringLength("Function", 8));
+  typeChecker.expressionType = typeChecker.functionType;
 # endif
 }
 
@@ -1868,7 +1861,7 @@ static void classDeclaration() {
 
   ClassCompiler classCompiler;
 # if STATIC_TYPING()
-  classCompiler.type = newType(&parser.types, copyStringLength(className.start, className.length));
+  classCompiler.type = newType(&typeChecker.types, copyStringLength(className.start, className.length));
 # endif
   classCompiler.hasInitializer = false;
   classCompiler.enclosing = currentClass;
@@ -2524,10 +2517,11 @@ ObjFunction* compile(const char* source, ObjModule* module, bool printResult) {
   parser.ignoreDedents = 0;
 
 # if STATIC_TYPING()
-  initTable((Table*)&parser.types);
-  initializeCoreTypes(&parser.types);
+  initTable((Table*)&typeChecker.types);
+  initializeCoreTypes(&typeChecker.types, &typeChecker);
 
-  setType(copyStringLength("Unit", 4));
+  typeChecker.expressionType = typeChecker.unitType;
+  printf("unit type: %p\n", typeChecker.expressionType); //- REMOVE
 # endif
 
   initLexer(source);
@@ -2579,7 +2573,7 @@ ObjFunction* compile(const char* source, ObjModule* module, bool printResult) {
 
   freeLexer();
 # if STATIC_TYPING()
-  freeTypeTable(&parser.types);
+  freeTypeTable(&typeChecker.types);
 # endif
   ObjFunction* function = endCompiler();
   return parser.hadError ? NULL : function;

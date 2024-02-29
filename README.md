@@ -1,5 +1,17 @@
-## Flicker
-A little programming language that I've been working on.
+```
+  ______ _ _      _             
+  |  ___| (_)    | |            
+  | |_  | |_  ___| | _____ _ __ 
+  |  _| | | |/ __| |/ / _ \ '__|
+  | |   | | | (__|   <  __/ |   
+  \_|   |_|_|\___|_|\_\___|_|   
+                                
+```
+<br>
+
+![Badge](https://img.shields.io/badge/made%20in%20c-%23f7a265?style=for-the-badge&logo=c&logoColor=%23c75c1e)
+
+Flicker is a little programming language that I've been working on.
 
 Here's [the documentation for it](https://fractioneater.github.io/flicker), although you won't find much there.
 

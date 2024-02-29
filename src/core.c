@@ -10,7 +10,6 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "compiler.h"
 #include "debug.h"
 #include "memory.h"
 #include "native.h"
@@ -1473,12 +1472,14 @@ static ObjString* createOptionalName(const char* typeName, int length) {
   addSupertype(type, supertype);       \
   addSupertype(type##Optional, supertype##Optional)
 
-void initializeCoreTypes(TypeTable* types) {
+void initializeCoreTypes(TypeTable* types, TypeChecker* typeChecker) {
   Type* object = newType(types, copyStringLength("Object", 6));
   Type* objectOptional = newType(types, copyStringLength("Object?", 7));
   addSupertype(object, objectOptional);
+  typeChecker->objectOptionalType = objectOptional;
 
   Type* unit = newType(types, copyStringLength("Unit", 4));
+  typeChecker->unitType = unit;
 
   // Make sure all the pointers are pointing to the same address:
   // printf("%p (returned from newType)\n", objectOptional);
@@ -1488,9 +1489,12 @@ void initializeCoreTypes(TypeTable* types) {
   CREATE_TYPE("Class", class, 5);
 
   CREATE_TYPE("Bool", bool_, 4);
+  typeChecker->boolType = bool_;
   CREATE_TYPE("BoundMethod", boundMethod, 11);
   CREATE_TYPE("Function", function, 8);
+  typeChecker->functionType = function;
   CREATE_TYPE("Number", number, 6);
+  typeChecker->numberType = number;
   CREATE_TYPE("Random", random, 6);
   CREATE_TYPE("Sequence", sequence, 8);
   CREATE_TYPE("MapSequence", mapSequence, 11);
@@ -1503,14 +1507,17 @@ void initializeCoreTypes(TypeTable* types) {
   ADD_SUPERTYPE(filterSequence, sequence);
   CREATE_TYPE("String", string, 6);
   ADD_SUPERTYPE(string, sequence);
+  typeChecker->stringType = string;
   CREATE_TYPE("StringByteSequence", stringByteSequence, 18);
   ADD_SUPERTYPE(stringByteSequence, sequence);
   CREATE_TYPE("StringCodePointSequence", stringCodePointSequence, 23);
   ADD_SUPERTYPE(stringCodePointSequence, sequence);
   CREATE_TYPE("List", list, 4);
   ADD_SUPERTYPE(list, sequence);
+  typeChecker->listType = list;
   CREATE_TYPE("Map", map, 3);
   ADD_SUPERTYPE(map, sequence);
+  typeChecker->mapType = map;
   CREATE_TYPE("MapEntry", mapEntry, 8);
   CREATE_TYPE("MapKeySequence", mapKeySequence, 14);
   ADD_SUPERTYPE(mapKeySequence, sequence);
@@ -1543,16 +1550,16 @@ void initializeCoreTypes(TypeTable* types) {
   ADD_SUPERTYPE(nothing, mapValueSequence);
   ADD_SUPERTYPE(nothing, range);
   ADD_SUPERTYPE(nothing, tuple);
-  ADD_SUPERTYPE(nothing, nothing);
+  typeChecker->nothingOptionalType = nothingOptional;
 
-  unit->methods = (MethodTable*)reallocate(NULL, 0, sizeof(MethodTable));
-  initTable((Table*)unit->methods);
-  Method m;
-  m.isSingle = true;
-  m.name = copyStringLength("randBytes", 9);
-  m.as.one = &(Signature) { "randBytes", 9, -1, NULL, number };
-  printf("return type %p\n", m.as.one->returnType);
-  methodTableAdd(unit->methods, m);
+  unit->methods = (MethodTable*)reallocate(NULL, 0, sizeof(MethodTable)); //- REMOVE
+  initTable((Table*)unit->methods); //- REMOVE
+  Method m; //- REMOVE
+  m.isSingle = true; //- REMOVE
+  m.name = copyStringLength("randBytes", 9); //- REMOVE
+  m.as.one = &(Signature) { "randBytes", 9, -1, NULL, number }; //- REMOVE
+  printf("return type %p\n", m.as.one->returnType); //- REMOVE
+  methodTableAdd(unit->methods, m); //- REMOVE
 }
 
 #endif
