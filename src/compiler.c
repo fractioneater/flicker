@@ -1131,6 +1131,80 @@ static void subscript(bool canAssign) {
   callSignature(signature.arity, &signature);
 }
 
+static bool chainedComparison(ParseRule* rule) {
+  ParseRule* next = getRule(parser.current.type);
+
+  int slotA;
+  int slotB;
+  int slotC;
+  if (rule->bp == next->bp && (rule->bp == BP_COMPARISON || rule->bp == BP_EQUALITY)) {
+    pushScope();
+    
+    addLocal(syntheticToken("`slotA"), true);
+    slotA = current->localCount - 1;
+    addLocal(syntheticToken("`slotB"), true);
+    slotB = current->localCount - 1;
+    addLocal(syntheticToken("`slotC"), true);
+    slotC = current->localCount - 1;
+  } else return false;
+
+  int jumpCount = 0;
+  int jumpCapacity = 0;
+  int* jumps = NULL;
+  while (rule->bp == next->bp && (rule->bp == BP_COMPARISON || rule->bp == BP_EQUALITY)) {
+    // We already have slot C for this.
+    emitBytes(OP_DUP, 0);
+
+    // Switch slots A and B.
+    emitBytes(OP_GET_LOCAL, slotA);
+    emitBytes(OP_SET_LOCAL, slotB);
+    emitByte(OP_POP);
+
+    emitBytes(OP_GET_LOCAL, slotC);
+    emitBytes(OP_SET_LOCAL, slotA);
+    emitByte(OP_POP);
+
+    Signature signature = { rule->name, (int)strlen(rule->name), SIG_METHOD, 1 };
+    callSignature(1, &signature);
+
+    int jump = emitJump(OP_JUMP_FALSY);
+
+    if (jumpCapacity < jumpCount + 1) {
+      jumpCapacity = GROW_CAPACITY(jumpCapacity);
+      jumps = (int*)realloc(jumps, sizeof(int) * jumpCapacity);
+    }
+
+    jumps[jumpCount++] = jump;
+
+    emitByte(OP_POP);
+    advance();
+
+    expressionBp(BP_IS);
+
+    ParseRule* potential = getRule(parser.current.type);
+    if (potential->name == NULL) break;
+    rule = next;
+    next = potential;
+  }
+
+  Signature nextSignature = { next->name, (int)strlen(next->name), SIG_METHOD, 1 };
+  callSignature(1, &nextSignature);
+  
+  int endJump = emitJump(OP_JUMP);
+
+  for (int i = 0; i < jumpCount; i++) {
+    patchJump(jumps[i]);
+  }
+
+  emitBytes(OP_POP, OP_POP);
+  emitByte(OP_FALSE);
+
+  patchJump(endJump);
+  popScope();
+
+  return true;
+}
+
 static void binary(bool canAssign) {
   TokenType operatorType = parser.previous.type;
   ParseRule* rule = getRule(operatorType);
@@ -1145,30 +1219,12 @@ static void binary(bool canAssign) {
     expressionBp((BindingPower)(rule->bp + 1));
   }
 
-  // TODO MAYBE: Allow users to type things like 0 < x < 20
-  
-  // ParseRule* next = getRule(parser.current.type);
-  // if (next->bp == BP_COMPARISON) {
-  //   int jump = emitJump(OP_JUMP_FALSY);
-
-  //   emitByte(OP_POP);
-  //   advance();
-
-  //   expressionBp(BP_AND);
-
-  //   Signature nextSignature = { next->name, (int)strlen(next->name), SIG_METHOD, 1 };
-  //   callSignature(1, &nextSignature);
-
-  //   patchJump(jump);
-  //   return;
-  // }
+  if (chainedComparison(rule)) return;
 
   Signature signature = { rule->name, (int)strlen(rule->name), SIG_METHOD, 1 };
 
   callSignature(1, &signature);
-  if (negate) {
-    callMethod(0, "not()", 5);
-  }
+  if (negate) callMethod(0, "not()", 5);
 }
 
 static void unary(bool canAssign) {
