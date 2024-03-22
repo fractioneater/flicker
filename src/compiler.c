@@ -1430,7 +1430,7 @@ static void lambda(bool canAssign) {
 
   if (match(TOKEN_LEFT_PAREN)) {
     expect(TOKEN_RIGHT_PAREN, "Expecting ')' for empty parameters");
-  } else {
+  } else if (!check(TOKEN_RIGHT_ARROW)) {
     do {
       validateParameterCount("Lambda", ++current->function->arity, false);
 
