@@ -78,7 +78,8 @@ static void blackenObject(Obj* object) {
     case OBJ_BOUND_METHOD: {
       ObjBoundMethod* bound = (ObjBoundMethod*)object;
       markValue(bound->receiver);
-      markObject((Obj*)bound->method);
+      if (bound->isNative) markObject((Obj*)bound->as.native);
+      else markObject((Obj*)bound->as.closure);
       break;
     }
     case OBJ_CLASS: {

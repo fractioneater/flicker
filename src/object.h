@@ -84,6 +84,7 @@ typedef bool (*NativeFn)(Value* args);
 
 typedef struct {
   Obj obj;
+  int arity;
   NativeFn function;
 } ObjNative;
 
@@ -158,10 +159,15 @@ typedef struct {
 typedef struct {
   Obj obj;
   Value receiver;
-  ObjClosure* method;
+  bool isNative;
+  union {
+    ObjClosure* closure;
+    ObjNative* native;
+  } as;
 } ObjBoundMethod;
 
 ObjBoundMethod* newBoundMethod(Value receiver, ObjClosure* method);
+ObjBoundMethod* newBoundNative(Value receiver, ObjNative* method);
 
 ObjClass* newSingleClass(ObjString* name);
 ObjClass* newClass(ObjString* name);
@@ -188,7 +194,7 @@ void mapRemoveKey(ObjMap* map, Value key);
 
 ObjModule* newModule(ObjString* name, bool isCore);
 
-ObjNative* newNative(NativeFn function);
+ObjNative* newNative(NativeFn function, int arity);
 
 ObjPrng* newPrng(uint64_t seed[4]);
 void fillPrngBuffer(ObjPrng* prng);

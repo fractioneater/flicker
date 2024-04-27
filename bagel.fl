@@ -1,6 +1,22 @@
 # Testing absolutely nothing.
 # Sadly, there are no bagels to be found in this file.
 
-print "delay"
-Sys.delay(5125)
-print "done"
+class Vehicle
+  init(+type, +maxSpeed, +mileage)
+    this.currentSpeed = 0
+    this.minutesDriving = 0
+  
+  attribute calculatedMileage = this.mileage +
+    (this.minutesDriving / 60 * this.currentSpeed).floor()
+  
+  setSpeed(speed)
+    this.currentSpeed = speed.min(this.maxSpeed)
+  
+  setTime(minutes)
+    this.minutesDriving = minutes
+
+var car = Vehicle("Toyota", 100, 9235)
+car.setSpeed(40)
+car.setTime(34)
+
+print "type: =(car.type), current mileage: =(car.calculatedMileage)"

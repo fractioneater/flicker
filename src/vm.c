@@ -263,7 +263,17 @@ static bool callValue(Value callee, int argCount) {
       case OBJ_BOUND_METHOD: {
         ObjBoundMethod* bound = AS_BOUND_METHOD(callee);
         vm.stackTop[-argCount - 1] = bound->receiver;
-        return callArity(bound->method, argCount);
+
+        if (bound->isNative) {
+          if (argCount != bound->as.native->arity) {
+            runtimeError("Expected %d argument%s but got %d", bound->as.native->arity,
+                         bound->as.native->arity == 1 ? "" : "s", argCount);
+            return false;
+          } else {
+            return callNative(bound->as.native, argCount);
+          }
+        }
+        else return callArity(bound->as.closure, argCount);
       }
       case OBJ_CLASS: {
         ObjClass* cls = AS_CLASS(callee);
@@ -345,12 +355,15 @@ static bool bindMethod(ObjClass* cls, ObjString* name) {
     return false;
   }
 
+  ObjBoundMethod* bound = NULL;
   if (IS_NATIVE(method)) {
-    runtimeError("Cannot bind native method '%s'", name->chars);
-    return false;
+    bound = newBoundNative(peek(), AS_NATIVE(method));
+  } else {
+    bound = newBoundMethod(peek(), AS_CLOSURE(method));
   }
 
-  ObjBoundMethod* bound = newBoundMethod(peek(), AS_CLOSURE(method));
+  ASSERT(bound != NULL, "A bound method should never be NULL.");
+
   pop();
   push(OBJ_VAL(bound));
   return true;
