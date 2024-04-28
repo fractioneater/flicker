@@ -1,25 +1,12 @@
 # Testing get and set methods with multiple indices.
 # This file also does not contain any bagels.
 
-class Grid
-  init(+width, +height, default)
-    this.list = List.filled(width * height, default)
+val fourToString = 4::toString()
+val listToString = [4]::toString()
 
-  get(i) = this.list[i]
+print fourToString()
+print fourToString.arity
+print listToString()
+print listToString.arity
 
-  set(i, value)
-    this.list[i] = value
-
-  get(x, y) = this.list[y * this.width + x]
-
-  set(x, y, value)
-    this.list[y * this.width + x] = value
-
-var test = Grid(20, 5, 0)
-# print test.list
-test[16, 1] = 1
-test[2, 4] = 2
-test[19, 0] = 3
-test[0, 3] = 4
-test[9, 2] = 5
-print test.list
+print fourToString.receiver + 4

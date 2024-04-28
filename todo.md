@@ -4,10 +4,6 @@ In `initializeCore()`, with `DEBUG_STRESS_GC` enabled, there's an unwanted "free
 
 At least I can use valgrind to help with this.
 
-### TODO: Nullable types don't quite work the way they are
-
-A nullable type (Type?) could have spaces between the name and the question mark. The lexer ignores the spaces, so that will cause the type name to be "Type " unless I manually add the question mark onto the end.
-
 ### TODO: Be nicer to the user
 
 NEXT: Allow linebreaks after equals signs for function returns.

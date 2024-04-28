@@ -135,6 +135,8 @@ static void blackenObject(Obj* object) {
     }
     case OBJ_TUPLE: {
       ObjTuple* tuple = (ObjTuple*)object;
+      // If the tuple is being initialized, it won't have any items, so we break.
+      if (tuple->items == NULL) break;
       for (int i = 0; i < tuple->count; i++) {
         markValue(tuple->items[i]);
       }

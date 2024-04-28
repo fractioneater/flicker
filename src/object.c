@@ -472,8 +472,12 @@ uint32_t stringFind(ObjString* string, ObjString* search, uint32_t start) {
 
 ObjTuple* newTuple(int count) {
   ObjTuple* tuple = ALLOCATE_OBJ(ObjTuple, OBJ_TUPLE, vm.tupleClass);
+  tuple->items = NULL;
+  pushRoot((Obj*)tuple);
+  
   tuple->count = count;
   tuple->items = ALLOCATE(Value, count);
+  popRoot();
   return tuple;
 }
 
