@@ -1,22 +1,35 @@
-# Testing absolutely nothing.
-# Sadly, there are no bagels to be found in this file.
+# Testing a much nicer way of handling initializers (ignore the fact that it was looking
+# me in the face, please).
 
-class Vehicle
-  init(+type, +maxSpeed, +mileage)
-    this.currentSpeed = 0
-    this.minutesDriving = 0
-  
-  attribute calculatedMileage = this.mileage +
-    (this.minutesDriving / 60 * this.currentSpeed).floor()
-  
-  setSpeed(speed)
-    this.currentSpeed = speed.min(this.maxSpeed)
-  
-  setTime(minutes)
-    this.minutesDriving = minutes
+class NoInitializer;
 
-var car = Vehicle("Toyota", 100, 9235)
-car.setSpeed(40)
-car.setTime(34)
+class ZeroArgInitializer
+  init()
+    print "initialized"
 
-print "type: =(car.type), current mileage: =(car.calculatedMileage)"
+class TwoArgInitializer
+  init(a, b)
+    print "=(a + b)"
+
+class MultipleInitializers
+  init()
+    print "initialized with 0 args"
+  
+  init(a)
+    print "initialized with 1 arg"
+  
+  init(a, b)
+    print "initialized with 2 args"
+
+val noInit = NoInitializer()
+
+val zInit = ZeroArgInitializer()
+
+val tInit = TwoArgInitializer(50, 42)
+
+val mInit0 = MultipleInitializers()
+val mInit1 = MultipleInitializers(3)
+val mInit2 = MultipleInitializers(3, True)
+# val mInitX = MultipleInitializers(3, True, ["key" -> 4])
+
+# val sysFake = Sys()

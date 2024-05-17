@@ -1,0 +1,18 @@
+val solution = "patio"
+var guesses = 0
+val valid = Sys.readFile("../downloads/wordle_words.txt") # TODO: get real file name.
+
+while True
+  val guess = Sys.input("guess =(guesses + 1):")
+  if not valid.contains(guess)
+    print "invalid guess"
+    continue
+
+  guesses = guesses + 1
+  each letter in guess.toList()
+    print letter
+
+  if guess = solution
+    print "complete in =(guesses) guesses"
+    break
+

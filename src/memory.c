@@ -90,7 +90,6 @@ static void blackenObject(Obj* object) {
       markObject((Obj*)cls->superclass);
 
       markObject((Obj*)cls->name);
-      markValue(cls->initializer);
       markTable(&cls->methods);
       break;
     }

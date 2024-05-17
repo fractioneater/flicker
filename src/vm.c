@@ -279,24 +279,33 @@ static bool callValue(Value callee, int argCount) {
         ObjClass* cls = AS_CLASS(callee);
         vm.stackTop[-argCount - 1] = OBJ_VAL(newInstance(cls));
 
-        if (cls->initializer == UNDEFINED_VAL) {
-          if (argCount != 0) {
-            runtimeError("Expected 0 arguments but got %d", argCount);
-            return false;
+        if (argCount == 0) {
+          Value initializer;
+          if (tableGet(&cls->obj.cls->methods, copyStringLength("init()", 6), &initializer)) {
+            if (IS_NATIVE(initializer)) return callNative(AS_NATIVE(initializer), argCount);
+            ASSERT(IS_CLOSURE(initializer), "Initializer must be a native function or a closure");
+            return callArity(AS_CLOSURE(initializer), argCount);
           }
+
           return true;
         }
 
-        Value initializer = cls->initializer;
-        if (IS_NATIVE(initializer)) {
-          if (argCount != cls->arity) {
-            runtimeError("Expected %d argument%s but got %d", cls->arity, cls->arity == 1 ? "" : "s", argCount);
-            return false;
-          }
+        Value initializer;
+        
+        // TODO: There's probably a more efficient way to do this.
+        int digits = ceil(log10(argCount + 1));
+        char* name = ALLOCATE(char, 6 + digits);
+        memcpy(name, "init(", 5);
+        sprintf(name + 5, "%d", argCount);
+        name[5 + digits] = ')';
 
-          return callNative(AS_NATIVE(initializer), argCount);
+        if (!tableGet(&cls->obj.cls->methods, takeString(name, 6 + digits), &initializer)) {
+          runtimeError("%s does not have an initializer that accepts %d argument%s",
+                       cls->name->chars, argCount, argCount == 1 ? "" : "s");
+          return false;
         }
-
+        
+        if (IS_NATIVE(initializer)) return callNative(AS_NATIVE(initializer), argCount);
         ASSERT(IS_CLOSURE(initializer), "Initializer must be a native function or a closure");
         return callArity(AS_CLOSURE(initializer), argCount);
       }
@@ -787,11 +796,6 @@ static InterpretResult run() {
         bindSuperclass(new, AS_CLASS(superclass));
 
         push(OBJ_VAL(new));
-        break;
-      }
-      case OP_INITIALIZER: {
-        ObjClass* cls = AS_CLASS(peek2());
-        cls->initializer = pop();
         break;
       }
       case OP_METHOD_INSTANCE:

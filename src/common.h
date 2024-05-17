@@ -111,7 +111,7 @@
 #  define ASSERT(condition, message)                                       \
     do {                                                                   \
       if (!(condition)) {                                                  \
-        fprintf(stderr, "\033[1m%s:%d\033[0m assert failed in %s(): %s\n", \
+        fprintf(stderr, "\033[1m%s:%d:\033[0m assert failed in %s(): %s\n", \
                 __FILE__, __LINE__, __func__, message);                    \
         abort();                                                           \
       }                                                                    \

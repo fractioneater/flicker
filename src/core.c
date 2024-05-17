@@ -1347,7 +1347,7 @@ void initializeCore(VM* vm) {
   NATIVE(vm->numberClass, "truncate()", 0, number_truncate);
 
   GET_CORE_CLASS(vm->randomClass, "Random");
-  NATIVE_INIT(vm->randomClass, random_init, 0);
+  NATIVE(vm->randomClass->obj.cls, "init()", 0, random_init);
   NATIVE(vm->randomClass->obj.cls, "seed(1)", 1, random_seed);
   NATIVE(vm->randomClass, "randBytes(1)", 1, random_randBytes);
 
@@ -1374,7 +1374,7 @@ void initializeCore(VM* vm) {
   NATIVE(vm->stringClass, "toString()", 0, string_toString);
 
   GET_CORE_CLASS(vm->listClass, "List");
-  NATIVE_INIT(vm->listClass, list_init, 0);
+  NATIVE(vm->listClass->obj.cls, "init()", 0, list_init);
   NATIVE(vm->listClass->obj.cls, "filled(2)", 2, list_filled);
   NATIVE(vm->listClass, "get(1)", 1, list_get);
   NATIVE(vm->listClass, "set(2)", 2, list_set);
@@ -1392,7 +1392,7 @@ void initializeCore(VM* vm) {
   NATIVE(vm->listClass, "swap(2)", 2, list_swap);
 
   GET_CORE_CLASS(vm->mapClass, "Map");
-  NATIVE_INIT(vm->mapClass, map_init, 0);
+  NATIVE(vm->mapClass->obj.cls, "init()", 0, map_init);
   NATIVE(vm->mapClass, "get(1)", 1, map_get);
   NATIVE(vm->mapClass, "set(2)", 2, map_set);
   NATIVE(vm->mapClass, "addCore(2)", 2, map_addCore);
@@ -1406,7 +1406,7 @@ void initializeCore(VM* vm) {
   NATIVE(vm->mapClass, "valueIteratorValue(1)", 1, map_valueIteratorValue);
 
   GET_CORE_CLASS(vm->rangeClass, "Range");
-  NATIVE_INIT(vm->rangeClass, range_init, 3);
+  NATIVE(vm->rangeClass->obj.cls, "init(3)", 3, range_init);
   NATIVE(vm->rangeClass, "from", 0, range_from);
   NATIVE(vm->rangeClass, "to", 0, range_to);
   NATIVE(vm->rangeClass, "min", 0, range_min);

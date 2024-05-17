@@ -1,3 +1,43 @@
+### Possibility: `has` checks
+
+NOTE: Before I do any of this, I have to make classes have 'permanent properties.' That might pose a challenge.
+
+The keyword `has` could be used to see if a property exists. Example:
+
+```python
+class Thing
+  var alwaysHere
+  opt mightHave
+
+var inst = Thing()
+print inst.alwaysHere   # Will not error
+print inst.mightHave    # SHOULD always error because of unsafety (you know what, this is exactly why static typing sounds nice)
+if inst has mightHave
+  print inst.mightHave  # Won't error, obviously
+```
+
+When an object is defined, will all of the properties need to be set? Will they need default values? And what about the immutable properties?
+
+New initializer syntax (maybe):
+```python
+class Thing
+  init(val grill, var potato, sluice, val dirigible)
+  # val = immutable property, var = mutable property, nothing = not a property (temporary local)
+```
+It gives me Kotlin vibes. I like it.<br>
+Oh, wait. What about the optional properties? That defeats the purpose.
+
+### Proposal II:
+
+```python
+class Thing
+  init(val grill, var potato, sluice, opt dirigible)
+
+var noDirigible = Thing(4, 2, _)
+var withDirigible = Thing(4, 2, 1)
+```
+I like that better. I'll need to try out a few things in place of the `_` and see how they look. Actually, I might end up just going with the underscore. It's short (only one char), easy to understand, and can't be confused with anything else.
+
 ### TODO IMPORTANT: Fix garbage collector bugs
 
 In `initializeCore()`, with `DEBUG_STRESS_GC` enabled, there's an unwanted "free type 11" that causes a segfault. This is probably one of many issues related to the GC.

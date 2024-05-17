@@ -146,8 +146,6 @@ struct ObjClass {
   Obj obj;
   ObjClass* superclass;
   ObjString* name;
-  Value initializer;
-  uint8_t arity;
   Table methods;
 };
 

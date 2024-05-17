@@ -51,8 +51,6 @@ ObjClass* newSingleClass(ObjString* name) {
   ObjClass* cls = ALLOCATE_OBJ(ObjClass, OBJ_CLASS, NULL);
   cls->name = name;
   cls->superclass = NULL;
-  cls->initializer = UNDEFINED_VAL;
-  cls->arity = 0;
   initTable(&cls->methods);
   return cls;
 }

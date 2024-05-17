@@ -176,7 +176,6 @@ typedef struct Compiler {
 } Compiler;
 
 typedef struct ClassCompiler {
-  bool hasInitializer;
   struct ClassCompiler* enclosing;
 } ClassCompiler;
 
@@ -1482,10 +1481,9 @@ static void method() {
   FunctionType type = isStatic ? TYPE_STATIC_METHOD : TYPE_METHOD;
   if (parser.previous.length == 4 && memcmp(parser.previous.start, "init", 4) == 0) {
     if (isStatic) error("Initializers cannot be static");
-    if (currentClass->hasInitializer) error("Classes can only have one initializer");
+    isStatic = true;
 
     type = TYPE_INITIALIZER;
-    currentClass->hasInitializer = true;
   }
 
   Compiler compiler;
@@ -1499,7 +1497,7 @@ static void method() {
   if (signature.asProperty != NULL) {
     for (int i = 0; i < current->function->arity; i++) {
       if (signature.asProperty[i]) {
-        if (isStatic) {
+        if (isStatic && type != TYPE_INITIALIZER) {
           error("Can only store fields through non-static methods");
           break;
         }
@@ -1535,11 +1533,7 @@ static void method() {
     emitByte(compiler.upvalues[i].index);
   }
 
-  if (type == TYPE_INITIALIZER) {
-    emitByte(OP_INITIALIZER);
-  } else {
-    emitSignatureArg(OP_METHOD_INSTANCE + isStatic, &signature);
-  }
+  emitSignatureArg(OP_METHOD_INSTANCE + isStatic, &signature);
 }
 
 static void classDeclaration() {
@@ -1563,7 +1557,6 @@ static void classDeclaration() {
   defineVariable(nameConstant, false);
 
   ClassCompiler classCompiler;
-  classCompiler.hasInitializer = false;
   classCompiler.enclosing = currentClass;
   currentClass = &classCompiler;
 
