@@ -512,8 +512,12 @@ DEF_NATIVE(number_clamp) {
 DEF_NATIVE(number_gcd) {
   if (!validateNumber(args[1], "Other value")) return false;
 
-  double a = AS_NUMBER(args[0]);
-  double b = AS_NUMBER(args[1]);
+  double a = fabs(AS_NUMBER(args[0]));
+  double b = fabs(AS_NUMBER(args[1]));
+
+  if (b == 0) RETURN_NUMBER(a);
+  if (a == 0) RETURN_NUMBER(b);
+
   while ((a = fmod(a, b))) {
     double temp = b;
     b = a;
@@ -671,7 +675,14 @@ DEF_NATIVE(random_seed) {
   RETURN_OBJ(newPrng(seed));
 }
 
-DEF_NATIVE(random_randBytes) {
+DEF_NATIVE(random_byte) {
+  ObjPrng* prng = AS_PRNG(args[0]);
+  uint8_t buffer[1];
+  fillPrng(prng, buffer, 1);
+  RETURN_NUMBER(buffer[0]);
+}
+
+DEF_NATIVE(random_bytes) {
   ObjPrng* prng = AS_PRNG(args[0]);
   if (!validateInt(args[1], "Byte count")) return false;
 
@@ -1349,7 +1360,8 @@ void initializeCore(VM* vm) {
   GET_CORE_CLASS(vm->randomClass, "Random");
   NATIVE(vm->randomClass->obj.cls, "init()", 0, random_init);
   NATIVE(vm->randomClass->obj.cls, "seed(1)", 1, random_seed);
-  NATIVE(vm->randomClass, "randBytes(1)", 1, random_randBytes);
+  NATIVE(vm->randomClass, "byte()", 0, random_byte);
+  NATIVE(vm->randomClass, "bytes(1)", 1, random_bytes);
 
   GET_CORE_CLASS(vm->stringClass, "String");
   NATIVE(vm->stringClass->obj.cls, "fromCodePoint(1)", 1, string_fromCodePoint);

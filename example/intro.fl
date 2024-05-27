@@ -1,0 +1,97 @@
+# Unlike HTML, which is a declarative language, Flicker is an imperative language.
+# Imperative means a command, like "don't drink alcohol"
+
+# There are two types of things: Expressions and statements.
+# Expressions store a value, and statements tell the computer what to do.
+
+# Expressions:
+
+"string\u2022"                    # string
+94024                             # number
+9 / 3
+[2, 9, 0, 24]                     # list
+["A" -> 65, "B" -> 66, "C" -> 67] # map, keys must be strings
+
+# Statements:
+
+var a = 23
+var b = [-204, -205, -206]
+print "Hello, Bagel!"
+
+# Control Flow (also statements):
+
+if a == 23 do print "yes"
+   #:         #:
+   |          And this is a statement.
+   |
+   This is an expression. ##
+
+each variableThing in b
+  # This code will run for every item in b.
+  print variableThing
+
+# C-style for loop also exists, that's why for-in is now each.
+for var i = 0; i < 4; i = i + 1
+  print i
+
+# ↕ These do the same thing.
+
+var x = 0
+while x < 4
+  print x
+  x = x + 1
+
+# Functions (secretly expressions, but work as statements)
+
+var calls = 0
+fun doStuff()
+  calls = calls + 1
+  print "the function doStuff() was called =(calls) time(s)"
+  return calls.sqrt()
+
+print doStuff()
+doStuff()
+doStuff()
+
+# pretend there are 400+ lines of code here
+
+doStuff()
+
+fun giveANumber(nomnom)
+  if nomnom is not Number do error "I can only eat numbers."
+  return nomnom + 4
+
+val callback = giveANumber
+print callback
+print callback(2)
+
+val alsoEatsNumbers = fun arg -> print arg + 4
+
+alsoEatsNumbers(49)
+
+# Kotlin-like things
+
+b.forEach(fun it -> print "thing with =(it)")
+print b.sumOf(fun it -> it.cbrt())
+print b.reduce(fun prev, next -> prev.lcm(next))
+
+# Classes (OOP)
+
+class Crab
+  # In a class:
+  # - Initializer(s), optional
+  # - Methods, optional
+  # - Fields (automatically stored)
+
+  init(+name)
+    print "A crab has been spawned."
+  
+  walk(+distance)
+    print "The crab =(this.name) walked =(distance) cm."
+
+val tommy = Crab("Tommy")
+val angelica = Crab("Angelica")
+
+tommy.walk(40)
+angelica.walk(24)
+print angelica.distance  # last distance walked

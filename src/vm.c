@@ -291,7 +291,7 @@ static bool callValue(Value callee, int argCount) {
         }
 
         Value initializer;
-        
+
         // TODO: There's probably a more efficient way to do this.
         int digits = ceil(log10(argCount + 1));
         char* name = ALLOCATE(char, 6 + digits);

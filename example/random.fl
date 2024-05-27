@@ -1,0 +1,12 @@
+val numbers = 256 * 1000
+var response = []
+
+val random = Random()
+
+for var i = 0; i < numbers; i = i + 1
+  response.add(random.byte())
+
+for var j = 0; j < 256; j = j + 1
+  var count = response.count(fun it -> it == j)
+  if not count == numbers / 256
+    print "=(j):  =(count - numbers / 256)"

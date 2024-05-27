@@ -13,8 +13,7 @@ class `None`
 class Number
   init()
     error "Number class is not directly callable"
-class Random
-  randByte() = this.randBytes(1)[0]
+class Random;
 
 class Sequence
   init()
