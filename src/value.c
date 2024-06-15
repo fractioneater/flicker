@@ -38,6 +38,8 @@ void printValue(Value value) {
     const char* string = numberToCString(AS_NUMBER(value));
     printf("%s", string);
     FREE_ARRAY(char, (char*)string, strlen(string));
+  } else if (IS_INT(value)) {
+    printf("%d", AS_INT(value));
   } else if (IS_OBJ(value)) {
     printObject(value);
   } else if (IS_UNDEFINED(value)) {

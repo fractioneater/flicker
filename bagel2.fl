@@ -1,12 +1,8 @@
-# Testing get and set methods with multiple indices.
-# This file also does not contain any bagels.
+# Sadly, this file does not contain any bagels.
 
-val fourToString = 4::toString()
-val listToString = [4]::toString()
+var name = "Flicker"
 
-print fourToString()
-print fourToString.arity
-print listToString()
-print listToString.arity
-
-print fourToString.receiver + 4
+print name
+print name[-1..0]
+# -1 is the last index, and 0 is the first, so this is reversing
+# the string (reordering it from last to first)

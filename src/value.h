@@ -25,6 +25,10 @@ static inline uint64_t numToBits(double num) {
 
 #if NAN_TAGGING
 
+// Pointer     QNaN                                             Type bits
+// |           |                                                |
+// 0[NaN      ]1------------------------------------------------[T]
+
 #  define SIGN_BIT ((uint64_t)0x8000000000000000)
 #  define QNAN     ((uint64_t)0x7ffc000000000000)
 
@@ -35,7 +39,7 @@ static inline uint64_t numToBits(double num) {
 #  define TAG_FALSE     (2)
 #  define TAG_TRUE      (3)
 #  define TAG_UNDEFINED (4)
-#  define TAG_UNUSED2   (5)
+#  define TAG_INT       (5)
 #  define TAG_UNUSED3   (6)
 #  define TAG_UNUSED4   (7)
 
@@ -48,9 +52,11 @@ typedef uint64_t Value;
 #  define IS_UNDEFINED(value) ((value) == UNDEFINED_VAL)
 #  define IS_NUMBER(value)    (((value) & QNAN) != QNAN)
 #  define IS_OBJ(value)       (((value) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
+#  define IS_INT(value)       (((value) & (QNAN | TAG_INT)) == (QNAN | TAG_INT))
 
 #  define AS_BOOL(value)      ((value) == TRUE_VAL)
 #  define AS_NUMBER(value)    numFromBits(value)
+#  define AS_INT(value)       ((int32_t)(((uint64_t)(value) & ~(MASK_TAG | QNAN)) >> 3))
 #  define AS_OBJ(value)       ((Obj*)(uintptr_t)((value) & ~(SIGN_BIT | QNAN)))
 
 #  define BOOL_VAL(b)         ((b) ? TRUE_VAL : FALSE_VAL)
@@ -59,7 +65,8 @@ typedef uint64_t Value;
 #  define NONE_VAL            ((Value)(uint64_t)(QNAN | TAG_NONE))
 #  define UNDEFINED_VAL       ((Value)(uint64_t)(QNAN | TAG_UNDEFINED))
 #  define NUMBER_VAL(num)     ((Value)numToBits(num))
-#  define OBJ_VAL(obj)        (Value)(SIGN_BIT | QNAN | (uint64_t)(uintptr_t)(obj))
+#  define INT_VAL(num)        ((Value)((((uint64_t)(uint32_t)(num)) << 3) | QNAN | TAG_INT))
+#  define OBJ_VAL(obj)        ((Value)(SIGN_BIT | QNAN | (uint64_t)(uintptr_t)(obj)))
 
 #else
 

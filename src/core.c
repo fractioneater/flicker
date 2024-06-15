@@ -83,6 +83,20 @@ DEF_NATIVE(function_toString) {
   RETURN_OBJ(stringFormat("<fn #>", function->name));
 }
 
+//////////////////
+// Int          //
+//////////////////
+
+DEF_NATIVE(int_init) {
+  if (!validateInt(args[1], "Number")) return false;
+  double num = AS_NUMBER(args[1]);
+  RETURN_VAL(INT_VAL((int32_t)num));
+}
+
+DEF_NATIVE(int_toString) {
+  RETURN_OBJ(intToString(AS_INT(args[0])));
+}
+
 ///////////////////
 // List          //
 ///////////////////
@@ -1288,13 +1302,13 @@ void initializeCore(VM* vm) {
   NATIVE(vm->boundMethodClass, "receiver", 0, boundMethod_receiver);
   NATIVE(vm->boundMethodClass, "toString()", 0, boundMethod_toString);
 
-  GET_CORE_CLASS(vm->noneClass, "None");
-  NATIVE(vm->noneClass, "not()", 0, none_not);
-  NATIVE(vm->noneClass, "toString()", 0, none_toString);
-
   GET_CORE_CLASS(vm->functionClass, "Function");
   NATIVE(vm->functionClass, "arity", 0, function_arity);
   NATIVE(vm->functionClass, "toString()", 0, function_toString);
+
+  GET_CORE_CLASS(vm->noneClass, "None");
+  NATIVE(vm->noneClass, "not()", 0, none_not);
+  NATIVE(vm->noneClass, "toString()", 0, none_toString);
 
   GET_CORE_CLASS(vm->numberClass, "Number");
   NATIVE(vm->numberClass->obj.cls, "fromString(1)", 1, number_fromString);
@@ -1356,6 +1370,11 @@ void initializeCore(VM* vm) {
   NATIVE(vm->numberClass, "sign", 0, number_sign);
   NATIVE(vm->numberClass, "toString()", 0, number_toString);
   NATIVE(vm->numberClass, "truncate()", 0, number_truncate);
+
+  GET_CORE_CLASS(vm->intClass, "Int");
+  bindSuperclass(vm->intClass, vm->numberClass);
+  NATIVE(vm->intClass->obj.cls, "init(1)", 1, int_init);
+  NATIVE(vm->intClass, "toString()", 0, int_toString);
 
   GET_CORE_CLASS(vm->randomClass, "Random");
   NATIVE(vm->randomClass->obj.cls, "init()", 0, random_init);

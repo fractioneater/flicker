@@ -328,6 +328,14 @@ ObjString* numberToString(double value) {
   return copyStringLength(buffer, length);
 }
 
+ObjString* intToString(int value) {
+  int length = snprintf(NULL, 0, "%d", value);
+  char buffer[length + 1];
+  int dupLength = sprintf(buffer, "%d", value);
+  buffer[length] = '\0';
+  return copyStringLength(buffer, dupLength);
+}
+
 ObjString* stringFromCodePoint(int value) {
   int length = utf8EncodeNumBytes(value);
   ASSERT(length != 0, "Value out of range");

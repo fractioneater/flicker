@@ -22,6 +22,7 @@ typedef struct {
   ObjClass* boolClass;
   ObjClass* boundMethodClass;
   ObjClass* functionClass;
+  ObjClass* intClass;
   ObjClass* listClass;
   ObjClass* mapClass;
   ObjClass* noneClass;
@@ -66,6 +67,7 @@ extern VM vm;
 
 static inline ObjClass* getClass(Value value) {
   if (IS_NUMBER(value)) return vm.numberClass;
+  if (IS_INT(value)) return vm.intClass;
   if (IS_OBJ(value)) return AS_OBJ(value)->cls;
 
 # if NAN_TAGGING

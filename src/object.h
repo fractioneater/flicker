@@ -204,6 +204,7 @@ ObjString* copyStringLength(const char* chars, int length);
 ObjString* copyString(const char* chars);
 const char* numberToCString(double value);
 ObjString* numberToString(double value);
+ObjString* intToString(int value);
 ObjString* stringFromCodePoint(int value);
 ObjString* stringFromByte(uint8_t byte);
 ObjString* stringFromRange(ObjString* string, uint32_t start, uint32_t count, int step);

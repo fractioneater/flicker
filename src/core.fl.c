@@ -15,6 +15,7 @@ static const char* coreSource __attribute__((unused)) =
 "class Number\n"
 "  init()\n"
 "    error \"Number class is not directly callable\"\n"
+"class Int;\n"
 "class Random;\n"
 "\n"
 "class Sequence\n"
