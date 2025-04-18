@@ -55,7 +55,7 @@ class Sequence
   forEach(function)
     each element in this
       function(element)
-  
+
   sumOf(function) = this.reduce(0, fun acc, i = acc + function(i) )
 
   maxOf(function)
@@ -113,14 +113,14 @@ class Sequence
       result = result + item.toString()
 
     return result
-  
+
   joinToString(sep, function)
     var result = ""
 
     each item[index] in this
       if index != 0 do result = result + sep
       result = result + function(item).toString()
-    
+
     return result
 
   toList()
@@ -334,7 +334,7 @@ class List < Sequence
       val p = this.partition(low, high, comparer)
       this.quicksort(low, p - 1, comparer)
       this.quicksort(p + 1, high, comparer)
-  
+
   sum() = this.reduce( fun acc, item = acc + item )
 
   partition(low, high, comparer)
