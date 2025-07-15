@@ -23,10 +23,10 @@
 // possible values to represent things like True, False, None, and objects.
 //
 // There's one other thing, though. There are two types of NaN values, "quiet"
-// and "signalling". Signalling NaNs are supposed to cause an error or stop
+// and "signaling". Signaling NaNs are supposed to cause an error or stop
 // execution, while quiet NaN values mostly don't interfere. We want to use
-// the quiet version, because we don't want to mess up anything. To indicate
-// a quiet NaN, the highest fraction bit it set.
+// the quiet version to avoid messing up anything. To indicate QNaN, the highest
+// fraction bit is set.
 //
 // -[NaN      ]1---------------------------------------------------
 //             ^ Quiet NaN bit
@@ -96,6 +96,7 @@
 
 #define MAX_CONSTANTS 0x7fff
 
+// It's not a good idea to change this. The value is hardcoded in many places.
 #define MAX_PARAMETERS 16
 
 #define MAX_METHOD_NAME 64
